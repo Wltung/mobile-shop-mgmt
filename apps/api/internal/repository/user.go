@@ -95,3 +95,15 @@ func (r *UserRepo) GetByUsernameOrEmail(loginValue string) (*model.User, error) 
 	}
 	return &user, err
 }
+
+func (r *UserRepo) IsSpamming(userID int) (bool, error) {
+	var count int
+	// Kiểm tra xem có record nào của user này được tạo trong 60s vừa qua không
+	// NOW() của MySQL sẽ so sánh với created_at của MySQL -> Cùng múi giờ
+	query := `
+        SELECT count(*) FROM password_resets 
+        WHERE user_id = ? AND created_at > NOW() - INTERVAL 1 MINUTE
+    `
+	err := r.DB.Get(&count, query, userID)
+	return count > 0, err
+}

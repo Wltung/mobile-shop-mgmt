@@ -60,7 +60,7 @@ export const useContactForm = () => {
                 title: 'Gửi yêu cầu thành công!',
                 description:
                     'Bộ phận kỹ thuật sẽ liên hệ lại trong vòng 5 phút.',
-                variant: 'destructive',
+                variant: 'success',
                 className: 'bg-green-600 text-white border-none',
             })
 

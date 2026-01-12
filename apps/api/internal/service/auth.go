@@ -120,6 +120,16 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return errors.New("Email không tồn tại trong hệ thống")
 	}
 
+	// --- RATE LIMITING (CHỐNG SPAM) ---
+	isSpam, err := s.Repo.IsSpamming(user.ID)
+	if err != nil {
+		return err
+	}
+
+	if isSpam {
+		return errors.New("Thao tác quá nhanh. Vui lòng đợi 1 phút trước khi thử lại.")
+	}
+
 	// Tạo Token ngẫu nhiên (32 bytes -> hex string)
 	token, err := s.generateRandomToken(32)
 	if err != nil {
