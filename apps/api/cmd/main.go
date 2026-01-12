@@ -18,7 +18,7 @@ func main() {
 	// 2. Init Auth Module
 	userRepo := repository.NewUserRepo(dbConn)
 	authService := service.NewAuthService(userRepo, cfg)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	// 3. Init Phone Module
 	phoneRepo := repository.NewPhoneRepo(dbConn)

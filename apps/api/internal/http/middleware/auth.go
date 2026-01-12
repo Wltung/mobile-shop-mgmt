@@ -11,25 +11,40 @@ import (
 
 func Auth(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if header == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Thiếu token"})
+		// 1. Ưu tiên lấy token từ Cookie (HttpOnly)
+		tokenString, err := c.Cookie("access_token")
+
+		// 2. Fallback: Nếu không có cookie, thử tìm trong Header (để test Postman hoặc Mobile App sau này)
+		if tokenString == "" {
+			header := c.GetHeader("Authorization")
+			if header != "" {
+				parts := strings.Split(header, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					tokenString = parts[1]
+				}
+			}
+		}
+
+		// 3. Nếu cả 2 nơi đều không có -> Báo lỗi
+		if tokenString == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập (Thiếu token)"})
 			return
 		}
 
-		parts := strings.Split(header, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token sai định dạng"})
-			return
-		}
-
-		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
+		// 4. Parse và Verify Token
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 			return []byte(cfg.JWTSecret), nil
 		})
 
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ hoặc đã hết hạn"})
 			return
+		}
+
+		// (Optional) Lưu claims vào context nếu cần dùng ở handler sau
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			c.Set("userID", claims["sub"])
+			c.Set("role", claims["role"])
 		}
 
 		c.Next()

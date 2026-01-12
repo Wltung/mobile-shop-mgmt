@@ -18,7 +18,9 @@ func NewRouter(
 
 	// 1. Setup CORS (Rất quan trọng cho Next.js gọi sang)
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", cfg.FrontendOrigin)
+		// 2. Bắt buộc phải có dòng này để trình duyệt cho phép gửi Cookie
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if c.Request.Method == "OPTIONS" {
@@ -33,6 +35,10 @@ func NewRouter(
 		// Public Routes
 		api.POST("/register", authHandler.Register)
 		api.POST("/login", authHandler.Login)
+
+		// API Forgot password
+		api.POST("/forgot-password", authHandler.ForgotPassword)
+		api.POST("/reset-password", authHandler.ResetPassword)
 
 		// Protected Routes (Yêu cầu đăng nhập)
 		protected := api.Group("/")

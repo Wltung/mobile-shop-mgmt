@@ -9,13 +9,15 @@ import (
 
 // Config chứa toàn bộ cấu hình của App
 type Config struct {
-	DBUser     string
-	DBPassword string
-	DBHost     string
-	DBPort     string
-	DBName     string
-	JWTSecret  string
-	ServerPort string
+	DBUser         string
+	DBPassword     string
+	DBHost         string
+	DBPort         string
+	DBName         string
+	JWTSecret      string
+	ServerPort     string
+	FrontendOrigin string
+	AppEnv         string
 }
 
 // LoadConfig đọc file .env và nạp vào struct
@@ -27,13 +29,15 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		DBUser:     getEnv("DB_USER", "root"),
-		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "3306"),
-		DBName:     getEnv("DB_NAME", "mobile_shop"),
-		JWTSecret:  getEnv("JWT_SECRET", "secret-mac-dinh-khi-dev"),
-		ServerPort: getEnv("SERVER_PORT", "8080"),
+		DBUser:         getEnv("DB_USER", "root"),
+		DBPassword:     getEnv("DB_PASSWORD", ""),
+		DBHost:         getEnv("DB_HOST", "localhost"),
+		DBPort:         getEnv("DB_PORT", "3306"),
+		DBName:         getEnv("DB_NAME", "mobile_shop"),
+		JWTSecret:      getEnv("JWT_SECRET", "secret-mac-dinh-khi-dev"),
+		ServerPort:     getEnv("SERVER_PORT", "8080"),
+		FrontendOrigin: getEnv("FRONTEND_ORIGIN", "http://localhost:3000"), // Default cho Dev
+		AppEnv:         getEnv("APP_ENV", "development"),
 	}
 }
 

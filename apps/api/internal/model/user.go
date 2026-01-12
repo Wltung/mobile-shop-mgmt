@@ -22,11 +22,31 @@ type RegisterInput struct {
 }
 
 type LoginInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username   string `json:"username" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe bool   `json:"remember_me"`
 }
 
 type AuthResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
+}
+
+// Input cho API /forgot-password
+type ForgotPasswordInput struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// Input cho API /reset-password
+type ResetPasswordInput struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=6"`
+}
+
+// Model map với bảng password_resets
+type PasswordReset struct {
+	ID        int       `db:"id"`
+	UserID    int       `db:"user_id"`
+	Token     string    `db:"token"`
+	ExpiresAt time.Time `db:"expires_at"` // Lưu ý: sqlx đôi khi scan timestamp ra string hoặc time.Time tùy driver
 }
