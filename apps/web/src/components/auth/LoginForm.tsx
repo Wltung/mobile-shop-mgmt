@@ -13,7 +13,8 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form'
-import { useLoginForm } from '@/hooks/useLoginForm' // Import Hook logic
+import Link from 'next/link'
+import { useLoginForm } from '@/hooks/useLoginForm'
 
 export default function LoginForm() {
     // Lấy logic từ Hook
@@ -151,12 +152,12 @@ export default function LoginForm() {
                 <div className="mt-4 flex flex-col items-center gap-4 text-center">
                     <p className="text-sm text-[#617589] dark:text-gray-400">
                         Don't have an account?{' '}
-                        <a
-                            href="#"
+                        <Link
+                            href="/contact"
                             className="font-medium text-primary transition-colors hover:text-primary/80"
                         >
                             Contact Admin
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>
