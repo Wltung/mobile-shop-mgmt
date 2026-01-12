@@ -5,31 +5,26 @@ const http = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true,
 })
 
-// Interceptor: Tự động gắn Token vào mọi request nếu có
-http.interceptors.request.use(
-    (config) => {
-        // Chúng ta sẽ lấy token từ localStorage (hoặc store)
-        const token =
-            typeof window !== 'undefined' ? localStorage.getItem('token') : null
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-    },
-    (error) => Promise.reject(error),
-)
-
-// Interceptor: Xử lý lỗi chung (Ví dụ: Token hết hạn -> Tự logout)
+// Response Interceptor: Chỉ để xử lý khi Token hết hạn (401)
 http.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+        const originalRequest = error.config
+
+        // Nếu lỗi 401
         if (error.response?.status === 401) {
-            // Logic logout sẽ xử lý ở tầng cao hơn hoặc xóa token tại đây
+            // KIỂM TRA QUAN TRỌNG:
+            // Nếu API bị lỗi chính là API login -> Thì không redirect (để yên cho UI hiện lỗi đỏ)
+            if (originalRequest.url && originalRequest.url.includes('/login')) {
+                return Promise.reject(error)
+            }
+
+            // Chỉ redirect khi các API khác bị 401 (nghĩa là hết hạn session thật)
             if (typeof window !== 'undefined') {
-                // localStorage.removeItem('token'); // Tùy chọn: Xóa token nếu lỗi 401
+                window.location.href = '/login'
             }
         }
         return Promise.reject(error)

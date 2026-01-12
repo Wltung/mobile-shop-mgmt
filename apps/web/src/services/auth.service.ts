@@ -67,4 +67,9 @@ export const authService = {
         })
         return response.data
     },
+
+    logout: async () => {
+        // Gọi API để server set cookie max-age = -1
+        await http.post('/logout')
+    },
 }

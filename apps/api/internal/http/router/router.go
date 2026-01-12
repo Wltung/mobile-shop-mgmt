@@ -40,6 +40,8 @@ func NewRouter(
 		api.POST("/forgot-password", authHandler.ForgotPassword)
 		api.POST("/reset-password", authHandler.ResetPassword)
 
+		api.POST("/logout", authHandler.Logout)
+
 		// Protected Routes (Yêu cầu đăng nhập)
 		protected := api.Group("/")
 		protected.Use(middleware.Auth(cfg))

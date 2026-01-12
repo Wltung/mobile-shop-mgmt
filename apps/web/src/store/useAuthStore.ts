@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '@/types/auth'
+import { authService } from '@/services/auth.service'
 
 interface AuthState {
     user: User | null
@@ -9,7 +10,7 @@ interface AuthState {
 
     // Actions
     login: (user: User, token: string) => void
-    logout: () => void
+    logout: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -22,13 +23,21 @@ export const useAuthStore = create<AuthState>()(
             login: (user, token) => {
                 // Lưu vào state
                 set({ user, token, isAuth: true })
-                // Lưu token ra ngoài để Axios interceptor đọc được
-                localStorage.setItem('token', token)
             },
 
-            logout: () => {
-                set({ user: null, token: null, isAuth: false })
-                localStorage.removeItem('token')
+            logout: async () => {
+                try {
+                    // 1. Gọi API để xóa Cookie
+                    await authService.logout()
+                } catch (error) {
+                    console.error('Logout error:', error)
+                    // Vẫn tiếp tục xóa state dù API lỗi để user thoát ra được
+                }
+
+                // 2. Xóa state Client
+                set({ user: null, isAuth: false })
+
+                // 3. Xóa cache của React Query hoặc các state khác nếu có (Optional)
             },
         }),
         {
