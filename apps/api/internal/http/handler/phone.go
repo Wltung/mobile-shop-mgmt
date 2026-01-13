@@ -4,6 +4,7 @@ import (
 	"api/internal/model"
 	"api/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,16 +53,33 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 	}
 	userID := int(userIDFloat.(float64))
 
+	// Lấy page & limit từ URL (Mặc định page=1, limit=10)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
+
 	// 2. Truyền userID vào Service
-	phones, err := h.Service.GetPhones(userID)
+	phones, total, totalValue, err := h.Service.GetPhones(userID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
+	}
+
+	// Tính tổng số trang
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
 	}
 
 	// 3. Trả về
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Lấy dữ liệu thành công",
 		"data":    phones,
+		"meta": gin.H{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": totalPages,
+			"total_value": totalValue,
+		},
 	})
 }

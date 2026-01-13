@@ -24,7 +24,8 @@ func main() {
 
 	// 3. Init Phone Module
 	phoneRepo := repository.NewPhoneRepo(dbConn)
-	phoneService := service.NewPhoneService(phoneRepo)
+	customerRepo := repository.NewCustomerRepo(dbConn)
+	phoneService := service.NewPhoneService(phoneRepo, customerRepo)
 	phoneHandler := handler.NewPhoneHandler(phoneService)
 
 	// 4. Init Router (Giao việc định tuyến cho package router)

@@ -35,6 +35,8 @@ type Phone struct {
 
 	ImportBy     *int   `db:"import_by" json:"import_by"`         // Lưu ID người nhập
 	ImporterName string `db:"importer_name" json:"importer_name"` // Field này để hứng dữ liệu khi JOIN (không có trong bảng phones gốc)
+
+	SourceID *int `db:"source_id" json:"source_id"` // ID người bán (khách hàng)
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)
@@ -45,4 +47,9 @@ type PhoneInput struct {
 	Details       JSONMap `json:"details"` // Frontend gửi JSON object lên
 	PurchasePrice float64 `json:"purchase_price" binding:"required"`
 	Note          string  `json:"note"`
+
+	// --- THÊM MỚI (Nhận từ FE) ---
+	SellerName  string `json:"seller_name"`
+	SellerPhone string `json:"seller_phone"`
+	SellerID    string `json:"seller_id"` // CCCD
 }

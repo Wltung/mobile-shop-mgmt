@@ -17,8 +17,8 @@ func NewPhoneRepo(db *sqlx.DB) *PhoneRepo {
 
 func (r *PhoneRepo) Create(p model.Phone) error {
 	query := `
-		INSERT INTO phones (imei, model_name, details, status, purchase_price, purchase_date, note, import_by)
-		VALUES (:imei, :model_name, :details, :status, :purchase_price, :purchase_date, :note, :import_by)
+		INSERT INTO phones (imei, model_name, details, status, purchase_price, purchase_date, note, import_by, source_id)
+		VALUES (:imei, :model_name, :details, :status, :purchase_price, :purchase_date, :note, :import_by, :source_id)
 	`
 	_, err := r.DB.NamedExec(query, p)
 	return err
@@ -53,20 +53,42 @@ func (r *PhoneRepo) GetAll() ([]model.Phone, error) {
 }
 
 // Sửa tên hàm GetAll -> GetByUserID và thêm tham số userID
-func (r *PhoneRepo) GetByUserID(userID int) ([]model.Phone, error) {
+func (r *PhoneRepo) GetByUserID(userID, page, limit int) ([]model.Phone, int, float64, error) {
 	var phones []model.Phone
+	var total int
+	var totalValue float64
+
+	offset := (page - 1) * limit
+
+	// 1. Lấy danh sách (Có phân trang)
 	query := `
 		SELECT p.*, u.full_name as importer_name 
 		FROM phones p
 		LEFT JOIN users u ON p.import_by = u.id
-		WHERE p.import_by = ?  -- THÊM DÒNG NÀY ĐỂ LỌC THEO USER
+		WHERE p.import_by = ?
 		ORDER BY p.created_at DESC
+		LIMIT ? OFFSET ?
 	`
 
-	// Truyền userID vào query
-	err := r.DB.Select(&phones, query, userID)
+	err := r.DB.Select(&phones, query, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
-	return phones, nil
+
+	// 2. Đếm tổng số bản ghi (Để FE tính số trang)
+	countQuery := `SELECT COUNT(*) FROM phones WHERE import_by = ?`
+	err = r.DB.Get(&total, countQuery, userID)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	// 3. Tính tổng giá trị (Sum)
+	// COALESCE để tránh lỗi NULL nếu kho rỗng
+	sumQuery := `SELECT COALESCE(SUM(purchase_price), 0) FROM phones WHERE import_by = ?`
+	err = r.DB.Get(&totalValue, sumQuery, userID)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	return phones, total, totalValue, nil
 }
