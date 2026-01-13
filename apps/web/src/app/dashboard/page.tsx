@@ -5,208 +5,255 @@ import {
     Bell,
     HelpCircle,
     Search,
-    PlusCircle,
-    QrCode,
-    UserPlus,
     TrendingUp,
-    AlertCircle,
-    Package,
-    DollarSign,
+    Menu,
+    Download,
+    Smartphone,
+    Wrench,
+    ShieldCheck,
+    Home,
+    ShoppingBag,
 } from 'lucide-react'
+import Link from 'next/link'
 
 export default function DashboardPage() {
     const user = useAuthStore((state) => state.user)
 
     return (
         <>
-            {/* Header */}
+            {/* HEADER: Tổng quan Hệ thống */}
             <header className="z-10 flex flex-none items-center justify-between whitespace-nowrap border-b border-slate-200 bg-white px-8 py-4">
                 <div className="flex items-center gap-4 text-[#0f172a]">
-                    <h2 className="text-xl font-bold leading-tight tracking-tight">
-                        Dashboard Overview
+                    <div className="cursor-pointer lg:hidden">
+                        <Menu className="h-6 w-6" />
+                    </div>
+                    <h2 className="text-xl font-bold leading-tight tracking-tight text-[#0f172a]">
+                        Tổng quan Hệ thống
                     </h2>
                 </div>
+
                 <div className="flex flex-1 justify-end gap-6">
                     <div className="flex items-center gap-2">
-                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 transition-colors hover:bg-blue-50 hover:text-blue-600">
+                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-[#0f172a] transition-colors hover:bg-primary/10 hover:text-primary">
                             <Bell className="h-5 w-5" />
                         </button>
-                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 transition-colors hover:bg-blue-50 hover:text-blue-600">
+                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-[#0f172a] transition-colors hover:bg-primary/10 hover:text-primary">
                             <HelpCircle className="h-5 w-5" />
                         </button>
                     </div>
+
                     <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 font-bold text-slate-500">
-                            {/* Avatar giả lập lấy chữ cái đầu */}
-                            {user?.full_name?.charAt(0) || 'A'}
+                        {/* Avatar - Dùng ảnh thật hoặc chữ cái đầu */}
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-slate-200 shadow-sm ring-2 ring-white">
+                            <span className="text-lg font-bold text-slate-500">
+                                {user?.full_name?.charAt(0).toUpperCase() ||
+                                    'A'}
+                            </span>
                         </div>
                         <div className="hidden flex-col md:flex">
                             <span className="text-sm font-bold text-[#0f172a]">
-                                {user?.full_name || 'Admin User'}
+                                {user?.full_name || 'Quản lý cửa hàng'}
                             </span>
-                            <span className="text-xs capitalize text-slate-500">
-                                {user?.role || 'Manager'}
+                            <span className="text-xs capitalize text-muted">
+                                {user?.role === 'admin'
+                                    ? 'Quản trị viên'
+                                    : 'Nhân viên'}
                             </span>
                         </div>
                     </div>
                 </div>
             </header>
 
-            {/* Main Content Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+            {/* MAIN CONTENT */}
+            <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-                    {/* Search Bar */}
+                    {/* SEARCH BAR */}
                     <div className="w-full">
-                        <div className="flex h-14 w-full items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500">
-                            <div className="flex items-center justify-center pl-6 text-slate-400">
-                                <Search className="h-5 w-5" />
+                        <label className="flex w-full flex-col">
+                            <div className="flex h-14 w-full items-stretch overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+                                <div className="flex items-center justify-center pl-6 text-muted">
+                                    <Search className="h-5 w-5" />
+                                </div>
+                                <input
+                                    className="flex h-full w-full min-w-0 flex-1 resize-none overflow-hidden border-none bg-transparent px-4 text-base font-normal leading-normal text-[#0f172a] placeholder:text-muted focus:outline-0"
+                                    placeholder="Tìm kiếm IMEI, tên khách hàng, đời máy..."
+                                />
+                                <div className="flex items-center pr-2">
+                                    <button className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-500/30 transition-colors hover:bg-blue-600">
+                                        Tìm kiếm
+                                    </button>
+                                </div>
                             </div>
-                            <input
-                                className="flex h-full w-full min-w-0 flex-1 border-none bg-transparent px-4 text-base text-[#0f172a] placeholder:text-slate-400 focus:outline-0"
-                                placeholder="Search for orders, products, customers..."
-                            />
-                            <div className="pr-2">
-                                <button className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-600">
-                                    Search
-                                </button>
-                            </div>
-                        </div>
+                        </label>
                     </div>
 
-                    {/* Quick Actions */}
+                    {/* THAO TÁC NHANH (QUICK ACTIONS) */}
                     <section className="flex flex-col gap-4">
-                        <h3 className="text-lg font-bold text-[#0f172a]">
-                            Quick Actions
+                        <h3 className="text-lg font-bold leading-tight text-[#0f172a]">
+                            Thao tác nhanh
                         </h3>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {[
-                                {
-                                    icon: PlusCircle,
-                                    title: 'Create Order',
-                                    desc: 'Process a new customer order',
-                                },
-                                {
-                                    icon: Package,
-                                    title: 'Add Product',
-                                    desc: 'Add new items to inventory',
-                                },
-                                {
-                                    icon: QrCode,
-                                    title: 'Check Stock',
-                                    desc: 'Check availability of items',
-                                },
-                                {
-                                    icon: UserPlus,
-                                    title: 'Add Customer',
-                                    desc: 'Register a new client profile',
-                                },
-                            ].map((item, idx) => (
-                                <button
-                                    key={idx}
-                                    className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
-                                >
-                                    <div className="rounded-full bg-blue-50 p-3 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
-                                        <item.icon className="h-7 w-7" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-base font-bold text-[#0f172a]">
-                                            {item.title}
-                                        </h2>
-                                        <p className="text-sm text-slate-500">
-                                            {item.desc}
-                                        </p>
-                                    </div>
-                                </button>
-                            ))}
+                            {/* Card 1: Nhập máy */}
+                            <Link
+                                href="/dashboard/import"
+                                className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                            >
+                                <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                    <Download className="h-7 w-7" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <h2 className="text-base font-bold leading-tight text-[#0f172a]">
+                                        Nhập máy
+                                    </h2>
+                                    <p className="text-sm font-normal leading-normal text-muted">
+                                        Nhập máy mới vào hệ thống
+                                    </p>
+                                </div>
+                            </Link>
+
+                            {/* Card 2: Bán máy */}
+                            <Link
+                                href="/dashboard/sales"
+                                className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                            >
+                                <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                    <Smartphone className="h-7 w-7" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <h2 className="text-base font-bold leading-tight text-[#0f172a]">
+                                        Bán máy
+                                    </h2>
+                                    <p className="text-sm font-normal leading-normal text-muted">
+                                        Lập đơn bán máy cho khách
+                                    </p>
+                                </div>
+                            </Link>
+
+                            {/* Card 3: Sửa máy */}
+                            <Link
+                                href="/dashboard/repairs"
+                                className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                            >
+                                <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                    <Wrench className="h-7 w-7" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <h2 className="text-base font-bold leading-tight text-[#0f172a]">
+                                        Sửa máy
+                                    </h2>
+                                    <p className="text-sm font-normal leading-normal text-muted">
+                                        Quản lý máy sửa chữa
+                                    </p>
+                                </div>
+                            </Link>
+
+                            {/* Card 4: Bảo hành */}
+                            <Link
+                                href="/dashboard/warranty"
+                                className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+                            >
+                                <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                                    <ShieldCheck className="h-7 w-7" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <h2 className="text-base font-bold leading-tight text-[#0f172a]">
+                                        Bảo hành
+                                    </h2>
+                                    <p className="text-sm font-normal leading-normal text-muted">
+                                        Tra cứu phiếu bảo hành
+                                    </p>
+                                </div>
+                            </Link>
                         </div>
                     </section>
 
-                    {/* Performance Stats (Tĩnh - Vô hồn như yêu cầu) */}
+                    {/* HIỆU SUẤT KINH DOANH (STATS) */}
                     <section className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-[#0f172a]">
-                                Performance Overview
+                            <h3 className="text-lg font-bold leading-tight text-[#0f172a]">
+                                Hiệu suất kinh doanh
                             </h3>
-                            <button className="text-sm font-bold text-blue-500 hover:underline">
-                                View All Reports
+                            <button className="text-sm font-bold text-primary hover:underline">
+                                Xem tất cả báo cáo
                             </button>
                         </div>
+
                         <div className="flex flex-wrap gap-4">
-                            {/* Stat 1 */}
-                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                            {/* Stat 1: Doanh thu */}
+                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
                                 <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-500">
-                                            Today's Revenue
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-sm font-medium leading-normal text-muted">
+                                            Doanh thu hôm nay
                                         </p>
-                                        <p className="text-3xl font-bold text-[#0f172a]">
-                                            $1,240.50
+                                        <p className="text-3xl font-bold leading-tight tracking-tight text-[#0f172a]">
+                                            1.240.500 ₫
                                         </p>
                                     </div>
-                                    <div className="rounded-lg bg-slate-50 p-2 text-slate-400">
-                                        <DollarSign className="h-6 w-6" />
-                                    </div>
+                                    <span className="rounded-lg bg-slate-100 p-2 text-slate-500">
+                                        <Smartphone className="h-6 w-6" />
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="flex items-center rounded bg-green-50 px-2 py-0.5 text-xs font-bold text-green-700">
-                                        <TrendingUp className="mr-1 h-3 w-3" />{' '}
+                                    <span className="flex items-center rounded bg-[#078838]/10 px-2 py-0.5 text-xs font-bold text-[#078838]">
+                                        <TrendingUp className="mr-0.5 h-4 w-4" />{' '}
                                         12%
                                     </span>
-                                    <p className="text-xs text-slate-500">
-                                        vs yesterday
+                                    <p className="text-xs font-medium leading-normal text-muted">
+                                        so với hôm qua
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Stat 2 */}
-                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                            {/* Stat 2: Số lượng sửa */}
+                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
                                 <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-500">
-                                            Pending Orders
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-sm font-medium leading-normal text-muted">
+                                            Số lượng máy sửa
                                         </p>
-                                        <p className="text-3xl font-bold text-[#0f172a]">
+                                        <p className="text-3xl font-bold leading-tight tracking-tight text-[#0f172a]">
                                             8
                                         </p>
                                     </div>
-                                    <div className="rounded-lg bg-slate-50 p-2 text-slate-400">
-                                        <AlertCircle className="h-6 w-6" />
-                                    </div>
+                                    <span className="rounded-lg bg-slate-100 p-2 text-slate-500">
+                                        <Home className="h-6 w-6" />
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="flex items-center rounded bg-orange-50 px-2 py-0.5 text-xs font-bold text-orange-600">
-                                        Needs attention
+                                    <span className="flex items-center rounded bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-600">
+                                        Hôm nay
                                     </span>
-                                    <p className="text-xs text-slate-500">
-                                        Shipment pending
+                                    <p className="text-xs font-medium leading-normal text-muted">
+                                        Trong ngày
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Stat 3 */}
-                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                            {/* Stat 3: Số lượng bán */}
+                            <div className="flex min-w-[200px] flex-1 flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
                                 <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-500">
-                                            Low Stock Alerts
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-sm font-medium leading-normal text-muted">
+                                            Số lượng máy bán
                                         </p>
-                                        <p className="text-3xl font-bold text-[#0f172a]">
+                                        <p className="text-3xl font-bold leading-tight tracking-tight text-[#0f172a]">
                                             3{' '}
-                                            <span className="text-base font-normal text-slate-400">
-                                                items
+                                            <span className="text-base font-normal text-slate-500">
+                                                máy
                                             </span>
                                         </p>
                                     </div>
-                                    <div className="rounded-lg bg-slate-50 p-2 text-slate-400">
-                                        <Package className="h-6 w-6" />
-                                    </div>
+                                    <span className="rounded-lg bg-slate-100 p-2 text-slate-500">
+                                        <ShoppingBag className="h-6 w-6" />
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="flex items-center rounded bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">
-                                        Critical
+                                    <span className="flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-600">
+                                        Trong tuần
                                     </span>
-                                    <p className="text-xs text-slate-500">
-                                        Restock soon
+                                    <p className="text-xs font-medium leading-normal text-muted">
+                                        Đã hoàn thành
                                     </p>
                                 </div>
                             </div>

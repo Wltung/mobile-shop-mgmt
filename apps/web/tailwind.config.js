@@ -19,7 +19,7 @@ module.exports = {
                 foreground: 'hsl(var(--foreground))',
                 // Thêm màu từ thiết kế Stitch
                 primary: {
-                    DEFAULT: '#137fec', // Màu xanh chủ đạo
+                    DEFAULT: '#3b82f6', // Màu xanh chủ đạo
                     foreground: 'hsl(var(--primary-foreground))',
                 },
                 secondary: {
@@ -29,10 +29,6 @@ module.exports = {
                 destructive: {
                     DEFAULT: 'hsl(var(--destructive))',
                     foreground: 'hsl(var(--destructive-foreground))',
-                },
-                muted: {
-                    DEFAULT: 'hsl(var(--muted))',
-                    foreground: 'hsl(var(--muted-foreground))',
                 },
                 accent: {
                     DEFAULT: 'hsl(var(--accent))',
@@ -46,6 +42,14 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
+                sidebar: {
+                    DEFAULT: '#0f172a', // Deep Blue
+                    hover: '#1e293b', // Lighter Blue for hover
+                },
+                surface: {
+                    light: '#ffffff',
+                },
+                muted: '#64748b', // Text muted
             },
             fontFamily: {
                 display: ['Inter', 'sans-serif'], // Font từ thiết kế

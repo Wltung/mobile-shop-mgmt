@@ -1,27 +1,27 @@
 package service
 
 import (
-	"api/internal/config"
+	"api/internal/auth"
 	"api/internal/model"
 	"api/internal/repository"
+
 	"errors"
+	"fmt"
 	"time"
 
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
-
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	Repo   *repository.UserRepo
-	Config *config.Config
+	Repo         *repository.UserRepo
+	TokenManager *auth.TokenManager
 }
 
-func NewAuthService(repo *repository.UserRepo, cfg *config.Config) *AuthService {
-	return &AuthService{Repo: repo, Config: cfg}
+func NewAuthService(repo *repository.UserRepo, tokenMgr *auth.TokenManager) *AuthService {
+	return &AuthService{
+		Repo:         repo,
+		TokenManager: tokenMgr,
+	}
 }
 
 func (s *AuthService) Register(input model.RegisterInput) error {
@@ -87,24 +87,13 @@ func (s *AuthService) Login(input model.LoginInput) (string, *model.User, error)
 		tokenDuration = time.Hour * 24 * 7 // Nếu chọn Remember Me -> 7 ngày
 	}
 
-	// Tạo Token
-	token, err := s.generateJWT(user, tokenDuration)
+	// Gọi TokenManager để tạo JWT
+	token, err := s.TokenManager.GenerateJWT(user.ID, user.Role, tokenDuration)
 	if err != nil {
 		return "", nil, err
 	}
 
 	return token, user, nil
-}
-
-func (s *AuthService) generateJWT(u *model.User, duration time.Duration) (string, error) {
-	claims := jwt.MapClaims{
-		"sub":  u.ID,
-		"role": u.Role,
-		// Sử dụng tham số duration được truyền vào thay vì fix cứng 24h
-		"exp": time.Now().Add(duration).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.Config.JWTSecret))
 }
 
 // Xử lý yêu cầu quên mật khẩu
@@ -130,8 +119,8 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return errors.New("Thao tác quá nhanh. Vui lòng đợi 1 phút trước khi thử lại.")
 	}
 
-	// Tạo Token ngẫu nhiên (32 bytes -> hex string)
-	token, err := s.generateRandomToken(32)
+	// Gọi TokenManager để tạo Random Token
+	token, err := s.TokenManager.GenerateRandomToken(32)
 	if err != nil {
 		return err
 	}
@@ -184,13 +173,4 @@ func (s *AuthService) ResetPassword(input model.ResetPasswordInput) error {
 
 	// Xóa token cũ để không dùng lại được nữa
 	return s.Repo.DeleteResetTokens(user.ID)
-}
-
-// Hàm phụ: Sinh chuỗi ngẫu nhiên
-func (s *AuthService) generateRandomToken(length int) (string, error) {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
 }

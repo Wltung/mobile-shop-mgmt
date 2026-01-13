@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/auth"
 	"api/internal/config" // 1. Import config
 	"api/internal/db"     // 2. Import db
 	"api/internal/http/handler"
@@ -16,9 +17,10 @@ func main() {
 	dbConn := db.Connect(cfg)
 
 	// 2. Init Auth Module
-	userRepo := repository.NewUserRepo(dbConn)
-	authService := service.NewAuthService(userRepo, cfg)
-	authHandler := handler.NewAuthHandler(authService, cfg)
+	tokenManager := auth.NewTokenManager(cfg.JWTSecret)           // Khởi tạo TokenManager
+	userRepo := repository.NewUserRepo(dbConn)                    // Khởi tạo UserRepo
+	authService := service.NewAuthService(userRepo, tokenManager) // Khởi tạo AuthService
+	authHandler := handler.NewAuthHandler(authService, cfg)       // Khởi tạo AuthHandler
 
 	// 3. Init Phone Module
 	phoneRepo := repository.NewPhoneRepo(dbConn)
