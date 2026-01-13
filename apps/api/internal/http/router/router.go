@@ -46,8 +46,10 @@ func NewRouter(
 		protected := api.Group("/")
 		protected.Use(middleware.Auth(cfg))
 		{
+			// Route nhập máy
 			protected.POST("/phones", phoneHandler.CreatePhone)
-			// Sau này thêm các route cần bảo vệ vào đây
+			// Route lấy danh sách
+			protected.GET("/phones", phoneHandler.GetPhones)
 		}
 	}
 

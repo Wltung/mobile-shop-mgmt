@@ -32,6 +32,9 @@ type Phone struct {
 
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+
+	ImportBy     *int   `db:"import_by" json:"import_by"`         // Lưu ID người nhập
+	ImporterName string `db:"importer_name" json:"importer_name"` // Field này để hứng dữ liệu khi JOIN (không có trong bảng phones gốc)
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)
