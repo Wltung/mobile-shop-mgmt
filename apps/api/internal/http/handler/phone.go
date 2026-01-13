@@ -16,9 +16,10 @@ func NewPhoneHandler(s *service.PhoneService) *PhoneHandler {
 	return &PhoneHandler{Service: s}
 }
 
-// CreatePhone godoc
+// POST /api/phones
 func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 	var input model.PhoneInput
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
