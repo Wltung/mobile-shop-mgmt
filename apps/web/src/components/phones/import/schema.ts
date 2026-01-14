@@ -10,7 +10,7 @@ export const importSchema = z.object({
     status: z.enum(['IN_STOCK', 'REPAIRING', 'SOLD']),
 
     // Xử lý giá tiền: Chuyển string sang number, chặn số âm
-    purchase_price: z.float64().min(0, 'Giá không hợp lệ'),
+    purchase_price: z.number().min(0, 'Giá không hợp lệ'),
 
     import_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
         message: 'Ngày nhập không hợp lệ',
@@ -29,6 +29,8 @@ export const importSchema = z.object({
 
     // --- GHI CHÚ ---
     note: z.string().optional(),
+    // toggle tạo hóa đơn
+    create_invoice: z.boolean(),
 })
 
 // Xuất type ra để Form dùng
@@ -47,5 +49,6 @@ export const defaultImportValues: ImportFormValues = {
     storage: '',
     appearance: '',
     note: '',
-    battery: undefined,
+    battery: '',
+    create_invoice: true,
 }

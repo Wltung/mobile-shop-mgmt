@@ -14,6 +14,12 @@ export interface Phone {
     details?: Record<string, any> // JSON dynamic
 }
 
+export interface CreatePhoneResponse {
+    message: string
+    phone_id: number
+    source_id: number | null
+}
+
 export interface PhoneListResponse {
     message: string
     data: Phone[]

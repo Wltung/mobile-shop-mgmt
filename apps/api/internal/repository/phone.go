@@ -15,13 +15,18 @@ func NewPhoneRepo(db *sqlx.DB) *PhoneRepo {
 	return &PhoneRepo{DB: db}
 }
 
-func (r *PhoneRepo) Create(p model.Phone) error {
+func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	query := `
 		INSERT INTO phones (imei, model_name, details, status, purchase_price, purchase_date, note, import_by, source_id)
 		VALUES (:imei, :model_name, :details, :status, :purchase_price, :purchase_date, :note, :import_by, :source_id)
 	`
-	_, err := r.DB.NamedExec(query, p)
-	return err
+	res, err := r.DB.NamedExec(query, p)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := res.LastInsertId()
+	return int(id), err
 }
 
 func (r *PhoneRepo) GetByIMEI(imei string) (*model.Phone, error) {

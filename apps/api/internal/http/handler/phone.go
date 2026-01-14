@@ -35,12 +35,17 @@ func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 	userID := int(userIDFloat.(float64)) // Ép kiểu về int
 
 	// Truyền userID vào Service
-	if err := h.Service.ImportPhone(input, userID); err != nil {
+	phoneID, sourceID, err := h.Service.ImportPhone(input, userID)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Nhập kho thành công"})
+	c.JSON(http.StatusCreated, gin.H{
+		"message":   "Nhập kho thành công",
+		"phone_id":  phoneID,
+		"source_id": sourceID, // Trả về ID khách để FE tạo hóa đơn
+	})
 }
 
 // GET /api/phones

@@ -44,6 +44,7 @@ type Phone struct {
 type PhoneInput struct {
 	IMEI          string  `json:"imei" binding:"required"`
 	ModelName     string  `json:"model_name" binding:"required"`
+	Status        string  `json:"status"`
 	Details       JSONMap `json:"details"` // Frontend gửi JSON object lên
 	PurchasePrice float64 `json:"purchase_price" binding:"required"`
 	Note          string  `json:"note"`

@@ -19,16 +19,16 @@ func NewPhoneService(repo *repository.PhoneRepo, custRepo *repository.CustomerRe
 	}
 }
 
-func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) error {
+func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *int, error) {
 	// 1. Business Logic: Kiểm tra xem IMEI đã tồn tại chưa
 	exists, err := s.Repo.GetByIMEI(input.IMEI)
 
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 
 	if exists != nil {
-		return errors.New("IMEI này đã tồn tại")
+		return 0, nil, errors.New("IMEI này đã tồn tại")
 	}
 
 	var sourceID *int = nil
@@ -39,7 +39,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) error {
 		// Tìm khách cũ
 		cust, err := s.CustomerRepo.GetByPhoneOrIdentity(input.SellerPhone, input.SellerID)
 		if err != nil {
-			return err
+			return 0, nil, err
 		}
 
 		if cust != nil {
@@ -68,7 +68,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) error {
 				IDNumber: idPtr,
 			})
 			if err != nil {
-				return err
+				return 0, nil, err
 			}
 
 			// Ép kiểu int về *int
@@ -82,21 +82,31 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) error {
 
 	importBy := userID
 
+	status := input.Status
+	if status == "" {
+		status = "IN_STOCK"
+	}
+
 	// 2. Map dữ liệu từ Input sang Model
 	phone := model.Phone{
 		IMEI:          input.IMEI,
 		ModelName:     input.ModelName,
 		Details:       input.Details,
 		PurchasePrice: input.PurchasePrice,
-		Status:        "IN_STOCK",
+		Status:        status,
 		PurchaseDate:  &now,
 		Note:          &input.Note,
 		ImportBy:      &importBy,
 		SourceID:      sourceID,
 	}
 
+	newPhoneID, err := s.Repo.Create(phone)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	// 3. Gọi Repo để lưu
-	return s.Repo.Create(phone)
+	return newPhoneID, sourceID, nil
 }
 
 // Nhận userID từ Handler

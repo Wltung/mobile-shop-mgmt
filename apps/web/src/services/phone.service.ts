@@ -1,6 +1,6 @@
 // apps/web/src/services/phone.service.ts
 import http from '@/lib/http'
-import { Phone, PhoneListResponse } from '@/types/phone'
+import { Phone, PhoneListResponse, CreatePhoneResponse } from '@/types/phone'
 
 export const phoneService = {
     // Lấy danh sách điện thoại
@@ -12,6 +12,7 @@ export const phoneService = {
     },
 
     create: async (data: any) => {
-        return await http.post('/phones', data)
+        const response = await http.post<CreatePhoneResponse>('/phones', data)
+        return response.data
     },
 }

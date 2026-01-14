@@ -1,0 +1,66 @@
+package model
+
+import "time"
+
+// Enum cho Type và Status
+const (
+	InvoiceTypeImport = "IMPORT"
+	InvoiceTypeSale   = "SALE"
+	InvoiceTypeRepair = "REPAIR"
+
+	InvoiceStatusDraft     = "DRAFT"
+	InvoiceStatusPaid      = "PAID"
+	InvoiceStatusCancelled = "CANCELLED"
+
+	ItemTypePhone   = "PHONE"
+	ItemTypePart    = "PART"
+	ItemTypeService = "SERVICE"
+)
+
+// 1. Entity map với Database
+type Invoice struct {
+	ID          int       `db:"id" json:"id"`
+	Type        string    `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
+	Status      string    `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
+	CustomerID  *int      `db:"customer_id" json:"customer_id"`
+	TotalAmount float64   `db:"total_amount" json:"total_amount"`
+	CreatedBy   int       `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	Note        string    `db:"note" json:"note"`
+
+	// Fields hiển thị (JOIN)
+	CustomerName string        `db:"customer_name" json:"customer_name,omitempty"`
+	CreatorName  string        `db:"creator_name" json:"creator_name,omitempty"`
+	Items        []InvoiceItem `json:"items,omitempty"` // Để load chi tiết
+}
+
+type InvoiceItem struct {
+	ID             int        `db:"id" json:"id"`
+	InvoiceID      int        `db:"invoice_id" json:"invoice_id"`
+	ItemType       string     `db:"item_type" json:"item_type"` // PHONE, PART, SERVICE
+	PhoneID        *int       `db:"phone_id" json:"phone_id"`
+	Description    string     `db:"description" json:"description"`
+	Quantity       int        `db:"quantity" json:"quantity"`
+	UnitPrice      float64    `db:"unit_price" json:"unit_price"`
+	Amount         float64    `db:"amount" json:"amount"`
+	WarrantyMonths int        `db:"warranty_months" json:"warranty_months"`
+	WarrantyExpiry *time.Time `db:"warranty_expiry" json:"warranty_expiry"`
+}
+
+// 2. Input DTO (Dữ liệu FE gửi lên để tạo hóa đơn)
+type CreateInvoiceInput struct {
+	Type       string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
+	Status     string            `json:"status"` // Default PAID
+	CustomerID *int              `json:"customer_id"`
+	Note       string            `json:"note"`
+	Items      []CreateItemInput `json:"items" binding:"required,min=1"`
+}
+
+type CreateItemInput struct {
+	ItemType       string  `json:"item_type" binding:"required,oneof=PHONE PART SERVICE"`
+	PhoneID        *int    `json:"phone_id"` // Bắt buộc nếu ItemType là PHONE
+	Description    string  `json:"description"`
+	Quantity       int     `json:"quantity" binding:"min=1"`
+	UnitPrice      float64 `json:"unit_price" binding:"min=0"`
+	WarrantyMonths int     `json:"warranty_months"`
+}

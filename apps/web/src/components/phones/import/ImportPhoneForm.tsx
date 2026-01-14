@@ -27,6 +27,7 @@ import {
 import { importSchema, ImportFormValues, defaultImportValues } from './schema'
 import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
+import { invoiceService } from '@/services/invoice.service'
 
 interface Props {
     onSuccess: () => void
@@ -64,13 +65,44 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                 },
             }
 
-            await phoneService.create(payload)
+            // 2. Gọi API Phone -> Nhận về ID
+            const res = await phoneService.create(payload)
 
-            toast({
-                variant: 'success',
-                title: 'Thành công',
-                description: 'Đã nhập máy vào kho',
-            })
+            // 3. Nếu bật Toggle -> Gọi API Invoice
+            if (values.create_invoice) {
+                // Nếu BE trả về source_id null (không có người bán), có thể dùng ID khách lẻ hoặc báo lỗi tùy logic
+                const customerId = res.source_id 
+
+                await invoiceService.create({
+                    type: 'IMPORT',
+                    status: 'PAID',
+                    customer_id: customerId, 
+                    note: `Phiếu nhập kho cho ${values.model_name} (IMEI: ${values.imei})`,
+                    items: [
+                        {
+                            item_type: 'PHONE',
+                            phone_id: res.phone_id,
+                            description: values.model_name,
+                            quantity: 1,
+                            unit_price: values.purchase_price,
+                            warranty_months: 0,
+                        },
+                    ],
+                })
+                
+                toast({
+                    variant: 'default',
+                    title: 'Thành công',
+                    description: 'Đã nhập máy và tạo hóa đơn thanh toán.',
+                })
+            } else {
+                toast({
+                    variant: 'default',
+                    title: 'Thành công',
+                    description: 'Đã nhập máy vào kho (Không tạo hóa đơn).',
+                })
+            }
+
             onSuccess()
         } catch (error: any) {
             toast({
@@ -386,8 +418,8 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                                         type="number"
                                                         placeholder="100"
                                                         {...field}
-                                                        value={
-                                                            field.value ?? ''
+                                                        value={field.value ?? ''} 
+                                                            onChange={(e) => field.onChange(e.target.value)
                                                         }
                                                         className="bg-white"
                                                     />
@@ -453,6 +485,32 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                             rows={3}
                                             {...field}
                                         />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+
+                    {/* CẬP NHẬT: Toggle Tạo Hóa Đơn */}
+                    <div className="mt-6">
+                        <FormField
+                            control={form.control}
+                            name="create_invoice"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-lg border bg-slate-50 p-4">
+                                    <FormControl>
+                                        <label className="relative inline-flex cursor-pointer items-center group">
+                                            <input
+                                                type="checkbox"
+                                                className="peer sr-only"
+                                                checked={field.value}
+                                                onChange={field.onChange}
+                                            />
+                                            <div className="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sidebar peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sidebar/20"></div>
+                                            <span className="ml-3 text-sm font-semibold text-slate-700 transition-colors group-hover:text-sidebar">
+                                                Tạo hoá đơn nhập hàng
+                                            </span>
+                                        </label>
                                     </FormControl>
                                 </FormItem>
                             )}

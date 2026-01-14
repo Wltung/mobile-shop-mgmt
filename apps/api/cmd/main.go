@@ -11,26 +11,33 @@ import (
 )
 
 func main() {
-	// 1. Load Config & DB
+	// Load Config & DB
 	cfg := config.LoadConfig()
 	db.RunMigrations(cfg)
 	dbConn := db.Connect(cfg)
 
-	// 2. Init Auth Module
-	tokenManager := auth.NewTokenManager(cfg.JWTSecret)           // Khởi tạo TokenManager
-	userRepo := repository.NewUserRepo(dbConn)                    // Khởi tạo UserRepo
-	authService := service.NewAuthService(userRepo, tokenManager) // Khởi tạo AuthService
-	authHandler := handler.NewAuthHandler(authService, cfg)       // Khởi tạo AuthHandler
+	// Khởi tạo TokenManager
+	tokenManager := auth.NewTokenManager(cfg.JWTSecret)
 
-	// 3. Init Phone Module
+	// Repository
+	userRepo := repository.NewUserRepo(dbConn)
 	phoneRepo := repository.NewPhoneRepo(dbConn)
 	customerRepo := repository.NewCustomerRepo(dbConn)
+	invoiceRepo := repository.NewInvoiceRepo(dbConn)
+
+	// Service
 	phoneService := service.NewPhoneService(phoneRepo, customerRepo)
+	authService := service.NewAuthService(userRepo, tokenManager)
+	invoiceService := service.NewInvoiceService(invoiceRepo)
+
+	// Handler
+	authHandler := handler.NewAuthHandler(authService, cfg)
 	phoneHandler := handler.NewPhoneHandler(phoneService)
+	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
 
-	// 4. Init Router (Giao việc định tuyến cho package router)
-	r := router.NewRouter(cfg, authHandler, phoneHandler)
+	// Init Router (Giao việc định tuyến cho package router)
+	r := router.NewRouter(cfg, authHandler, phoneHandler, invoiceHandler)
 
-	// 5. Start Server
+	// Start Server
 	r.Run(":" + cfg.ServerPort)
 }

@@ -13,6 +13,7 @@ func NewRouter(
 	cfg *config.Config,
 	authHandler *handler.AuthHandler,
 	phoneHandler *handler.PhoneHandler,
+	invoiceHandler *handler.InvoiceHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -40,16 +41,19 @@ func NewRouter(
 		api.POST("/forgot-password", authHandler.ForgotPassword)
 		api.POST("/reset-password", authHandler.ResetPassword)
 
+		// API Logout
 		api.POST("/logout", authHandler.Logout)
 
 		// Protected Routes (Yêu cầu đăng nhập)
 		protected := api.Group("/")
 		protected.Use(middleware.Auth(cfg))
 		{
-			// Route nhập máy
+			// Phone Routes
 			protected.POST("/phones", phoneHandler.CreatePhone)
-			// Route lấy danh sách
 			protected.GET("/phones", phoneHandler.GetPhones)
+			// Invoice Routes
+			protected.POST("/invoices", invoiceHandler.CreateInvoice)
+			protected.GET("/invoices/:id", invoiceHandler.GetInvoice)
 		}
 	}
 
