@@ -1,14 +1,13 @@
 // apps/web/src/services/phone.service.ts
 import http from '@/lib/http'
-import { Phone, PhoneListResponse, CreatePhoneResponse } from '@/types/phone'
+import { PhoneFilterParams, PhoneListResponse, CreatePhoneResponse } from '@/types/phone'
 
 export const phoneService = {
     // Lấy danh sách điện thoại
-    getAll: async (page = 1, limit = 5): Promise<PhoneListResponse> => {
-        const response = await http.get<PhoneListResponse>(
-            `/phones?page=${page}&limit=${limit}`,
-        )
-        return response.data // Trả về object { message, data: [...] }
+    getAll: async (params: PhoneFilterParams): Promise<PhoneListResponse> => {
+        const response = await http.get<PhoneListResponse>('/phones', { params });
+
+        return response.data;
     },
 
     create: async (data: any) => {

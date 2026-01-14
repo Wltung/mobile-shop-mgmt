@@ -110,14 +110,14 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 }
 
 // Nhận userID từ Handler
-func (s *PhoneService) GetPhones(userID, page, limit int) ([]model.Phone, int, float64, error) {
+func (s *PhoneService) GetPhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
 	// Validate cơ bản
-	if page < 1 {
-		page = 1
+	if filter.Page < 1 {
+		filter.Page = 1
 	}
-	if limit < 1 {
-		limit = 5
+	if filter.Limit < 1 {
+		filter.Limit = 5
 	}
 
-	return s.Repo.GetByUserID(userID, page, limit)
+	return s.Repo.GetList(userID, filter)
 }

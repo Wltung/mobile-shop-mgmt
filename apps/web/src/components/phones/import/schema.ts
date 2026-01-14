@@ -10,7 +10,10 @@ export const importSchema = z.object({
     status: z.enum(['IN_STOCK', 'REPAIRING', 'SOLD']),
 
     // Xử lý giá tiền: Chuyển string sang number, chặn số âm
-    purchase_price: z.number().min(0, 'Giá không hợp lệ'),
+    purchase_price: z.string()
+        .min(1, "Vui lòng nhập giá nhập") // Bắt buộc nhập (không được rỗng)
+        .refine((val) => !isNaN(Number(val)), { message: "Giá nhập phải là số" }) // Phải là số
+        .refine((val) => Number(val) >= 0, { message: "Giá không được âm" }),
 
     import_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
         message: 'Ngày nhập không hợp lệ',
@@ -40,7 +43,7 @@ export const defaultImportValues: ImportFormValues = {
     model_name: '',
     imei: '',
     status: 'IN_STOCK',
-    purchase_price: 0,
+    purchase_price: '',
     import_date: new Date().toISOString().split('T')[0],
     seller_name: '',
     seller_phone: '',

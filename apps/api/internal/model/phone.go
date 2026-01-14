@@ -54,3 +54,12 @@ type PhoneInput struct {
 	SellerPhone string `json:"seller_phone"`
 	SellerID    string `json:"seller_id"` // CCCD
 }
+
+type PhoneFilter struct {
+	Page      int    `form:"page"`
+	Limit     int    `form:"limit"`
+	Keyword   string `form:"keyword"`    // Tìm theo IMEI hoặc Tên máy
+	Status    string `form:"status"`     // Filter trạng thái
+	StartDate string `form:"start_date"` // YYYY-MM-DD
+	EndDate   string `form:"end_date"`   // YYYY-MM-DD
+}

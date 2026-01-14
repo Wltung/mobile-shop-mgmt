@@ -4,7 +4,6 @@ import (
 	"api/internal/model"
 	"api/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -58,12 +57,16 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 	}
 	userID := int(userIDFloat.(float64))
 
-	// Lấy page & limit từ URL (Mặc định page=1, limit=10)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
+	var filter model.PhoneFilter
+	// BindQuery sẽ tự động lấy ?page=1&keyword=abc...
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		// Set default nếu bind lỗi
+		filter.Page = 1
+		filter.Limit = 5
+	}
 
 	// 2. Truyền userID vào Service
-	phones, total, totalValue, err := h.Service.GetPhones(userID, page, limit)
+	phones, total, totalValue, err := h.Service.GetPhones(userID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
@@ -71,8 +74,8 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 
 	// Tính tổng số trang
 	totalPages := 0
-	if limit > 0 {
-		totalPages = (total + limit - 1) / limit
+	if filter.Limit > 0 {
+		totalPages = (total + filter.Limit - 1) / filter.Limit
 	}
 
 	// 3. Trả về
@@ -80,8 +83,8 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 		"message": "Lấy dữ liệu thành công",
 		"data":    phones,
 		"meta": gin.H{
-			"page":        page,
-			"limit":       limit,
+			"page":        filter.Page,
+			"limit":       filter.Limit,
 			"total":       total,
 			"total_pages": totalPages,
 			"total_value": totalValue,

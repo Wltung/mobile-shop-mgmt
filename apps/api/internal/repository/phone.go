@@ -57,43 +57,59 @@ func (r *PhoneRepo) GetAll() ([]model.Phone, error) {
 	return phones, nil
 }
 
-// Sửa tên hàm GetAll -> GetByUserID và thêm tham số userID
-func (r *PhoneRepo) GetByUserID(userID, page, limit int) ([]model.Phone, int, float64, error) {
+func (r *PhoneRepo) GetList(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
 	var phones []model.Phone
-	var total int
+	var totalCount int
 	var totalValue float64
 
-	offset := (page - 1) * limit
+	// 1. Xây dựng câu Query động
+	baseQuery := "FROM phones p LEFT JOIN users u ON p.import_by = u.id WHERE p.import_by = ?"
+	args := []interface{}{userID}
 
-	// 1. Lấy danh sách (Có phân trang)
-	query := `
-		SELECT p.*, u.full_name as importer_name 
-		FROM phones p
-		LEFT JOIN users u ON p.import_by = u.id
-		WHERE p.import_by = ?
-		ORDER BY p.created_at DESC
-		LIMIT ? OFFSET ?
-	`
+	// Filter: Keyword (IMEI hoặc Model Name)
+	if filter.Keyword != "" {
+		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ?)"
+		likeStr := "%" + filter.Keyword + "%"
+		args = append(args, likeStr, likeStr)
+	}
 
-	err := r.DB.Select(&phones, query, userID, limit, offset)
+	// Filter: Status
+	if filter.Status != "" && filter.Status != "ALL" {
+		baseQuery += " AND p.status = ?"
+		args = append(args, filter.Status)
+	}
+
+	// Filter: Date Range (Created At)
+	if filter.StartDate != "" && filter.EndDate != "" {
+		// Dùng DATE() để chỉ so sánh ngày, bỏ qua giờ phút
+		baseQuery += " AND DATE(p.created_at) BETWEEN ? AND ?"
+		args = append(args, filter.StartDate, filter.EndDate)
+	}
+
+	// 2. Query Đếm & Tổng tiền (Chạy trước khi LIMIT)
+	countQuery := "SELECT COUNT(*) " + baseQuery
+	sumQuery := "SELECT COALESCE(SUM(p.purchase_price), 0) " + baseQuery
+
+	err := r.DB.Get(&totalCount, countQuery, args...)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	err = r.DB.Get(&totalValue, sumQuery, args...)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
-	// 2. Đếm tổng số bản ghi (Để FE tính số trang)
-	countQuery := `SELECT COUNT(*) FROM phones WHERE import_by = ?`
-	err = r.DB.Get(&total, countQuery, userID)
+	// 3. Query Lấy dữ liệu (Thêm Sort & Pagination)
+	// Lưu ý: LIMIT/OFFSET phải nằm cuối cùng
+	selectQuery := `SELECT p.*, u.full_name as importer_name ` + baseQuery + ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
+
+	offset := (filter.Page - 1) * filter.Limit
+	args = append(args, filter.Limit, offset)
+
+	err = r.DB.Select(&phones, selectQuery, args...)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
-	// 3. Tính tổng giá trị (Sum)
-	// COALESCE để tránh lỗi NULL nếu kho rỗng
-	sumQuery := `SELECT COALESCE(SUM(purchase_price), 0) FROM phones WHERE import_by = ?`
-	err = r.DB.Get(&totalValue, sumQuery, userID)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-
-	return phones, total, totalValue, nil
+	return phones, totalCount, totalValue, nil
 }

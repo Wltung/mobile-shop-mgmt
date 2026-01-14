@@ -47,10 +47,12 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
     const onSubmit: SubmitHandler<ImportFormValues> = async (values) => {
         setIsLoading(true)
         try {
+            const priceNumber = Number(values.purchase_price);
+
             const payload = {
                 imei: values.imei,
                 model_name: values.model_name,
-                purchase_price: values.purchase_price,
+                purchase_price: priceNumber,
                 status: values.status,
                 note: values.note || '',
                 seller_name: values.seller_name,
@@ -84,7 +86,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                             phone_id: res.phone_id,
                             description: values.model_name,
                             quantity: 1,
-                            unit_price: values.purchase_price,
+                            unit_price: priceNumber,
                             warranty_months: 0,
                         },
                     ],
@@ -211,15 +213,9 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                     <FormControl>
                                         <div className="relative">
                                             <Input
+                                                type='number'
                                                 placeholder="0"
                                                 {...field}
-                                                onChange={(event) =>
-                                                    field.onChange(
-                                                        Number(
-                                                            event.target.value,
-                                                        ),
-                                                    )
-                                                }
                                             />
                                             <span className="absolute right-3 top-2.5 text-sm font-medium text-slate-500">
                                                 VND

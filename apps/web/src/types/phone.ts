@@ -33,3 +33,12 @@ export interface PaginationMeta {
     total_pages: number
     total_value: number
 }
+
+export interface PhoneFilterParams {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+}
