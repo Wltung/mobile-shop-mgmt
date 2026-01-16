@@ -1,5 +1,5 @@
-import ContactBanner from '@/components/contact/ContactBanner'
-import ContactForm from '@/components/contact/ContactForm'
+import ContactBanner from '@/components/auth/ContactBanner'
+import ContactForm from '@/components/auth/ContactForm'
 
 export default function ContactPage() {
     return (

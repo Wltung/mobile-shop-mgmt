@@ -7,5 +7,6 @@ type Customer struct {
 	Name      string    `db:"name" json:"name"`
 	Phone     *string   `db:"phone" json:"phone"`
 	IDNumber  *string   `db:"id_number" json:"id_number"`
+	CreatedBy int       `db:"created_by" json:"created_by"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }

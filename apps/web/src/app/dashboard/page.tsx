@@ -1,5 +1,6 @@
 'use client'
 
+import DashboardHeader from '@/components/dashboard/DashboardHeader'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
     Bell,
@@ -22,47 +23,7 @@ export default function DashboardPage() {
     return (
         <>
             {/* HEADER: Tổng quan Hệ thống */}
-            <header className="z-10 flex flex-none items-center justify-between whitespace-nowrap border-b border-slate-200 bg-white px-8 py-4">
-                <div className="flex items-center gap-4 text-[#0f172a]">
-                    <div className="cursor-pointer lg:hidden">
-                        <Menu className="h-6 w-6" />
-                    </div>
-                    <h2 className="text-xl font-bold leading-tight tracking-tight text-[#0f172a]">
-                        Tổng quan Hệ thống
-                    </h2>
-                </div>
-
-                <div className="flex flex-1 justify-end gap-6">
-                    <div className="flex items-center gap-2">
-                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-[#0f172a] transition-colors hover:bg-primary/10 hover:text-primary">
-                            <Bell className="h-5 w-5" />
-                        </button>
-                        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-[#0f172a] transition-colors hover:bg-primary/10 hover:text-primary">
-                            <HelpCircle className="h-5 w-5" />
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-                        {/* Avatar - Dùng ảnh thật hoặc chữ cái đầu */}
-                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-slate-200 shadow-sm ring-2 ring-white">
-                            <span className="text-lg font-bold text-slate-500">
-                                {user?.full_name?.charAt(0).toUpperCase() ||
-                                    'A'}
-                            </span>
-                        </div>
-                        <div className="hidden flex-col md:flex">
-                            <span className="text-sm font-bold text-[#0f172a]">
-                                {user?.full_name || 'Quản lý cửa hàng'}
-                            </span>
-                            <span className="text-xs capitalize text-muted">
-                                {user?.role === 'admin'
-                                    ? 'Quản trị viên'
-                                    : 'Nhân viên'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <DashboardHeader title="Tổng quan Hệ thống" />
 
             {/* MAIN CONTENT */}
             <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-10">

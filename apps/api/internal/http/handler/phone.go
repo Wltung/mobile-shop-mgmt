@@ -3,7 +3,9 @@ package handler
 import (
 	"api/internal/model"
 	"api/internal/service"
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -89,5 +91,41 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 			"total_pages": totalPages,
 			"total_value": totalValue,
 		},
+	})
+}
+
+// GET /phones/:id
+func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
+	// 1. Lấy ID từ URL param
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID máy không hợp lệ"})
+		return
+	}
+
+	// 2. Lấy UserID từ Token (Middleware đã set)
+	userIDFloat, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
+		return
+	}
+	userID := int(userIDFloat.(float64))
+
+	// 3. Gọi Service
+	phone, err := h.Service.GetPhoneDetail(id, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy máy hoặc bạn không có quyền xem"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi server: " + err.Error()})
+		return
+	}
+
+	// 4. Trả về kết quả
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Thành công",
+		"data":    phone,
 	})
 }

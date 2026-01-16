@@ -16,17 +16,16 @@ func NewCustomerRepo(db *sqlx.DB) *CustomerRepo {
 }
 
 // Tìm khách hàng theo SĐT hoặc CCCD
-func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string) (*model.Customer, error) {
-
+func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string, userID int) (*model.Customer, error) {
 	// Ưu tiên CCCD
 	if idNumber != "" {
 		var c model.Customer
 		err := r.DB.Get(&c,
-			`SELECT id, name, phone, id_number, created_at
+			`SELECT id, name, phone, id_number, created_by, created_at
 			FROM customers
-			WHERE id_number = ?
+			WHERE id_number = ? AND created_by = ?
 			LIMIT 1`,
-			idNumber,
+			idNumber, userID,
 		)
 
 		if err == nil {
@@ -41,11 +40,11 @@ func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string) (*model.Cust
 	if phone != "" {
 		var c model.Customer
 		err := r.DB.Get(&c,
-			`SELECT id, name, phone, id_number, created_at
+			`SELECT id, name, phone, id_number, created_by, created_at
 			FROM customers
-			WHERE phone = ?
+			WHERE phone = ? AND created_by = ?
 			LIMIT 1`,
-			phone,
+			phone, userID,
 		)
 
 		if err == nil {
@@ -61,7 +60,10 @@ func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string) (*model.Cust
 
 // Tạo khách hàng mới
 func (r *CustomerRepo) Create(c model.Customer) (int, error) {
-	query := `INSERT INTO customers (name, phone, id_number) VALUES (:name, :phone, :id_number)`
+	query := `
+		INSERT INTO customers (name, phone, id_number, created_by) 
+		VALUES (:name, :phone, :id_number, :created_by)
+	`
 	result, err := r.DB.NamedExec(query, c)
 	if err != nil {
 		return 0, err

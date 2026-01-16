@@ -29,14 +29,17 @@ func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	return int(id), err
 }
 
-func (r *PhoneRepo) GetByIMEI(imei string) (*model.Phone, error) {
+func (r *PhoneRepo) GetByIMEI(imei string, userID int) (*model.Phone, error) {
 	var phone model.Phone
-	query := `SELECT * FROM phones WHERE imei = ? LIMIT 1`
-	err := r.DB.Get(&phone, query, imei)
+	query := `SELECT * FROM phones WHERE import_by = ? AND imei = ? LIMIT 1`
+	err := r.DB.Get(&phone, query, userID, imei)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return &phone, err
+	if err != nil {
+		return nil, err
+	}
+	return &phone, nil
 }
 
 // Lấy toàn bộ danh sách điện thoại (Mới nhất lên đầu)
@@ -112,4 +115,32 @@ func (r *PhoneRepo) GetList(userID int, filter model.PhoneFilter) ([]model.Phone
 	}
 
 	return phones, totalCount, totalValue, nil
+}
+
+// GetByID: Lấy chi tiết máy theo ID và UserID (để bảo mật data)
+func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
+	var phone model.Phone
+
+	// SQL Query: JOIN để lấy tên người nhập (users) và thông tin khách bán (customers)
+	query := `
+		SELECT 
+			p.*, 
+			COALESCE(u.full_name, 'Unknown') as importer_name,
+			c.name as seller_name,
+			c.phone as seller_phone,
+			c.id_number as seller_id_number
+		FROM phones p
+		LEFT JOIN users u ON p.import_by = u.id
+		LEFT JOIN customers c ON p.source_id = c.id
+		WHERE p.id = ? AND p.import_by = ?
+		LIMIT 1
+	`
+
+	// Dùng r.DB.Get của sqlx để map thẳng vào struct Phone
+	err := r.DB.Get(&phone, query, id, userID)
+	if err != nil {
+		return nil, err // Trả về lỗi (ví dụ: sql.ErrNoRows nếu không tìm thấy)
+	}
+
+	return &phone, nil
 }

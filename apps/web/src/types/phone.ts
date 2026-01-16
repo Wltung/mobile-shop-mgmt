@@ -12,6 +12,10 @@ export interface Phone {
     note?: string
     created_at: string // API trả về string ISO
     details?: Record<string, any> // JSON dynamic
+    importer_name?: string
+    seller_name?: string
+    seller_phone?: string
+    seller_id_number?: string // CCCD
 }
 
 export interface CreatePhoneResponse {

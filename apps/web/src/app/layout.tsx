@@ -1,15 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
+import { fontSans } from '@/styles/fonts'
+import { cn } from "@/lib/utils";
+import '@/styles/globals.css'
 // Import Toaster của Shadcn để hiển thị thông báo
 import { Toaster } from '@/components/ui/toaster'
-
-// Cấu hình Font Inter (hỗ trợ tiếng Việt)
-const inter = Inter({
-    subsets: ['latin', 'vietnamese'],
-    display: 'swap',
-    variable: '--font-inter',
-})
 
 export const metadata: Metadata = {
     title: 'ShopMaster Pro',
@@ -22,8 +16,13 @@ export default function RootLayout({
     children: React.ReactNode
 }>) {
     return (
-        <html lang="vi">
-            <body className={`${inter.className} antialiased`}>
+        <html lang="vi" suppressHydrationWarning>
+            <body 
+                className={cn(
+                    "min-h-screen bg-background font-sans antialiased",
+                    fontSans.variable
+                )}
+            >
                 {/* Nội dung chính của các trang con sẽ nằm ở đây */}
                 {children}
 

@@ -21,7 +21,7 @@ func NewPhoneService(repo *repository.PhoneRepo, custRepo *repository.CustomerRe
 
 func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *int, error) {
 	// 1. Business Logic: Kiểm tra xem IMEI đã tồn tại chưa
-	exists, err := s.Repo.GetByIMEI(input.IMEI)
+	exists, err := s.Repo.GetByIMEI(input.IMEI, userID)
 
 	if err != nil {
 		return 0, nil, err
@@ -37,7 +37,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 
 	if hasSellerInfo {
 		// Tìm khách cũ
-		cust, err := s.CustomerRepo.GetByPhoneOrIdentity(input.SellerPhone, input.SellerID)
+		cust, err := s.CustomerRepo.GetByPhoneOrIdentity(input.SellerPhone, input.SellerID, userID)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -63,9 +63,10 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 			}
 
 			newID, err := s.CustomerRepo.Create(model.Customer{
-				Name:     sellerName,
-				Phone:    phonePtr,
-				IDNumber: idPtr,
+				Name:      sellerName,
+				Phone:     phonePtr,
+				IDNumber:  idPtr,
+				CreatedBy: userID,
 			})
 			if err != nil {
 				return 0, nil, err
@@ -120,4 +121,10 @@ func (s *PhoneService) GetPhones(userID int, filter model.PhoneFilter) ([]model.
 	}
 
 	return s.Repo.GetList(userID, filter)
+}
+
+// Hàm lấy chi tiết
+func (s *PhoneService) GetPhoneDetail(id, userID int) (*model.Phone, error) {
+	// Gọi xuống Repo
+	return s.Repo.GetByID(id, userID)
 }

@@ -37,6 +37,12 @@ type Phone struct {
 	ImporterName string `db:"importer_name" json:"importer_name"` // Field này để hứng dữ liệu khi JOIN (không có trong bảng phones gốc)
 
 	SourceID *int `db:"source_id" json:"source_id"` // ID người bán (khách hàng)
+
+	// --- CÁC TRƯỜNG MỚI ĐỂ HỨNG DỮ LIỆU JOIN TỪ CUSTOMERS ---
+	// Dùng con trỏ (*string) vì có thể null nếu không có người bán (nhập tồn kho cũ)
+	SellerName     *string `db:"seller_name" json:"seller_name,omitempty"`
+	SellerPhone    *string `db:"seller_phone" json:"seller_phone,omitempty"`
+	SellerIDNumber *string `db:"seller_id_number" json:"seller_id_number,omitempty"`
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)
