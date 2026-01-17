@@ -43,6 +43,8 @@ type Phone struct {
 	SellerName     *string `db:"seller_name" json:"seller_name,omitempty"`
 	SellerPhone    *string `db:"seller_phone" json:"seller_phone,omitempty"`
 	SellerIDNumber *string `db:"seller_id_number" json:"seller_id_number,omitempty"`
+
+	InvoiceCode *string `db:"invoice_code" json:"invoice_code"`
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)

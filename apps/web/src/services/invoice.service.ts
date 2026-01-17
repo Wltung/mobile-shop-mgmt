@@ -1,6 +1,6 @@
 // apps/web/src/services/invoice.service.ts
 import http from '@/lib/http';
-import { CreateInvoiceRequest, CreateInvoiceResponse } from '@/types/invoice';
+import { CreateInvoiceRequest, CreateInvoiceResponse, Invoice } from '@/types/invoice';
 
 export const invoiceService = {
     // API Tạo hóa đơn
@@ -11,7 +11,7 @@ export const invoiceService = {
 
     // (Sau này có thể thêm getDetail, getList...)
     getDetail: async (id: number) => {
-        const response = await http.get(`/invoices/${id}`);
-        return response.data;
+        const response = await http.get<{ data: Invoice }>(`/invoices/${id}`);
+        return response.data.data;
     }
 };

@@ -16,6 +16,7 @@ export interface Phone {
     seller_name?: string
     seller_phone?: string
     seller_id_number?: string // CCCD
+    invoice_code?: string
 }
 
 export interface CreatePhoneResponse {

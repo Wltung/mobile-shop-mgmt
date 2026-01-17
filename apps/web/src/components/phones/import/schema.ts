@@ -29,6 +29,7 @@ export const importSchema = z.object({
     storage: z.string().optional(),
     appearance: z.string().optional(),
     battery: z.string().optional(),
+    accessories: z.array(z.string()).optional(),
 
     // --- GHI CHÚ ---
     note: z.string().optional(),
@@ -51,6 +52,7 @@ export const defaultImportValues: ImportFormValues = {
     color: '',
     storage: '',
     appearance: '',
+    accessories: [],
     note: '',
     battery: '',
     create_invoice: true,

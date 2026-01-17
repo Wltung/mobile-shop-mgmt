@@ -28,8 +28,8 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 
 	// 2. Insert Invoice Header
 	queryInv := `
-		INSERT INTO invoices (type, status, customer_id, total_amount, created_by, note, created_at)
-		VALUES (:type, :status, :customer_id, :total_amount, :created_by, :note, :created_at)
+		INSERT INTO invoices (invoice_code, type, status, customer_id, total_amount, created_by, note, created_at)
+		VALUES (:invoice_code, :type, :status, :customer_id, :total_amount, :created_by, :note, :created_at)
 	`
 	res, err := tx.NamedExec(queryInv, inv)
 	if err != nil {
@@ -106,4 +106,17 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	invoice.Items = items
 
 	return &invoice, nil
+}
+
+// Hàm đếm số hóa đơn trong ngày của một loại cụ thể (để tính sequence)
+func (r *InvoiceRepo) GetCountTodayByType(invType string) (int, error) {
+	var count int
+	// Đếm những hóa đơn có created_at trong ngày hôm nay VÀ cùng loại
+	query := `
+		SELECT COUNT(*) FROM invoices 
+		WHERE type = ? 
+		AND DATE(created_at) = DATE(NOW())
+	`
+	err := r.DB.Get(&count, query, invType)
+	return count, err
 }

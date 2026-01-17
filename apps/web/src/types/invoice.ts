@@ -28,3 +28,23 @@ export interface CreateInvoiceResponse {
     message: string;
     invoice_id: number;
 }
+
+export interface Invoice {
+    id: number;
+    invoice_code: string; // HDN-..., HDB-...
+    type: InvoiceType;
+    status: InvoiceStatus;
+    customer_id: number | null;
+    total_amount: number;
+    created_by: number;
+    created_at: string;
+    note?: string;
+    
+    // Danh sách items đi kèm
+    items?: InvoiceItem[];
+    
+    // Thông tin mở rộng (nếu Backend có JOIN)
+    customer_name?: string;
+    customer_phone?: string;
+    creator_name?: string;
+}
