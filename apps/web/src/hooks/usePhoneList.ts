@@ -17,8 +17,8 @@ export const usePhoneList = () => {
         keyword: '',
         status: '',
         start_date: '',
-        end_date: ''
-    });
+        end_date: '',
+    })
 
     // State phân trang
     const [meta, setMeta] = useState<PaginationMeta>({
@@ -54,69 +54,70 @@ export const usePhoneList = () => {
     // Debounce search: Chỉ gọi API sau khi ngừng gõ 500ms
     const debouncedFetch = useCallback(
         debounce((nextFilters) => fetchPhones(nextFilters), 500),
-        []
-    );
+        [],
+    )
 
     // Riêng keyword sẽ được xử lý debounce ở UI event
     useEffect(() => {
-        fetchPhones(filters);
-    }, [filters.page, filters.status, filters.start_date]);
+        fetchPhones(filters)
+    }, [filters.page, filters.status, filters.start_date])
 
     // Hàm update filter cho UI dùng
     const setKeyword = (kw: string) => {
         // Update state để UI hiển thị
-        setFilters(prev => {
-            const next = { ...prev, keyword: kw, page: 1 }; // Reset về trang 1 khi search
-            debouncedFetch(next); // Gọi API qua debounce
-            return next;
-        });
-    };
+        setFilters((prev) => {
+            const next = { ...prev, keyword: kw, page: 1 } // Reset về trang 1 khi search
+            debouncedFetch(next) // Gọi API qua debounce
+            return next
+        })
+    }
 
-    const setStatus = (st: string) => setFilters(prev => ({ ...prev, status: st, page: 1 }));
-    const setPage = (p: number) => setFilters(prev => ({ ...prev, page: p }));
-    
+    const setStatus = (st: string) =>
+        setFilters((prev) => ({ ...prev, status: st, page: 1 }))
+    const setPage = (p: number) => setFilters((prev) => ({ ...prev, page: p }))
+
     // Refresh data
-    const refresh = () => fetchPhones(filters);
+    const refresh = () => fetchPhones(filters)
 
     // Hàm Helper: Format Date sang YYYY-MM-DD
     const formatDateISO = (date: Date) => {
-        return date.toISOString().split('T')[0];
-    };
+        return date.toISOString().split('T')[0]
+    }
 
     // Hàm set Filter theo Option (all, today, week, month)
     const setDateFilter = (type: string) => {
-        const today = new Date();
-        let start = "";
-        let end = "";
+        const today = new Date()
+        let start = ''
+        let end = ''
 
-        if (type === "today") {
-            start = formatDateISO(today);
-            end = formatDateISO(today);
-        } else if (type === "week") {
+        if (type === 'today') {
+            start = formatDateISO(today)
+            end = formatDateISO(today)
+        } else if (type === 'week') {
             // Lấy ngày đầu tuần (Thứ 2)
-            const day = today.getDay(); // 0 (CN) -> 6 (T7)
-            const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
-            const monday = new Date(today.setDate(diff));
-            start = formatDateISO(monday);
-            end = formatDateISO(new Date()); // Đến hiện tại
-        } else if (type === "month") {
+            const day = today.getDay() // 0 (CN) -> 6 (T7)
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1)
+            const monday = new Date(today.setDate(diff))
+            start = formatDateISO(monday)
+            end = formatDateISO(new Date()) // Đến hiện tại
+        } else if (type === 'month') {
             // Ngày đầu tháng
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            start = formatDateISO(firstDay);
-            end = formatDateISO(new Date());
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+            start = formatDateISO(firstDay)
+            end = formatDateISO(new Date())
         } else {
             // type === "all" -> Reset rỗng
-            start = "";
-            end = "";
+            start = ''
+            end = ''
         }
 
-        setFilters(prev => ({ 
-            ...prev, 
-            start_date: start, 
-            end_date: end, 
-            page: 1 // Reset về trang 1 khi lọc
-        }));
-    };
+        setFilters((prev) => ({
+            ...prev,
+            start_date: start,
+            end_date: end,
+            page: 1, // Reset về trang 1 khi lọc
+        }))
+    }
 
     return {
         phones,
@@ -128,7 +129,11 @@ export const usePhoneList = () => {
         setStatus,
         setPage,
         refresh,
-        formatCurrency: (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val),
+        formatCurrency: (val: number) =>
+            new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+            }).format(val),
         formatDate: (val: string) => new Date(val).toLocaleDateString('vi-VN'),
         setDateFilter,
     }

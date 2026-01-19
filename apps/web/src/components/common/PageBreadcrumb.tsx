@@ -37,7 +37,7 @@ export default function PageBreadcrumb({ items, onBack }: PageBreadcrumbProps) {
                 <ol className="flex items-center gap-2">
                     {items.map((item, index) => {
                         const isLast = index === items.length - 1
-                        
+
                         return (
                             <li key={index} className="flex items-center gap-2">
                                 {/* Nếu không phải phần tử đầu tiên, thêm dấu > */}
@@ -52,8 +52,8 @@ export default function PageBreadcrumb({ items, onBack }: PageBreadcrumbProps) {
                                     </span>
                                 ) : (
                                     // Item thường -> Có link, màu xám
-                                    <Link 
-                                        href={item.href} 
+                                    <Link
+                                        href={item.href}
                                         className="transition-colors hover:text-primary"
                                     >
                                         {item.label}

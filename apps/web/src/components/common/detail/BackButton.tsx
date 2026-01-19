@@ -8,8 +8,8 @@ export default function BackButton({ className, ...props }: BackButtonProps) {
     return (
         <button
             className={cn(
-                "flex items-center justify-center p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-primary hover:border-primary transition-colors shadow-sm",
-                className
+                'flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition-colors hover:border-primary hover:text-primary',
+                className,
             )}
             {...props}
         >

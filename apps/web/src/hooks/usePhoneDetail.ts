@@ -20,7 +20,8 @@ export const usePhoneDetail = (id: string | number) => {
             toast({
                 variant: 'destructive',
                 title: 'Lỗi',
-                description: 'Không thể tải thông tin máy hoặc máy không tồn tại.',
+                description:
+                    'Không thể tải thông tin máy hoặc máy không tồn tại.',
             })
             // Tùy chọn: router.push('/dashboard/import')
         } finally {
@@ -34,9 +35,12 @@ export const usePhoneDetail = (id: string | number) => {
 
     // Helper functions
     const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
+        new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND',
+        }).format(val)
 
-    const formatDate = (val: string) => 
+    const formatDate = (val: string) =>
         val ? new Date(val).toLocaleDateString('vi-VN') : '---'
 
     return {
@@ -45,6 +49,6 @@ export const usePhoneDetail = (id: string | number) => {
         formatCurrency,
         formatDate,
         refresh: fetchDetail,
-        router // Trả về router để nút Back sử dụng
+        router, // Trả về router để nút Back sử dụng
     }
 }

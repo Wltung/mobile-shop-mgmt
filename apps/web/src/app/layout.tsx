@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { fontSans } from '@/styles/fonts'
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils'
 import '@/styles/globals.css'
 // Import Toaster của Shadcn để hiển thị thông báo
 import { Toaster } from '@/components/ui/toaster'
@@ -17,10 +17,10 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="vi" suppressHydrationWarning>
-            <body 
+            <body
                 className={cn(
-                    "min-h-screen bg-background font-sans antialiased",
-                    fontSans.variable
+                    'min-h-screen bg-background font-sans antialiased',
+                    fontSans.variable,
                 )}
             >
                 {/* Nội dung chính của các trang con sẽ nằm ở đây */}

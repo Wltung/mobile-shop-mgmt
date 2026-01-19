@@ -12,16 +12,31 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader'
 import StatsCards from '@/components/common/StatsCards'
 import { DataTable } from '@/components/common/DataTable'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import ImportPhoneModal from '@/components/phones/import/ImportPhoneModal'
 import PageActionButton from '@/components/common/PageActionButton'
 
 export default function ImportPage() {
     const router = useRouter()
-    const { 
-        phones, isLoading, stats, meta, filters,
-        setKeyword, setStatus, setPage, setDateFilter,
-        formatCurrency, formatDate, refresh 
+    const {
+        phones,
+        isLoading,
+        stats,
+        meta,
+        filters,
+        setKeyword,
+        setStatus,
+        setPage,
+        setDateFilter,
+        formatCurrency,
+        formatDate,
+        refresh,
     } = usePhoneList()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -29,45 +44,61 @@ export default function ImportPage() {
     // --- 1. CẤU HÌNH STATS ---
     const statItems = [
         {
-            label: "Tổng máy kho",
+            label: 'Tổng máy kho',
             value: `${stats.totalPhones} máy`,
             icon: <Package className="h-5 w-5" />,
-            color: 'blue' as const
+            color: 'blue' as const,
         },
         {
-            label: "Tổng giá trị nhập",
+            label: 'Tổng giá trị nhập',
             value: formatCurrency(stats.totalValue),
             icon: <DollarSign className="h-5 w-5" />,
-            color: 'green' as const
-        }
+            color: 'green' as const,
+        },
     ]
 
     // --- 2. CẤU HÌNH CỘT BẢNG (COLUMNS) ---
     const columns: ColumnDef<Phone>[] = [
         {
-            header: "NGÀY NHẬP",
-            accessorKey: "created_at",
-            cell: (item) => <span className="whitespace-nowrap">{formatDate(item.created_at)}</span>
+            header: 'NGÀY NHẬP',
+            accessorKey: 'created_at',
+            cell: (item) => (
+                <span className="whitespace-nowrap">
+                    {formatDate(item.created_at)}
+                </span>
+            ),
         },
         {
-            header: "ĐỜI MÁY",
-            accessorKey: "model_name",
-            cell: (item) => <span className="font-medium text-slate-900">{item.model_name}</span>
+            header: 'ĐỜI MÁY',
+            accessorKey: 'model_name',
+            cell: (item) => (
+                <span className="font-medium text-slate-900">
+                    {item.model_name}
+                </span>
+            ),
         },
         {
-            header: "IMEI",
-            accessorKey: "imei",
-            cell: (item) => <span className="font-bold font-mono text-slate-700">{item.imei}</span>
+            header: 'IMEI',
+            accessorKey: 'imei',
+            cell: (item) => (
+                <span className="font-mono font-bold text-slate-700">
+                    {item.imei}
+                </span>
+            ),
         },
         {
-            header: "GIÁ NHẬP",
-            accessorKey: "purchase_price",
-            cell: (item) => <span className="font-bold text-slate-700">{formatCurrency(item.purchase_price)}</span>
+            header: 'GIÁ NHẬP',
+            accessorKey: 'purchase_price',
+            cell: (item) => (
+                <span className="font-bold text-slate-700">
+                    {formatCurrency(item.purchase_price)}
+                </span>
+            ),
         },
         {
-            header: "TRẠNG THÁI",
-            accessorKey: "status",
-            className: "text-center",
+            header: 'TRẠNG THÁI',
+            accessorKey: 'status',
+            className: 'text-center',
             cell: (item) => {
                 const styles: Record<string, string> = {
                     IN_STOCK: 'bg-green-100 text-green-800',
@@ -81,21 +112,25 @@ export default function ImportPage() {
                 }
                 return (
                     <div className="flex justify-center">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[item.status]}`}>
+                        <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[item.status]}`}
+                        >
                             {labels[item.status] || item.status}
                         </span>
                     </div>
                 )
-            }
+            },
         },
         {
-            header: "THAO TÁC",
-            className: "text-center",
+            header: 'THAO TÁC',
+            className: 'text-center',
             cell: (item) => (
                 <div className="flex items-center justify-center gap-2">
-                    <button 
+                    <button
                         className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary"
-                        onClick={() => router.push(`/dashboard/phones/${item.id}`)}
+                        onClick={() =>
+                            router.push(`/dashboard/phones/${item.id}`)
+                        }
                         title="Xem chi tiết"
                     >
                         <Eye className="h-4 w-4" />
@@ -104,8 +139,8 @@ export default function ImportPage() {
                         <Trash2 className="h-4 w-4" />
                     </button>
                 </div>
-            )
-        }
+            ),
+        },
     ]
 
     // --- 3. CẤU HÌNH THANH CÔNG CỤ (TOOLBAR) ---
@@ -129,7 +164,9 @@ export default function ImportPage() {
                             <SelectValue placeholder="Thời gian" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Tất cả thời gian</SelectItem>
+                            <SelectItem value="all">
+                                Tất cả thời gian
+                            </SelectItem>
                             <SelectItem value="today">Hôm nay</SelectItem>
                             <SelectItem value="week">Tuần này</SelectItem>
                             <SelectItem value="month">Tháng này</SelectItem>
@@ -137,12 +174,17 @@ export default function ImportPage() {
                     </Select>
                 </div>
                 <div className="relative min-w-[160px] flex-1 md:flex-none">
-                    <Select onValueChange={setStatus} value={filters.status || "ALL"}>
+                    <Select
+                        onValueChange={setStatus}
+                        value={filters.status || 'ALL'}
+                    >
                         <SelectTrigger className="h-10 border-slate-300">
                             <SelectValue placeholder="Tất cả trạng thái" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                            <SelectItem value="ALL">
+                                Tất cả trạng thái
+                            </SelectItem>
                             <SelectItem value="IN_STOCK">Trong kho</SelectItem>
                             <SelectItem value="SOLD">Đã bán</SelectItem>
                             <SelectItem value="REPAIRING">Đang sửa</SelectItem>
@@ -159,13 +201,12 @@ export default function ImportPage() {
 
             <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-                    
                     {/* TOP ACTION SECTION */}
                     <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                         <StatsCards stats={statItems} />
-                        
+
                         {/* --- SỬ DỤNG COMPONENT CHUNG --- */}
-                        <PageActionButton 
+                        <PageActionButton
                             label="Nhập máy mới"
                             icon={<Plus className="h-5 w-5" />}
                             onClick={() => setIsModalOpen(true)}

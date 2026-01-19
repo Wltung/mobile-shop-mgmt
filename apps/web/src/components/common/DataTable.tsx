@@ -16,9 +16,9 @@ interface DataTableProps<T> {
     isLoading: boolean
     meta: PaginationMeta
     onPageChange: (page: number) => void
-    
+
     // Slot để truyền thanh search/filter vào
-    toolbar?: ReactNode 
+    toolbar?: ReactNode
 }
 
 export function DataTable<T extends { id: number | string }>({
@@ -29,7 +29,6 @@ export function DataTable<T extends { id: number | string }>({
     onPageChange,
     toolbar,
 }: DataTableProps<T>) {
-
     // --- LOGIC PHÂN TRANG (TÁI SỬ DỤNG) ---
     const generatePagination = (currentPage: number, totalPages: number) => {
         if (totalPages <= 5) {
@@ -39,9 +38,22 @@ export function DataTable<T extends { id: number | string }>({
         if (currentPage <= 3) {
             pages.push(2, 3, 4, '...', totalPages)
         } else if (currentPage >= totalPages - 2) {
-            pages.push('...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+            pages.push(
+                '...',
+                totalPages - 3,
+                totalPages - 2,
+                totalPages - 1,
+                totalPages,
+            )
         } else {
-            pages.push('...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
+            pages.push(
+                '...',
+                currentPage - 1,
+                currentPage,
+                currentPage + 1,
+                '...',
+                totalPages,
+            )
         }
         return pages
     }
@@ -74,7 +86,10 @@ export function DataTable<T extends { id: number | string }>({
                         <tbody className="divide-y divide-slate-200">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={columns.length} className="px-6 py-8 text-center">
+                                    <td
+                                        colSpan={columns.length}
+                                        className="px-6 py-8 text-center"
+                                    >
                                         <div className="flex items-center justify-center gap-2">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                             <span>Đang tải dữ liệu...</span>
@@ -83,20 +98,31 @@ export function DataTable<T extends { id: number | string }>({
                                 </tr>
                             ) : data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columns.length} className="px-6 py-8 text-center text-slate-400">
+                                    <td
+                                        colSpan={columns.length}
+                                        className="px-6 py-8 text-center text-slate-400"
+                                    >
                                         Không tìm thấy dữ liệu phù hợp.
                                     </td>
                                 </tr>
                             ) : (
                                 data.map((row) => (
-                                    <tr key={row.id} className="bg-white transition-colors hover:bg-slate-50">
+                                    <tr
+                                        key={row.id}
+                                        className="bg-white transition-colors hover:bg-slate-50"
+                                    >
                                         {columns.map((col, index) => (
-                                            <td key={index} className={`px-6 py-4 ${col.className || ''}`}>
+                                            <td
+                                                key={index}
+                                                className={`px-6 py-4 ${col.className || ''}`}
+                                            >
                                                 {/* Nếu có hàm cell tuỳ chỉnh thì dùng, không thì lấy value từ key */}
                                                 {col.cell
                                                     ? col.cell(row)
                                                     : col.accessorKey
-                                                      ? (row[col.accessorKey] as ReactNode)
+                                                      ? (row[
+                                                            col.accessorKey
+                                                        ] as ReactNode)
                                                       : null}
                                             </td>
                                         ))}
@@ -112,11 +138,29 @@ export function DataTable<T extends { id: number | string }>({
                     <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                         <div>
                             <p className="text-sm text-slate-700">
-                                Hiển thị <span className="font-bold text-slate-900">{(meta.page - 1) * meta.limit + 1}</span> đến <span className="font-bold text-slate-900">{Math.min(meta.page * meta.limit, meta.total)}</span> trong số <span className="font-bold text-slate-900">{meta.total}</span> kết quả
+                                Hiển thị{' '}
+                                <span className="font-bold text-slate-900">
+                                    {(meta.page - 1) * meta.limit + 1}
+                                </span>{' '}
+                                đến{' '}
+                                <span className="font-bold text-slate-900">
+                                    {Math.min(
+                                        meta.page * meta.limit,
+                                        meta.total,
+                                    )}
+                                </span>{' '}
+                                trong số{' '}
+                                <span className="font-bold text-slate-900">
+                                    {meta.total}
+                                </span>{' '}
+                                kết quả
                             </p>
                         </div>
                         <div>
-                            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                            <nav
+                                className="isolate inline-flex -space-x-px rounded-md shadow-sm"
+                                aria-label="Pagination"
+                            >
                                 <button
                                     onClick={() => onPageChange(meta.page - 1)}
                                     disabled={meta.page <= 1}
@@ -125,23 +169,33 @@ export function DataTable<T extends { id: number | string }>({
                                     <span className="sr-only">Previous</span>
                                     <ChevronLeft className="h-5 w-5" />
                                 </button>
-                                {generatePagination(meta.page, meta.total_pages).map((p, index) => (
+                                {generatePagination(
+                                    meta.page,
+                                    meta.total_pages,
+                                ).map((p, index) =>
                                     p === '...' ? (
-                                        <span key={`ellipsis-${index}`} className="relative inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">...</span>
+                                        <span
+                                            key={`ellipsis-${index}`}
+                                            className="relative inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+                                        >
+                                            ...
+                                        </span>
                                     ) : (
                                         <button
                                             key={p}
-                                            onClick={() => onPageChange(Number(p))}
+                                            onClick={() =>
+                                                onPageChange(Number(p))
+                                            }
                                             className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium focus:z-20 ${
-                                                p === meta.page 
-                                                ? 'z-10 bg-primary border-primary text-white' 
-                                                : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'
+                                                p === meta.page
+                                                    ? 'z-10 border-primary bg-primary text-white'
+                                                    : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50'
                                             }`}
                                         >
                                             {p}
                                         </button>
-                                    )
-                                ))}
+                                    ),
+                                )}
                                 <button
                                     onClick={() => onPageChange(meta.page + 1)}
                                     disabled={meta.page >= meta.total_pages}

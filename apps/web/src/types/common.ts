@@ -1,5 +1,5 @@
 // src/types/common.ts
-import { ReactNode } from "react"
+import { ReactNode } from 'react'
 
 export interface ColumnDef<T> {
     header: string

@@ -40,10 +40,10 @@ export interface PaginationMeta {
 }
 
 export interface PhoneFilterParams {
-    page?: number;
-    limit?: number;
-    keyword?: string;
-    status?: string;
-    start_date?: string;
-    end_date?: string;
+    page?: number
+    limit?: number
+    keyword?: string
+    status?: string
+    start_date?: string
+    end_date?: string
 }

@@ -24,9 +24,9 @@ export default function ImportPhoneModal({
 }: Props) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-h-[90vh] gap-0 overflow-hidden rounded-2xl bg-white p-0 sm:max-w-4xl border-none shadow-2xl">
+            <DialogContent className="max-h-[90vh] gap-0 overflow-hidden rounded-2xl border-none bg-white p-0 shadow-2xl sm:max-w-4xl">
                 {/* Header dính cứng ở trên */}
-                <DialogHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100 bg-white px-6 py-5 sticky top-0 z-20">
+                <DialogHeader className="sticky top-0 z-20 flex flex-row items-center justify-between space-y-0 border-b border-slate-100 bg-white px-6 py-5">
                     <div>
                         <DialogTitle className="text-xl font-bold leading-6 text-slate-900">
                             Tạo phiếu nhập máy mới
