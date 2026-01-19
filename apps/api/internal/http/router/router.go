@@ -52,6 +52,7 @@ func NewRouter(
 			protected.POST("/phones", phoneHandler.CreatePhone)
 			protected.GET("/phones", phoneHandler.GetPhones)
 			protected.GET("/phones/:id", phoneHandler.GetPhoneDetail)
+			protected.PUT("/:id", phoneHandler.UpdatePhone)
 			// Invoice Routes
 			protected.POST("/invoices", invoiceHandler.CreateInvoice)
 			protected.GET("/invoices/:id", invoiceHandler.GetInvoice)

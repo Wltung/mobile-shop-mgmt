@@ -27,4 +27,10 @@ export const phoneService = {
         const response = await http.get<{ data: Phone }>(`/phones/${id}`)
         return response.data.data // Backend trả về { message: "...", data: { ... } }
     },
+
+    update: async (id: number, data: any) => {
+        // Gọi method PUT lên backend (Bạn cần bổ sung backend sau)
+        const response = await http.put<{ message: string }>(`/phones/${id}`, data)
+        return response.data
+    },
 }

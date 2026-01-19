@@ -1,6 +1,7 @@
 // src/app/dashboard/phones/[id]/page.tsx
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import {
     Printer,
@@ -20,14 +21,17 @@ import PageBreadcrumb from '@/components/common/PageBreadcrumb'
 import DetailCard from '@/components/common/detail/DetailCard'
 import DetailRow from '@/components/common/detail/DetailRow'
 import PageHeader from '@/components/common/detail/PageHeader'
+import EditPhoneModal from '@/components/phones/import/EditPhoneModal'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
 
     // 1. Sử dụng Hook để lấy dữ liệu và logic
-    const { phone, isLoading, formatCurrency, formatDate } = usePhoneDetail(
+    const { phone, isLoading, formatCurrency, formatDate, refresh } = usePhoneDetail(
         Number(id),
     )
+
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     // Helper render trạng thái (UI thuần túy nên để ở đây hoặc tách ra component nhỏ)
     const renderStatus = (status: string) => {
@@ -106,7 +110,10 @@ export default function PhoneDetailPage() {
                                     <Printer className="h-5 w-5" />
                                     <span>In hoá đơn</span>
                                 </Button>
-                                <Button className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600">
+                                <Button
+                                    onClick={() => setIsEditModalOpen(true)}
+                                    className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600"
+                                >
                                     <Edit className="h-5 w-5" />
                                     <span>Sửa thông tin</span>
                                 </Button>
@@ -251,6 +258,17 @@ export default function PhoneDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Thêm Component Modal */}
+            <EditPhoneModal 
+                phone={phone}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSuccess={() => {
+                    refresh() // Load lại dữ liệu sau khi sửa xong
+                    setIsEditModalOpen(false)
+                }}
+            />
         </div>
     )
 }

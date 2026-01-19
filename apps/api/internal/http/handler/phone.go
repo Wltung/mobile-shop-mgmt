@@ -129,3 +129,33 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 		"data":    phone,
 	})
 }
+
+func (h *PhoneHandler) UpdatePhone(c *gin.Context) {
+	// 1. Lấy ID từ URL
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	// 2. Parse Body
+	var input model.PhoneInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Lấy UserID
+	userIDFloat, _ := c.Get("userID")
+	userID := int(userIDFloat.(float64))
+
+	// 4. Gọi Service
+	err = h.Service.UpdatePhone(id, input, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật thành công"})
+}

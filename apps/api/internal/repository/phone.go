@@ -150,3 +150,25 @@ func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 
 	return &phone, nil
 }
+
+func (r *PhoneRepo) Update(p model.Phone) error {
+	// Chỉ cho phép update các trường thông tin, không cho sửa ID hay ngày tạo
+	query := `
+		UPDATE phones 
+		SET 
+			imei = :imei, 
+			model_name = :model_name, 
+			status = :status, 
+			purchase_price = :purchase_price, 
+			note = :note, 
+			details = :details,
+			source_id = :source_id,
+			import_date = :import_date,  -- Nếu bạn có cột này (hoặc purchase_date)
+			updated_at = NOW()
+		WHERE id = :id AND import_by = :import_by
+	`
+
+	// NamedExec tự động map các field từ struct vào query
+	_, err := r.DB.NamedExec(query, p)
+	return err
+}
