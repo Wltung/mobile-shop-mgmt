@@ -1,9 +1,10 @@
 // src/hooks/usePhoneList.ts
 import { useState, useEffect, useCallback } from 'react'
 import { phoneService } from '@/services/phone.service'
-import { PaginationMeta, Phone, PhoneFilterParams } from '@/types/phone'
+import { Phone, PhoneFilterParams } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
+import { PaginationMeta } from '@/types/common'
 
 export const usePhoneList = () => {
     const [phones, setPhones] = useState<Phone[]>([])

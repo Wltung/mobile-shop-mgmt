@@ -45,6 +45,8 @@ type Phone struct {
 	SellerIDNumber *string `db:"seller_id_number" json:"seller_id_number,omitempty"`
 
 	InvoiceCode *string `db:"invoice_code" json:"invoice_code"`
+
+	InvoiceID *int `db:"invoice_id" json:"invoice_id"`
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)
@@ -70,4 +72,19 @@ type PhoneFilter struct {
 	Status    string `form:"status"`     // Filter trạng thái
 	StartDate string `form:"start_date"` // YYYY-MM-DD
 	EndDate   string `form:"end_date"`   // YYYY-MM-DD
+}
+
+type PhoneUpdateInput struct {
+	IMEI          *string  `json:"imei"`
+	ModelName     *string  `json:"model_name"`
+	Status        *string  `json:"status"`
+	Details       *JSONMap `json:"details"`
+	PurchasePrice *float64 `json:"purchase_price"`
+	PurchaseDate  *string  `json:"purchase_date"`
+	Note          *string  `json:"note"`
+
+	// Thông tin người bán (Update SourceID)
+	SellerName  *string `json:"seller_name"`
+	SellerPhone *string `json:"seller_phone"`
+	SellerID    *string `json:"seller_id"` // CCCD
 }

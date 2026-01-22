@@ -61,10 +61,10 @@ export default function ImportPage() {
     const columns: ColumnDef<Phone>[] = [
         {
             header: 'NGÀY NHẬP',
-            accessorKey: 'created_at',
+            accessorKey: 'purchase_date',
             cell: (item) => (
                 <span className="whitespace-nowrap">
-                    {formatDate(item.created_at)}
+                    {formatDate(item.purchase_date)}
                 </span>
             ),
         },

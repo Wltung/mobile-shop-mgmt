@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 
-import { importSchema, ImportFormValues } from './schema' // Tận dụng schema có sẵn
+import { phoneBaseSchema, EditFormValues, defaultImportValues } from './schema' // Tận dụng schema có sẵn
 import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
@@ -39,32 +39,46 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    // Map dữ liệu hiện tại vào Form
-    const defaultValues: Partial<ImportFormValues> = {
+    const formatDateForInput = (dateString?: string) => {
+        if (!dateString) return ''
+        try {
+            // Cách 1: Cắt chuỗi trực tiếp (Nhanh, hiệu quả nếu chuỗi chuẩn ISO)
+            return dateString.split('T')[0]
+            
+            // Cách 2: Dùng Date object (An toàn hơn nếu format lạ)
+            // return new Date(dateString).toISOString().split('T')[0]
+        } catch (e) {
+            return ''
+        }
+    }
+
+    // Map dữ liệu từ API vào Form
+    const defaultValues: Partial<EditFormValues> = {
         model_name: phone.model_name,
         imei: phone.imei,
-        status: phone.status,
-        purchase_price: String(phone.purchase_price),
-        import_date: phone.details?.import_date || new Date(phone.created_at).toISOString().split('T')[0],
+        status: phone.status as any,
+        // Convert number -> string để hiển thị trên input
+        purchase_price: String(phone.purchase_price), 
+        purchase_date: formatDateForInput(phone.purchase_date || phone.created_at),
         
         seller_name: phone.seller_name || '',
         seller_phone: phone.seller_phone || '',
-        seller_id: phone.seller_id_number || '',
+        seller_id: phone.seller_id || '',
         
         color: phone.details?.color || '',
         storage: phone.details?.storage || '',
-        battery: String(phone.details?.battery || ''),
+        battery: phone.details?.battery ? String(phone.details.battery) : '',
         appearance: phone.details?.appearance || '',
         note: phone.note || '',
-        create_invoice: false // Edit thì không tạo hóa đơn
+        accessories: phone.details?.accessories || []
     }
 
-    const form = useForm<ImportFormValues>({
-        resolver: zodResolver(importSchema),
+    const form = useForm<EditFormValues>({
+        resolver: zodResolver(phoneBaseSchema),
         defaultValues: defaultValues,
     })
 
-    const onSubmit: SubmitHandler<ImportFormValues> = async (values) => {
+    const onSubmit: SubmitHandler<EditFormValues> = async (values) => {
         setIsLoading(true)
         try {
             // Chuẩn bị payload gửi lên API
@@ -74,6 +88,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 purchase_price: Number(values.purchase_price),
                 status: values.status,
                 note: values.note,
+                purchase_date: values.purchase_date,
                 seller_name: values.seller_name,
                 seller_phone: values.seller_phone,
                 seller_id: values.seller_id,
@@ -82,10 +97,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                     storage: values.storage,
                     battery: values.battery,
                     appearance: values.appearance,
-                    import_date: values.import_date,
-                    // Giữ lại các field khác trong details nếu có
-                    ...phone.details,
-                    accessories: values.accessories
+                    accessories: values.accessories,
                 },
             }
 
@@ -140,8 +152,31 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className={labelClass}>IMEI</FormLabel>
-                                            <FormControl><Input {...field} className={`${inputClass} font-mono`} /></FormControl>
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    maxLength={15}
+                                                    className={`${inputClass} font-mono`} 
+                                                />
+                                            </FormControl>
                                             <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="status"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Trạng thái</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="IN_STOCK">Trong kho</SelectItem>
+                                                    <SelectItem value="REPAIRING">Đang sửa</SelectItem>
+                                                    <SelectItem value="SOLD">Đã bán</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </FormItem>
                                     )}
                                 />
@@ -190,7 +225,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             </FormItem>
                                         )}
                                     />
-                                     <FormField
+                                    <FormField
                                         control={form.control}
                                         name="appearance"
                                         render={({ field }) => (
@@ -218,7 +253,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
-                                        name="import_date"
+                                        name="purchase_date"
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel className={labelClass}>Ngày nhập</FormLabel>

@@ -14,3 +14,11 @@ export interface StatItem {
     icon: ReactNode
     color: 'blue' | 'green' | 'yellow' | 'red' | 'purple' // Định nghĩa các theme màu
 }
+
+export interface PaginationMeta {
+    page: number
+    limit: number
+    total: number
+    total_pages: number
+    total_value: number
+}

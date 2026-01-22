@@ -129,76 +129,106 @@ func (s *PhoneService) GetPhoneDetail(id, userID int) (*model.Phone, error) {
 	return s.Repo.GetByID(id, userID)
 }
 
-func (s *PhoneService) UpdatePhone(id int, input model.PhoneInput, userID int) error {
-	// 1. Lấy thông tin máy cũ để kiểm tra quyền sở hữu
+func (s *PhoneService) UpdatePhone(id int, input model.PhoneUpdateInput, userID int) error {
+	// 1. Kiểm tra tồn tại
 	existingPhone, err := s.Repo.GetByID(id, userID)
 	if err != nil {
-		return err // Trả về lỗi nếu không tìm thấy
+		return err
 	}
 	if existingPhone == nil {
-		return errors.New("không tìm thấy máy hoặc không có quyền sửa")
+		return errors.New("máy không tìm thấy")
 	}
 
-	// 2. Xử lý thông tin Người bán (Khách hàng)
-	// Logic: Nếu thông tin người bán thay đổi, ta phải tìm hoặc tạo khách mới để lấy source_id mới
-	var newSourceID *int = existingPhone.SourceID // Mặc định giữ nguyên khách cũ
+	// 2. Xử lý thông tin Người Bán (Chỉ chạy nếu có gửi 1 trong các trường liên quan)
+	var newSourceID *int = nil // Mặc định nil (không update cột này)
 
-	hasSellerInfo := input.SellerName != "" || input.SellerPhone != "" || input.SellerID != ""
+	// Kiểm tra xem user có gửi thông tin seller không
+	hasSellerUpdate := input.SellerName != nil || input.SellerPhone != nil || input.SellerID != nil
 
-	if hasSellerInfo {
-		// Tái sử dụng logic tìm/tạo khách từ hàm ImportPhone
-		cust, err := s.CustomerRepo.GetByPhoneOrIdentity(input.SellerPhone, input.SellerID, userID)
-		if err != nil {
-			return err
+	if hasSellerUpdate {
+		// Lấy giá trị từ input hoặc fallback về giá trị cũ nếu input thiếu
+		// (Logic này tuỳ bạn: Patch là thay thế hay merge? Ở đây giả sử merge với cái cũ nếu thiếu)
+
+		sName := ""
+		if input.SellerName != nil {
+			sName = *input.SellerName
+		} else if existingPhone.SellerName != nil {
+			sName = *existingPhone.SellerName
 		}
 
-		if cust != nil {
-			newSourceID = &cust.ID // Đã có khách -> Lấy ID
-		} else {
-			// Tạo khách mới
-			sellerName := input.SellerName
-			if sellerName == "" {
-				sellerName = "Khách vãng lai"
-			}
+		sPhone := ""
+		if input.SellerPhone != nil {
+			sPhone = *input.SellerPhone
+		} else if existingPhone.SellerPhone != nil {
+			sPhone = *existingPhone.SellerPhone
+		}
 
-			var phonePtr, idPtr *string
-			if input.SellerPhone != "" {
-				phonePtr = &input.SellerPhone
-			}
-			if input.SellerID != "" {
-				idPtr = &input.SellerID
-			}
+		sID := ""
+		if input.SellerID != nil {
+			sID = *input.SellerID
+		} else if existingPhone.SellerIDNumber != nil {
+			sID = *existingPhone.SellerIDNumber
+		}
 
-			newID, err := s.CustomerRepo.Create(model.Customer{
-				Name:      sellerName,
-				Phone:     phonePtr,
-				IDNumber:  idPtr,
+		// Xử lý các con trỏ string để lưu vào DB (nếu rỗng thì lưu NULL)
+		var pPtr, iPtr *string
+		if sPhone != "" {
+			pPtr = &sPhone
+		}
+		if sID != "" {
+			iPtr = &sID
+		}
+		if sName == "" {
+			sName = "Khách vãng lai"
+		}
+
+		// LOGIC MỚI:
+		// Trường hợp A: Máy đã có người bán (SourceID != nil) -> Cập nhật thông tin người đó
+		if existingPhone.SourceID != nil {
+			err := s.CustomerRepo.Update(model.Customer{
+				ID:        *existingPhone.SourceID,
+				Name:      sName,
+				Phone:     pPtr,
+				IDNumber:  iPtr,
 				CreatedBy: userID,
 			})
 			if err != nil {
 				return err
 			}
-			idVal := newID
-			newSourceID = &idVal
+			// Giữ nguyên SourceID cũ (chỉ cập nhật nội dung)
+			// Lưu ý: Nếu muốn truyền newSourceID vào UpdateDynamic, ta có thể gán nó bằng SourceID cũ
+			// Tuy nhiên, logic repo UpdateDynamic thường chỉ update nếu source_id khác nil.
+			// Ở đây ta đã update customer rồi, không cần update source_id trong bảng phones nữa.
+		} else {
+			// Trường hợp B: Máy chưa có người bán (SourceID == nil) -> Tìm hoặc Tạo mới (Logic cũ)
+
+			// Tìm khách cũ theo SĐT/CCCD
+			cust, err := s.CustomerRepo.GetByPhoneOrIdentity(sPhone, sID, userID)
+			if err != nil {
+				return err
+			}
+
+			if cust != nil {
+				// Tìm thấy -> Link tới ID khách này
+				idVal := cust.ID
+				newSourceID = &idVal
+			} else {
+				// Chưa có -> Tạo khách mới
+				newID, err := s.CustomerRepo.Create(model.Customer{
+					Name:      sName,
+					Phone:     pPtr,
+					IDNumber:  iPtr,
+					CreatedBy: userID,
+				})
+				if err != nil {
+					return err
+				}
+				idVal := newID
+				newSourceID = &idVal
+			}
 		}
 	}
 
-	// 3. Map dữ liệu mới vào Model (Giữ lại ID và UserID cũ)
-	updateData := model.Phone{
-		ID:            id,
-		ImportBy:      &userID, // Để đảm bảo WHERE condition trong Repo hoạt động đúng
-		IMEI:          input.IMEI,
-		ModelName:     input.ModelName,
-		Status:        input.Status,
-		PurchasePrice: input.PurchasePrice,
-		Details:       input.Details,
-		Note:          &input.Note,
-		SourceID:      newSourceID,
-		// PurchaseDate: Giữ nguyên hoặc update từ input nếu FE có gửi trường này
-	}
-
-	// Nếu FE có gửi ngày nhập (trong Details hoặc trường riêng), hãy cập nhật PurchaseDate tại đây
-	// Ví dụ: updateData.PurchaseDate = parseTime(input.ImportDate)
-
-	return s.Repo.Update(updateData)
+	// 3. Gọi Repo Dynamic Update
+	return s.Repo.UpdateDynamic(id, userID, input, newSourceID)
 }

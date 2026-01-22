@@ -22,6 +22,9 @@ import DetailCard from '@/components/common/detail/DetailCard'
 import DetailRow from '@/components/common/detail/DetailRow'
 import PageHeader from '@/components/common/detail/PageHeader'
 import EditPhoneModal from '@/components/phones/import/EditPhoneModal'
+import { usePrintInvoice } from '@/hooks/usePrintInvoice'
+import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
+import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
@@ -30,32 +33,20 @@ export default function PhoneDetailPage() {
     const { phone, isLoading, formatCurrency, formatDate, refresh } = usePhoneDetail(
         Number(id),
     )
+    // 2. Logic Hook (In hoá đơn)
+    const { 
+        isInvoiceModalOpen, 
+        setIsInvoiceModalOpen, 
+        activeInvoiceId, 
+        isCreatingInvoice, 
+        handlePrintInvoice 
+    } = usePrintInvoice({ 
+        phone, 
+        refreshPhone: async () => { await refresh() } 
+    })
 
+    // 3. UI State (Edit Modal)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-
-    // Helper render trạng thái (UI thuần túy nên để ở đây hoặc tách ra component nhỏ)
-    const renderStatus = (status: string) => {
-        const styles: Record<string, string> = {
-            IN_STOCK: 'bg-green-100 text-green-700 border-green-200',
-            SOLD: 'bg-slate-100 text-slate-700 border-slate-200',
-            REPAIRING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-        }
-        const labels: Record<string, string> = {
-            IN_STOCK: 'Trong kho',
-            SOLD: 'Đã bán',
-            REPAIRING: 'Đang sửa',
-        }
-        return (
-            <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium shadow-sm ${styles[status] || 'bg-gray-100'}`}
-            >
-                <div
-                    className={`mr-2 h-1.5 w-1.5 rounded-full ${status === 'IN_STOCK' ? 'bg-green-500' : 'bg-slate-500'}`}
-                ></div>
-                {labels[status] || status}
-            </span>
-        )
-    }
 
     if (isLoading) {
         return (
@@ -90,7 +81,7 @@ export default function PhoneDetailPage() {
                         // Title
                         title={phone.model_name}
                         // Status Badge
-                        status={renderStatus(phone.status)}
+                        status={<PhoneStatusBadge status={phone.status} />}
                         // Subtitle (Mã hoá đơn...)
                         subtitle={
                             <>
@@ -105,10 +96,12 @@ export default function PhoneDetailPage() {
                             <>
                                 <Button
                                     variant="outline"
+                                    onClick={handlePrintInvoice}
+                                    disabled={isCreatingInvoice}
                                     className="gap-2 bg-white text-slate-700 shadow-sm hover:border-primary/50 hover:text-primary"
                                 >
-                                    <Printer className="h-5 w-5" />
-                                    <span>In hoá đơn</span>
+                                    {isCreatingInvoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-5 w-5" />}
+                                    <span>Tạo & In hoá đơn</span>
                                 </Button>
                                 <Button
                                     onClick={() => setIsEditModalOpen(true)}
@@ -189,7 +182,7 @@ export default function PhoneDetailPage() {
                         >
                             <DetailRow
                                 label="Ngày nhập"
-                                value={formatDate(phone.created_at)}
+                                value={formatDate(phone.purchase_date)}
                             />
                             <DetailRow
                                 label="Giá nhập"
@@ -222,7 +215,7 @@ export default function PhoneDetailPage() {
                                 label="Số CCCD"
                                 value={
                                     <span className="font-mono">
-                                        {phone.seller_id_number || '---'}
+                                        {phone.seller_id || '---'}
                                     </span>
                                 }
                             />
@@ -269,6 +262,15 @@ export default function PhoneDetailPage() {
                     setIsEditModalOpen(false)
                 }}
             />
+
+            {activeInvoiceId > 0 && (
+                <InvoicePreviewModal 
+                    isOpen={isInvoiceModalOpen}
+                    onClose={() => setIsInvoiceModalOpen(false)}
+                    phone={phone}
+                    invoiceId={activeInvoiceId}
+                />
+            )}
         </div>
     )
 }

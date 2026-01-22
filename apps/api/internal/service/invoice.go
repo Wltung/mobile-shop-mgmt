@@ -3,16 +3,21 @@ package service
 import (
 	"api/internal/model"
 	"api/internal/repository"
+	"errors"
 	"fmt"
 	"time"
 )
 
 type InvoiceService struct {
-	Repo *repository.InvoiceRepo
+	Repo         *repository.InvoiceRepo
+	CustomerRepo *repository.CustomerRepo
 }
 
-func NewInvoiceService(repo *repository.InvoiceRepo) *InvoiceService {
-	return &InvoiceService{Repo: repo}
+func NewInvoiceService(repo *repository.InvoiceRepo, custRepo *repository.CustomerRepo) *InvoiceService {
+	return &InvoiceService{
+		Repo:         repo,
+		CustomerRepo: custRepo,
+	}
 }
 
 // Hàm helper sinh mã (Private)
@@ -51,7 +56,35 @@ func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
 }
 
 func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID int) (int, error) {
-	// 1. Tính toán items và tổng tiền
+	// 1. VALIDATE THÔNG TIN KHÁCH HÀNG
+	if input.CustomerID == nil {
+		return 0, errors.New("Thiếu thông tin khách hàng (CustomerID)")
+	}
+
+	// Lấy thông tin khách hiện tại trong DB
+	cust, err := s.CustomerRepo.GetByID(*input.CustomerID, userID)
+	if err != nil {
+		return 0, err
+	}
+	if cust == nil {
+		return 0, errors.New("Khách hàng không tồn tại trong hệ thống")
+	}
+
+	// Rule 1: Tên không được trống và không được là "Khách vãng lai"
+	if cust.Name == "" || cust.Name == "Khách vãng lai" {
+		return 0, errors.New("Không thể tạo hoá đơn cho 'Khách vãng lai' hoặc tên trống. Vui lòng cập nhật Họ tên khách hàng.")
+	}
+
+	// Rule 2: Phải có ít nhất SĐT hoặc CCCD
+	hasPhone := cust.Phone != nil && *cust.Phone != ""
+	hasID := cust.IDNumber != nil && *cust.IDNumber != ""
+
+	if !hasPhone && !hasID {
+		return 0, errors.New("Thiếu thông tin liên lạc. Khách hàng bắt buộc phải có Số điện thoại hoặc Số CCCD.")
+	}
+
+	// ---------------------------------------------------------
+	// 2. Tính toán items và tổng tiền (Logic cũ)
 	var totalAmount float64
 	var items []model.InvoiceItem
 
@@ -74,7 +107,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		})
 	}
 
-	// 2. Chuẩn bị Invoice Header
+	// 3. Chuẩn bị Invoice Header
 	status := input.Status
 	if status == "" {
 		status = model.InvoiceStatusPaid
@@ -96,7 +129,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		Note:        input.Note,
 	}
 
-	// 3. Gọi Repo lưu
+	// 4. Gọi Repo lưu
 	return s.Repo.Create(invoice, items)
 }
 

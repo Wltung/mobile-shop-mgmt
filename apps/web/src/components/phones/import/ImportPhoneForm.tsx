@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 
-import { importSchema, ImportFormValues, defaultImportValues } from './schema'
+import { importPhoneSchema, ImportFormValues, defaultImportValues } from './schema'
 import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
 import { invoiceService } from '@/services/invoice.service'
@@ -39,9 +39,11 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
     const { toast } = useToast()
 
     const form = useForm<ImportFormValues>({
-        resolver: zodResolver(importSchema),
+        resolver: zodResolver(importPhoneSchema),
         defaultValues: defaultImportValues,
     })
+
+    const isCreateInvoice = form.watch('create_invoice')
 
     const onSubmit: SubmitHandler<ImportFormValues> = async (values) => {
         setIsLoading(true)
@@ -62,7 +64,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                     storage: values.storage,
                     battery: values.battery,
                     appearance: values.appearance,
-                    import_date: values.import_date,
+                    purchase_date: values.purchase_date,
                     accessories: values.accessories,
                 },
             }
@@ -253,7 +255,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                             <div className="md:col-span-2">
                                 <FormField
                                     control={form.control}
-                                    name="import_date"
+                                    name="purchase_date"
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col">
                                             <FormLabel className="text-sm font-semibold text-slate-700">
@@ -293,6 +295,8 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                     <FormItem>
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Họ tên người bán
+                                            {/* Hiển thị dấu * nếu đang tạo hoá đơn */}
+                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
                                         </FormLabel>
                                         <FormControl>
                                             <Input
@@ -311,6 +315,8 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                     <FormItem>
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Số điện thoại
+                                            {/* Logic: Nếu tạo hóa đơn, hiện dấu * báo hiệu cần nhập (1 trong 2) */}
+                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
                                         </FormLabel>
                                         <FormControl>
                                             <Input
@@ -330,6 +336,8 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                     <FormItem>
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Số CCCD
+                                            {/* Logic: Nếu tạo hóa đơn, hiện dấu * báo hiệu cần nhập (1 trong 2) */}
+                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
                                         </FormLabel>
                                         <FormControl>
                                             <Input

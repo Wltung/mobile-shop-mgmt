@@ -28,7 +28,7 @@ func main() {
 	// Service
 	phoneService := service.NewPhoneService(phoneRepo, customerRepo)
 	authService := service.NewAuthService(userRepo, tokenManager)
-	invoiceService := service.NewInvoiceService(invoiceRepo)
+	invoiceService := service.NewInvoiceService(invoiceRepo, customerRepo)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, cfg)

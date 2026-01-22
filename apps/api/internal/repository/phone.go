@@ -3,6 +3,7 @@ package repository
 import (
 	"api/internal/model"
 	"database/sql"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -129,7 +130,8 @@ func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 			c.name as seller_name,
 			c.phone as seller_phone,
 			c.id_number as seller_id_number,
-			inv.invoice_code as invoice_code  -- Lấy thêm cột này
+			inv.invoice_code as invoice_code,  -- Lấy thêm cột này
+			inv.id as invoice_id
 		FROM phones p
 		LEFT JOIN users u ON p.import_by = u.id
 		LEFT JOIN customers c ON p.source_id = c.id
@@ -151,24 +153,61 @@ func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 	return &phone, nil
 }
 
-func (r *PhoneRepo) Update(p model.Phone) error {
-	// Chỉ cho phép update các trường thông tin, không cho sửa ID hay ngày tạo
-	query := `
-		UPDATE phones 
-		SET 
-			imei = :imei, 
-			model_name = :model_name, 
-			status = :status, 
-			purchase_price = :purchase_price, 
-			note = :note, 
-			details = :details,
-			source_id = :source_id,
-			import_date = :import_date,  -- Nếu bạn có cột này (hoặc purchase_date)
-			updated_at = NOW()
-		WHERE id = :id AND import_by = :import_by
-	`
+// UpdateDynamic: Chỉ update các trường có giá trị (không nil)
+func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInput, newSourceID *int) error {
+	// 1. Xây dựng câu query động
+	setClauses := []string{}
+	args := []interface{}{}
 
-	// NamedExec tự động map các field từ struct vào query
-	_, err := r.DB.NamedExec(query, p)
+	// Luôn update thời gian sửa
+	setClauses = append(setClauses, "updated_at = NOW()")
+
+	if input.IMEI != nil {
+		setClauses = append(setClauses, "imei = ?")
+		args = append(args, *input.IMEI)
+	}
+	if input.ModelName != nil {
+		setClauses = append(setClauses, "model_name = ?")
+		args = append(args, *input.ModelName)
+	}
+	if input.Status != nil {
+		setClauses = append(setClauses, "status = ?")
+		args = append(args, *input.Status)
+	}
+	if input.PurchasePrice != nil {
+		setClauses = append(setClauses, "purchase_price = ?")
+		args = append(args, *input.PurchasePrice)
+	}
+	if input.PurchaseDate != nil {
+		setClauses = append(setClauses, "purchase_date = ?")
+		args = append(args, *input.PurchaseDate)
+	}
+	if input.Note != nil {
+		setClauses = append(setClauses, "note = ?")
+		args = append(args, *input.Note)
+	}
+	if input.Details != nil {
+		setClauses = append(setClauses, "details = ?")
+		args = append(args, *input.Details) // sqlx tự handle JSONMap Value()
+	}
+
+	// Nếu logic service xác định có thay đổi SourceID (người bán)
+	// newSourceID là pointer int, nếu service truyền vào nil nghĩa là không đổi source
+	// Nhưng ở đây ta cần cẩn thận: Service sẽ quyết định passed vào value nào.
+	// Tạm thời quy ước: Nếu Service tính toán ra SourceID mới, nó sẽ truyền vào.
+	if newSourceID != nil {
+		setClauses = append(setClauses, "source_id = ?")
+		args = append(args, *newSourceID)
+	}
+
+	// Nếu không có gì để update thì return luôn
+	if len(setClauses) == 0 {
+		return nil
+	}
+
+	query := "UPDATE phones SET " + strings.Join(setClauses, ", ") + " WHERE id = ? AND import_by = ?"
+	args = append(args, id, userID)
+
+	_, err := r.DB.Exec(query, args...)
 	return err
 }

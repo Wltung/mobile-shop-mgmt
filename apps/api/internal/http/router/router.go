@@ -5,6 +5,9 @@ import (
 	"api/internal/http/handler"
 	"api/internal/http/middleware"
 
+	"time"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,19 +20,26 @@ func NewRouter(
 ) *gin.Engine {
 	r := gin.Default()
 
-	// 1. Setup CORS (Rất quan trọng cho Next.js gọi sang)
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", cfg.FrontendOrigin)
-		// 2. Bắt buộc phải có dòng này để trình duyệt cho phép gửi Cookie
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	// --- CẤU HÌNH CORS ---
+	r.Use(cors.New(cors.Config{
+		// Cho phép Frontend gọi vào (đổi port nếu FE bạn chạy port khác)
+		AllowOrigins: []string{cfg.FrontendOrigin},
+
+		// Các method được phép (QUAN TRỌNG: Phải có PATCH vì ta vừa thêm API Patch)
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+
+		// Các Header được phép gửi lên
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
+
+		// Cho phép hiển thị các header này về client
+		ExposeHeaders: []string{"Content-Length"},
+
+		// Cho phép gửi cookie/token (quan trọng nếu dùng cookie)
+		AllowCredentials: true,
+
+		// Cache preflight request trong 12 giờ
+		MaxAge: 12 * time.Hour,
+	}))
 
 	api := r.Group("/api")
 	{
@@ -52,7 +62,7 @@ func NewRouter(
 			protected.POST("/phones", phoneHandler.CreatePhone)
 			protected.GET("/phones", phoneHandler.GetPhones)
 			protected.GET("/phones/:id", phoneHandler.GetPhoneDetail)
-			protected.PUT("/:id", phoneHandler.UpdatePhone)
+			protected.PATCH("/phones/:id", phoneHandler.UpdatePhone)
 			// Invoice Routes
 			protected.POST("/invoices", invoiceHandler.CreateInvoice)
 			protected.GET("/invoices/:id", invoiceHandler.GetInvoice)

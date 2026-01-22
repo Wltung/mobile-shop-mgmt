@@ -1,5 +1,7 @@
 // src/types/phone.ts
 
+import { PaginationMeta } from "./common"
+
 export type PhoneStatus = 'IN_STOCK' | 'SOLD' | 'REPAIRING'
 
 export interface Phone {
@@ -8,6 +10,7 @@ export interface Phone {
     model_name: string
     status: PhoneStatus
     purchase_price: number
+    purchase_date: string
     sale_price?: number
     note?: string
     created_at: string // API trả về string ISO
@@ -15,8 +18,10 @@ export interface Phone {
     importer_name?: string
     seller_name?: string
     seller_phone?: string
-    seller_id_number?: string // CCCD
+    seller_id?: string // CCCD
     invoice_code?: string
+    invoice_id?: number
+    source_id?: number
 }
 
 export interface CreatePhoneResponse {
@@ -29,14 +34,6 @@ export interface PhoneListResponse {
     message: string
     data: Phone[]
     meta: PaginationMeta
-}
-
-export interface PaginationMeta {
-    page: number
-    limit: number
-    total: number
-    total_pages: number
-    total_value: number
 }
 
 export interface PhoneFilterParams {

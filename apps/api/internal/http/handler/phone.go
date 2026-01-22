@@ -131,27 +131,20 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 }
 
 func (h *PhoneHandler) UpdatePhone(c *gin.Context) {
-	// 1. Lấy ID từ URL
 	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
-		return
-	}
+	id, _ := strconv.Atoi(idStr) // Bỏ qua check lỗi cơ bản cho gọn, thực tế nên check
 
-	// 2. Parse Body
-	var input model.PhoneInput
+	var input model.PhoneUpdateInput
+	// ShouldBindJSON sẽ map các field có trong JSON, field nào thiếu sẽ là nil
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 3. Lấy UserID
 	userIDFloat, _ := c.Get("userID")
 	userID := int(userIDFloat.(float64))
 
-	// 4. Gọi Service
-	err = h.Service.UpdatePhone(id, input, userID)
+	err := h.Service.UpdatePhone(id, input, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

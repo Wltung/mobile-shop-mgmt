@@ -15,6 +15,24 @@ func NewCustomerRepo(db *sqlx.DB) *CustomerRepo {
 	return &CustomerRepo{DB: db}
 }
 
+func (r *CustomerRepo) GetByID(id, userID int) (*model.Customer, error) {
+	var c model.Customer
+	query := `
+		SELECT id, name, phone, id_number, created_by, created_at
+		FROM customers
+		WHERE id = ? AND created_by = ?
+		LIMIT 1
+	`
+	err := r.DB.Get(&c, query, id, userID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // Tìm khách hàng theo SĐT hoặc CCCD
 func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string, userID int) (*model.Customer, error) {
 	// Ưu tiên CCCD
@@ -70,4 +88,18 @@ func (r *CustomerRepo) Create(c model.Customer) (int, error) {
 	}
 	id, err := result.LastInsertId()
 	return int(id), err
+}
+
+func (r *CustomerRepo) Update(c model.Customer) error {
+	query := `
+		UPDATE customers 
+		SET 
+			name = :name, 
+			phone = :phone, 
+			id_number = :id_number,
+			updated_at = NOW()
+		WHERE id = :id AND created_by = :created_by
+	`
+	_, err := r.DB.NamedExec(query, c)
+	return err
 }
