@@ -30,19 +30,20 @@ export default function PhoneDetailPage() {
     const { id } = useParams()
 
     // 1. Sử dụng Hook để lấy dữ liệu và logic
-    const { phone, isLoading, formatCurrency, formatDate, refresh } = usePhoneDetail(
-        Number(id),
-    )
+    const { phone, isLoading, formatCurrency, formatDate, refresh } =
+        usePhoneDetail(Number(id))
     // 2. Logic Hook (In hoá đơn)
-    const { 
-        isInvoiceModalOpen, 
-        setIsInvoiceModalOpen, 
-        activeInvoiceId, 
-        isCreatingInvoice, 
-        handlePrintInvoice 
-    } = usePrintInvoice({ 
-        phone, 
-        refreshPhone: async () => { await refresh() } 
+    const {
+        isInvoiceModalOpen,
+        setIsInvoiceModalOpen,
+        activeInvoiceId,
+        isCreatingInvoice,
+        handlePrintInvoice,
+    } = usePrintInvoice({
+        phone,
+        refreshPhone: async () => {
+            await refresh()
+        },
     })
 
     // 3. UI State (Edit Modal)
@@ -100,7 +101,11 @@ export default function PhoneDetailPage() {
                                     disabled={isCreatingInvoice}
                                     className="gap-2 bg-white text-slate-700 shadow-sm hover:border-primary/50 hover:text-primary"
                                 >
-                                    {isCreatingInvoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-5 w-5" />}
+                                    {isCreatingInvoice ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Printer className="h-5 w-5" />
+                                    )}
                                     <span>Tạo & In hoá đơn</span>
                                 </Button>
                                 <Button
@@ -253,7 +258,7 @@ export default function PhoneDetailPage() {
             </div>
 
             {/* Thêm Component Modal */}
-            <EditPhoneModal 
+            <EditPhoneModal
                 phone={phone}
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
@@ -264,7 +269,7 @@ export default function PhoneDetailPage() {
             />
 
             {activeInvoiceId > 0 && (
-                <InvoicePreviewModal 
+                <InvoicePreviewModal
                     isOpen={isInvoiceModalOpen}
                     onClose={() => setIsInvoiceModalOpen(false)}
                     phone={phone}

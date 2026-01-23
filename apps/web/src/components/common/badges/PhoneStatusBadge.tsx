@@ -19,7 +19,8 @@ export default function PhoneStatusBadge({ status, className = '' }: Props) {
         REPAIRING: 'Đang sửa',
     }
 
-    const currentStyle = styles[status] || 'bg-gray-100 text-gray-700 border-gray-200'
+    const currentStyle =
+        styles[status] || 'bg-gray-100 text-gray-700 border-gray-200'
     const currentLabel = labels[status] || status
 
     return (

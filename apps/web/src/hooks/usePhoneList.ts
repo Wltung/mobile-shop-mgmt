@@ -66,7 +66,13 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
     // Riêng keyword sẽ được xử lý debounce ở UI event
     useEffect(() => {
         fetchPhones(filters)
-    }, [filters.page, filters.status, filters.start_date, filters.end_date, type])
+    }, [
+        filters.page,
+        filters.status,
+        filters.start_date,
+        filters.end_date,
+        type,
+    ])
 
     // Hàm update filter cho UI dùng
     const setKeyword = (kw: string) => {

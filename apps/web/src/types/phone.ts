@@ -1,6 +1,6 @@
 // src/types/phone.ts
 
-import { PaginationMeta } from "./common"
+import { PaginationMeta } from './common'
 
 export type PhoneStatus = 'IN_STOCK' | 'SOLD' | 'REPAIRING'
 

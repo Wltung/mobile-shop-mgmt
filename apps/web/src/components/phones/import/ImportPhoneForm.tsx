@@ -24,7 +24,11 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 
-import { importPhoneSchema, ImportFormValues, defaultImportValues } from './schema'
+import {
+    importPhoneSchema,
+    ImportFormValues,
+    defaultImportValues,
+} from './schema'
 import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
 import { invoiceService } from '@/services/invoice.service'
@@ -296,7 +300,11 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Họ tên người bán
                                             {/* Hiển thị dấu * nếu đang tạo hoá đơn */}
-                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
+                                            {isCreateInvoice && (
+                                                <span className="ml-1 text-red-500">
+                                                    *
+                                                </span>
+                                            )}
                                         </FormLabel>
                                         <FormControl>
                                             <Input
@@ -316,7 +324,11 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Số điện thoại
                                             {/* Logic: Nếu tạo hóa đơn, hiện dấu * báo hiệu cần nhập (1 trong 2) */}
-                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
+                                            {isCreateInvoice && (
+                                                <span className="ml-1 text-red-500">
+                                                    *
+                                                </span>
+                                            )}
                                         </FormLabel>
                                         <FormControl>
                                             <Input
@@ -337,7 +349,11 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                         <FormLabel className="text-sm font-semibold text-slate-700">
                                             Số CCCD
                                             {/* Logic: Nếu tạo hóa đơn, hiện dấu * báo hiệu cần nhập (1 trong 2) */}
-                                            {isCreateInvoice && <span className="text-red-500 ml-1">*</span>}
+                                            {isCreateInvoice && (
+                                                <span className="ml-1 text-red-500">
+                                                    *
+                                                </span>
+                                            )}
                                         </FormLabel>
                                         <FormControl>
                                             <Input

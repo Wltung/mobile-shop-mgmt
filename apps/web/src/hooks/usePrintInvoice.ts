@@ -9,7 +9,10 @@ interface UsePrintInvoiceProps {
     refreshPhone: () => Promise<void> // Hàm refresh data máy sau khi tạo hóa đơn
 }
 
-export const usePrintInvoice = ({ phone, refreshPhone }: UsePrintInvoiceProps) => {
+export const usePrintInvoice = ({
+    phone,
+    refreshPhone,
+}: UsePrintInvoiceProps) => {
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
     const [activeInvoiceId, setActiveInvoiceId] = useState<number>(0)
     const [isCreatingInvoice, setIsCreatingInvoice] = useState(false)
@@ -28,37 +31,41 @@ export const usePrintInvoice = ({ phone, refreshPhone }: UsePrintInvoiceProps) =
         // Case 2: Chưa có -> Tạo mới
         try {
             setIsCreatingInvoice(true)
-            
+
             // Payload tạo hoá đơn nhập
             const res = await invoiceService.create({
                 type: 'IMPORT',
                 status: 'PAID',
                 customer_id: phone.source_id, // ID người bán
                 note: `Hoá đơn nhập máy ${phone.model_name} (IMEI: ${phone.imei})`,
-                items: [{
-                    item_type: 'PHONE',
-                    phone_id: phone.id,
-                    description: phone.model_name,
-                    quantity: 1,
-                    unit_price: phone.purchase_price,
-                    warranty_months: 0
-                }]
+                items: [
+                    {
+                        item_type: 'PHONE',
+                        phone_id: phone.id,
+                        description: phone.model_name,
+                        quantity: 1,
+                        unit_price: phone.purchase_price,
+                        warranty_months: 0,
+                    },
+                ],
             })
 
-            toast({ title: 'Thành công', description: 'Đã tạo hoá đơn nhập máy mới.' })
-            
+            toast({
+                title: 'Thành công',
+                description: 'Đã tạo hoá đơn nhập máy mới.',
+            })
+
             // Refresh lại data Phone để lấy invoice_id mới và invoice_code cập nhật lên UI
             await refreshPhone()
-            
+
             // Mở modal với ID vừa tạo
             setActiveInvoiceId(res.invoice_id)
             setIsInvoiceModalOpen(true)
-
         } catch (error) {
-            toast({ 
-                variant: 'destructive', 
-                title: 'Lỗi', 
-                description: 'Không thể tạo hoá đơn. Vui lòng thử lại.' 
+            toast({
+                variant: 'destructive',
+                title: 'Lỗi',
+                description: 'Không thể tạo hoá đơn. Vui lòng thử lại.',
             })
         } finally {
             setIsCreatingInvoice(false)
@@ -70,6 +77,6 @@ export const usePrintInvoice = ({ phone, refreshPhone }: UsePrintInvoiceProps) =
         setIsInvoiceModalOpen,
         activeInvoiceId,
         isCreatingInvoice,
-        handlePrintInvoice
+        handlePrintInvoice,
     }
 }

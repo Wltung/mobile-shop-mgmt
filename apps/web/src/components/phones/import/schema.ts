@@ -50,37 +50,37 @@ export const importPhoneSchema = phoneBaseSchema
     .superRefine((data, ctx) => {
         // Chỉ validate khi checkbox được chọn
         if (data.create_invoice) {
-            
             // 1. Bắt buộc nhập Họ tên người bán
             if (!data.seller_name || data.seller_name.trim() === '') {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: "Vui lòng nhập họ tên người bán để xuất hoá đơn",
-                    path: ["seller_name"],
-                });
+                    message: 'Vui lòng nhập họ tên người bán để xuất hoá đơn',
+                    path: ['seller_name'],
+                })
             }
 
             // 2. Bắt buộc nhập ít nhất 1 trong 2: SĐT hoặc CCCD
-            const hasPhone = data.seller_phone && data.seller_phone.trim() !== '';
-            const hasID = data.seller_id && data.seller_id.trim() !== '';
+            const hasPhone =
+                data.seller_phone && data.seller_phone.trim() !== ''
+            const hasID = data.seller_id && data.seller_id.trim() !== ''
 
             if (!hasPhone && !hasID) {
                 // Báo lỗi vào cả 2 trường để hiển thị đỏ lên
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: "Cần nhập SĐT hoặc CCCD",
-                    path: ["seller_phone"],
-                });
+                    message: 'Cần nhập SĐT hoặc CCCD',
+                    path: ['seller_phone'],
+                })
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: "Cần nhập SĐT hoặc CCCD",
-                    path: ["seller_id"],
-                });
+                    message: 'Cần nhập SĐT hoặc CCCD',
+                    path: ['seller_id'],
+                })
             }
         }
-    });
+    })
 
-export const editPhoneSchema = phoneBaseSchema;
+export const editPhoneSchema = phoneBaseSchema
 
 // Xuất type ra để Form dùng
 export type ImportFormValues = z.infer<typeof importPhoneSchema>

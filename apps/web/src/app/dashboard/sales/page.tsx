@@ -1,7 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Eye, Trash2, ShoppingCart, DollarSign, Calendar, FileText } from 'lucide-react'
+import {
+    Plus,
+    Search,
+    Eye,
+    Trash2,
+    ShoppingCart,
+    DollarSign,
+    Calendar,
+    FileText,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 // Hooks & Types
@@ -25,7 +34,7 @@ import {
 
 export default function SalesPage() {
     const router = useRouter()
-    
+
     // Sử dụng hook list nhưng set logic riêng cho trang Sales
     const {
         phones,
@@ -39,7 +48,7 @@ export default function SalesPage() {
         formatCurrency,
         formatDate,
         setStatus,
-        refresh
+        refresh,
     } = usePhoneList('SALE')
 
     // --- CẤU HÌNH STATS (Khác trang Import) ---
@@ -48,7 +57,7 @@ export default function SalesPage() {
             label: 'Số máy bán hôm nay',
             // Lưu ý: Logic tính "Hôm nay" cần BE hỗ trợ hoặc filter list client
             // Tạm thời hiển thị tổng số máy đã bán (dựa trên filter SOLD)
-            value: `${stats.totalPhones} máy`, 
+            value: `${stats.totalPhones} máy`,
             icon: <ShoppingCart className="h-5 w-5" />,
             color: 'blue' as const,
         },
@@ -76,8 +85,12 @@ export default function SalesPage() {
             accessorKey: 'model_name',
             cell: (item) => (
                 <div className="flex flex-col">
-                    <span className="font-bold text-slate-900">{item.model_name}</span>
-                    <span className="text-xs text-slate-500 font-mono">{item.imei}</span>
+                    <span className="font-bold text-slate-900">
+                        {item.model_name}
+                    </span>
+                    <span className="font-mono text-xs text-slate-500">
+                        {item.imei}
+                    </span>
                 </div>
             ),
         },
@@ -85,7 +98,7 @@ export default function SalesPage() {
             header: 'KHÁCH HÀNG',
             accessorKey: 'buyer_name',
             cell: (item) => (
-                <span className="text-slate-700 font-medium">
+                <span className="font-medium text-slate-700">
                     {item.buyer_name || 'Khách lẻ'}
                 </span>
             ),
@@ -107,15 +120,27 @@ export default function SalesPage() {
                 // Logic hiển thị Paid/Draft
                 const status = item.invoice_status || 'DRAFT'
                 const config = {
-                    PAID: { label: 'Đã thanh toán', class: 'bg-green-100 text-green-700' },
-                    DRAFT: { label: 'Chờ thanh toán', class: 'bg-amber-100 text-amber-700' },
-                    CANCELLED: { label: 'Đã huỷ', class: 'bg-red-100 text-red-700' },
+                    PAID: {
+                        label: 'Đã thanh toán',
+                        class: 'bg-green-100 text-green-700',
+                    },
+                    DRAFT: {
+                        label: 'Chờ thanh toán',
+                        class: 'bg-amber-100 text-amber-700',
+                    },
+                    CANCELLED: {
+                        label: 'Đã huỷ',
+                        class: 'bg-red-100 text-red-700',
+                    },
                 }
-                const current = config[status as keyof typeof config] || config.DRAFT
+                const current =
+                    config[status as keyof typeof config] || config.DRAFT
 
                 return (
                     <div className="flex justify-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${current.class}`}>
+                        <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${current.class}`}
+                        >
                             {current.label}
                         </span>
                     </div>
@@ -128,14 +153,16 @@ export default function SalesPage() {
             cell: (item) => (
                 <div className="flex items-center justify-center gap-2">
                     <button
-                        className="rounded p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        onClick={() => router.push(`/dashboard/phones/${item.id}`)}
+                        className="rounded p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() =>
+                            router.push(`/dashboard/phones/${item.id}`)
+                        }
                         title="Xem chi tiết"
                     >
                         <Eye className="h-4 w-4" />
                     </button>
                     {/* Nút xoá hoá đơn bán (nếu cần) */}
-                    <button className="rounded p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                    <button className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
                     </button>
                 </div>
@@ -158,18 +185,22 @@ export default function SalesPage() {
                     onChange={(e) => setKeyword(e.target.value)}
                 />
             </div>
-            
+
             <div className="flex w-full gap-3 md:w-auto">
                 <div className="relative min-w-[160px] flex-1 md:flex-none">
                     <Select onValueChange={setDateFilter} defaultValue="all">
-                       {/* Date Select giữ nguyên */}
-                       <SelectTrigger className="h-10 border-slate-300"><SelectValue placeholder="Thời gian" /></SelectTrigger>
-                       <SelectContent>
-                           <SelectItem value="all">Tất cả thời gian</SelectItem>
-                           <SelectItem value="today">Hôm nay</SelectItem>
-                           <SelectItem value="week">Tuần này</SelectItem>
-                           <SelectItem value="month">Tháng này</SelectItem>
-                       </SelectContent>
+                        {/* Date Select giữ nguyên */}
+                        <SelectTrigger className="h-10 border-slate-300">
+                            <SelectValue placeholder="Thời gian" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Tất cả thời gian
+                            </SelectItem>
+                            <SelectItem value="today">Hôm nay</SelectItem>
+                            <SelectItem value="week">Tuần này</SelectItem>
+                            <SelectItem value="month">Tháng này</SelectItem>
+                        </SelectContent>
                     </Select>
                 </div>
 
@@ -183,9 +214,13 @@ export default function SalesPage() {
                             <SelectValue placeholder="Trạng thái đơn" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                            <SelectItem value="ALL">
+                                Tất cả trạng thái
+                            </SelectItem>
                             <SelectItem value="PAID">Đã thanh toán</SelectItem>
-                            <SelectItem value="DRAFT">Chờ thanh toán</SelectItem>
+                            <SelectItem value="DRAFT">
+                                Chờ thanh toán
+                            </SelectItem>
                             <SelectItem value="CANCELLED">Đã huỷ</SelectItem>
                         </SelectContent>
                     </Select>
@@ -200,7 +235,6 @@ export default function SalesPage() {
 
             <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-                    
                     {/* SECTION: THỐNG KÊ & ACTION */}
                     <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                         <StatsCards stats={statItems} />
@@ -209,7 +243,9 @@ export default function SalesPage() {
                             label="Lập hoá đơn bán"
                             icon={<Plus className="h-5 w-5" />}
                             // Logic tạo hoá đơn bán sẽ làm sau (thường là chuyển sang trang POS bán hàng)
-                            onClick={() => router.push('/dashboard/sales/create')} 
+                            onClick={() =>
+                                router.push('/dashboard/sales/create')
+                            }
                         />
                     </div>
 
