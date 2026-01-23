@@ -38,15 +38,17 @@ type Phone struct {
 
 	SourceID *int `db:"source_id" json:"source_id"` // ID người bán (khách hàng)
 
-	// --- CÁC TRƯỜNG MỚI ĐỂ HỨNG DỮ LIỆU JOIN TỪ CUSTOMERS ---
+	// --- CÁC TRƯỜNG ĐỂ HỨNG DỮ LIỆU JOIN TỪ CUSTOMERS ---
 	// Dùng con trỏ (*string) vì có thể null nếu không có người bán (nhập tồn kho cũ)
 	SellerName     *string `db:"seller_name" json:"seller_name,omitempty"`
 	SellerPhone    *string `db:"seller_phone" json:"seller_phone,omitempty"`
 	SellerIDNumber *string `db:"seller_id_number" json:"seller_id_number,omitempty"`
+	BuyerName      *string `db:"buyer_name" json:"buyer_name,omitempty"`
 
-	InvoiceCode *string `db:"invoice_code" json:"invoice_code"`
-
-	InvoiceID *int `db:"invoice_id" json:"invoice_id"`
+	// --- CÁC TRƯỜNG HỨNG DỮ LIỆU JOIN TỪ INVOICES ---
+	InvoiceCode   *string `db:"invoice_code" json:"invoice_code"`
+	InvoiceID     *int    `db:"invoice_id" json:"invoice_id"`
+	InvoiceStatus *string `db:"invoice_status" json:"invoice_status,omitempty"`
 }
 
 // PhoneInput: Struct dùng để hứng dữ liệu từ Frontend gửi lên (khi tạo/sửa)

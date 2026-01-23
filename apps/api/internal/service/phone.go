@@ -37,7 +37,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 
 	if hasSellerInfo {
 		// Tìm khách cũ
-		cust, err := s.CustomerRepo.GetByPhoneOrIdentity(input.SellerPhone, input.SellerID, userID)
+		cust, err := s.CustomerRepo.GetMatchCustomer(input.SellerName, input.SellerPhone, input.SellerID, userID)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -111,7 +111,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 }
 
 // Nhận userID từ Handler
-func (s *PhoneService) GetPhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+func (s *PhoneService) GetImportPhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
 	// Validate cơ bản
 	if filter.Page < 1 {
 		filter.Page = 1
@@ -120,7 +120,18 @@ func (s *PhoneService) GetPhones(userID int, filter model.PhoneFilter) ([]model.
 		filter.Limit = 5
 	}
 
-	return s.Repo.GetList(userID, filter)
+	return s.Repo.GetImports(userID, filter)
+}
+
+// Hàm cho trang Lịch sử bán
+func (s *PhoneService) GetSalePhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 5
+	}
+	return s.Repo.GetSales(userID, filter)
 }
 
 // Hàm lấy chi tiết
@@ -203,7 +214,7 @@ func (s *PhoneService) UpdatePhone(id int, input model.PhoneUpdateInput, userID 
 			// Trường hợp B: Máy chưa có người bán (SourceID == nil) -> Tìm hoặc Tạo mới (Logic cũ)
 
 			// Tìm khách cũ theo SĐT/CCCD
-			cust, err := s.CustomerRepo.GetByPhoneOrIdentity(sPhone, sID, userID)
+			cust, err := s.CustomerRepo.GetMatchCustomer(sName, sPhone, sID, userID)
 			if err != nil {
 				return err
 			}

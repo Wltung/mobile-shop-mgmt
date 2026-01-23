@@ -12,6 +12,7 @@ export interface Phone {
     purchase_price: number
     purchase_date: string
     sale_price?: number
+    sale_date: string
     note?: string
     created_at: string // API trả về string ISO
     details?: Record<string, any> // JSON dynamic
@@ -19,6 +20,8 @@ export interface Phone {
     seller_name?: string
     seller_phone?: string
     seller_id?: string // CCCD
+    buyer_name?: string
+    invoice_status?: 'PAID' | 'DRAFT' | 'CANCELLED' | null
     invoice_code?: string
     invoice_id?: number
     source_id?: number

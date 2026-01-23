@@ -49,9 +49,11 @@ func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 	})
 }
 
-// GET /api/phones
-func (h *PhoneHandler) GetPhones(c *gin.Context) {
-	// 1. LẤY USER ID TỪ CONTEXT (Bắt buộc phải có vì đã qua Middleware Auth)
+func (h *PhoneHandler) handleGetList(
+	c *gin.Context,
+	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, error),
+) {
+	// 1. Lấy UserID
 	userIDFloat, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -59,28 +61,34 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 	}
 	userID := int(userIDFloat.(float64))
 
+	// 2. Bind Filter & Set Default
 	var filter model.PhoneFilter
-	// BindQuery sẽ tự động lấy ?page=1&keyword=abc...
 	if err := c.ShouldBindQuery(&filter); err != nil {
-		// Set default nếu bind lỗi
+		// Log lỗi nếu cần, nhưng vẫn tiếp tục với default
+	}
+
+	// Đảm bảo pagination hợp lệ (nếu user không gửi hoặc gửi 0)
+	if filter.Page <= 0 {
 		filter.Page = 1
+	}
+	if filter.Limit <= 0 {
 		filter.Limit = 5
 	}
 
-	// 2. Truyền userID vào Service
-	phones, total, totalValue, err := h.Service.GetPhones(userID, filter)
+	// 3. Gọi Service cụ thể (được truyền vào từ tham số)
+	phones, total, totalValue, err := serviceFunc(userID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
 	}
 
-	// Tính tổng số trang
+	// 4. Tính toán phân trang
 	totalPages := 0
 	if filter.Limit > 0 {
 		totalPages = (total + filter.Limit - 1) / filter.Limit
 	}
 
-	// 3. Trả về
+	// 5. Trả về kết quả
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Lấy dữ liệu thành công",
 		"data":    phones,
@@ -92,6 +100,16 @@ func (h *PhoneHandler) GetPhones(c *gin.Context) {
 			"total_value": totalValue,
 		},
 	})
+}
+
+// GET /api/phones (Quản lý nhập)
+func (h *PhoneHandler) GetImportPhones(c *gin.Context) {
+	h.handleGetList(c, h.Service.GetImportPhones)
+}
+
+// GET /api/phones/sales (Lịch sử bán)
+func (h *PhoneHandler) GetSalePhones(c *gin.Context) {
+	h.handleGetList(c, h.Service.GetSalePhones)
 }
 
 // GET /phones/:id

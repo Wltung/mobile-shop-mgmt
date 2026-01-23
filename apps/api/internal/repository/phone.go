@@ -61,61 +61,123 @@ func (r *PhoneRepo) GetAll() ([]model.Phone, error) {
 	return phones, nil
 }
 
-func (r *PhoneRepo) GetList(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+// Hàm nội bộ: Chạy Count, Sum và Select dựa trên baseQuery đã build
+func (r *PhoneRepo) fetchList(
+	baseQuery string,
+	args []interface{},
+	sumCol string, // Cột để tính tổng (VD: p.purchase_price)
+	selectClause string, // Câu lệnh SELECT các trường cụ thể
+	orderBy string, // Câu lệnh ORDER BY
+	limit, offset int,
+) ([]model.Phone, int, float64, error) {
 	var phones []model.Phone
 	var totalCount int
 	var totalValue float64
 
-	// 1. Xây dựng câu Query động
-	baseQuery := "FROM phones p LEFT JOIN users u ON p.import_by = u.id WHERE p.import_by = ?"
+	// 1. Query Đếm
+	countQuery := "SELECT COUNT(*) " + baseQuery
+	if err := r.DB.Get(&totalCount, countQuery, args...); err != nil {
+		return nil, 0, 0, err
+	}
+
+	// 2. Query Tổng tiền
+	sumQuery := "SELECT COALESCE(SUM(" + sumCol + "), 0) " + baseQuery
+	if err := r.DB.Get(&totalValue, sumQuery, args...); err != nil {
+		return nil, 0, 0, err
+	}
+
+	// 3. Query Lấy dữ liệu (Phân trang)
+	fullQuery := selectClause + " " + baseQuery + " ORDER BY " + orderBy + " LIMIT ? OFFSET ?"
+
+	// Append limit/offset vào args để chạy query cuối
+	queryArgs := append(args, limit, offset)
+
+	if err := r.DB.Select(&phones, fullQuery, queryArgs...); err != nil {
+		return nil, 0, 0, err
+	}
+
+	return phones, totalCount, totalValue, nil
+}
+
+// 1. HAM CHO QUẢN LÝ NHẬP (Kho hàng tổng hợp)
+func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+	// --- A. Build Query ---
+	baseQuery := `
+		FROM phones p 
+		LEFT JOIN users u ON p.import_by = u.id 
+		LEFT JOIN customers c ON p.source_id = c.id
+		WHERE p.import_by = ?
+	`
 	args := []interface{}{userID}
 
-	// Filter: Keyword (IMEI hoặc Model Name)
 	if filter.Keyword != "" {
 		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ?)"
 		likeStr := "%" + filter.Keyword + "%"
 		args = append(args, likeStr, likeStr)
 	}
-
-	// Filter: Status
 	if filter.Status != "" && filter.Status != "ALL" {
 		baseQuery += " AND p.status = ?"
 		args = append(args, filter.Status)
 	}
-
-	// Filter: Date Range (Created At)
 	if filter.StartDate != "" && filter.EndDate != "" {
-		// Dùng DATE() để chỉ so sánh ngày, bỏ qua giờ phút
-		baseQuery += " AND DATE(p.created_at) BETWEEN ? AND ?"
+		baseQuery += " AND DATE(p.purchase_date) BETWEEN ? AND ?"
 		args = append(args, filter.StartDate, filter.EndDate)
 	}
 
-	// 2. Query Đếm & Tổng tiền (Chạy trước khi LIMIT)
-	countQuery := "SELECT COUNT(*) " + baseQuery
-	sumQuery := "SELECT COALESCE(SUM(p.purchase_price), 0) " + baseQuery
-
-	err := r.DB.Get(&totalCount, countQuery, args...)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	err = r.DB.Get(&totalValue, sumQuery, args...)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-
-	// 3. Query Lấy dữ liệu (Thêm Sort & Pagination)
-	// Lưu ý: LIMIT/OFFSET phải nằm cuối cùng
-	selectQuery := `SELECT p.*, u.full_name as importer_name ` + baseQuery + ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
-
+	// --- B. Config & Execute ---
+	selectClause := `
+		SELECT p.*, 
+		u.full_name as importer_name,
+		c.name as seller_name, 
+		c.phone as seller_phone
+	`
+	// Sắp xếp ưu tiên ngày nhập
+	orderBy := "COALESCE(p.purchase_date, p.created_at) DESC"
 	offset := (filter.Page - 1) * filter.Limit
-	args = append(args, filter.Limit, offset)
 
-	err = r.DB.Select(&phones, selectQuery, args...)
-	if err != nil {
-		return nil, 0, 0, err
+	// Gọi hàm chung
+	return r.fetchList(baseQuery, args, "p.purchase_price", selectClause, orderBy, filter.Limit, offset)
+}
+
+// 2. HAM CHO LỊCH SỬ BÁN HÀNG (Chỉ lấy máy đã bán)
+func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+	// --- A. Build Query ---
+	baseQuery := `
+		FROM phones p 
+		LEFT JOIN invoice_items ii ON p.id = ii.phone_id
+		LEFT JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
+		LEFT JOIN customers c_buy ON inv.customer_id = c_buy.id
+		WHERE p.import_by = ? AND p.status = 'SOLD'
+	`
+	args := []interface{}{userID}
+
+	if filter.Keyword != "" {
+		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR c_buy.name LIKE ?)"
+		likeStr := "%" + filter.Keyword + "%"
+		args = append(args, likeStr, likeStr, likeStr)
+	}
+	// Filter Status
+	if filter.Status != "" && filter.Status != "ALL" {
+		baseQuery += " AND inv.status = ?"
+		args = append(args, filter.Status)
+	}
+	// Filter theo ngày bán
+	if filter.StartDate != "" && filter.EndDate != "" {
+		baseQuery += " AND DATE(p.sale_date) BETWEEN ? AND ?"
+		args = append(args, filter.StartDate, filter.EndDate)
 	}
 
-	return phones, totalCount, totalValue, nil
+	// --- B. Config & Execute ---
+	selectClause := `
+		SELECT p.*, 
+		c_buy.name as buyer_name, 
+		inv.status as invoice_status
+	`
+	orderBy := "p.sale_date DESC"
+	offset := (filter.Page - 1) * filter.Limit
+
+	// Gọi hàm chung (Lưu ý tính tổng theo sale_price)
+	return r.fetchList(baseQuery, args, "p.sale_price", selectClause, orderBy, filter.Limit, offset)
 }
 
 // GetByID: Lấy chi tiết máy theo ID và UserID (để bảo mật data)

@@ -37,7 +37,7 @@ export default function ImportPage() {
         formatCurrency,
         formatDate,
         refresh,
-    } = usePhoneList()
+    } = usePhoneList('IMPORT')
 
     const [isModalOpen, setIsModalOpen] = useState(false)
 

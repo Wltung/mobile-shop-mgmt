@@ -6,7 +6,10 @@ import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
 import { PaginationMeta } from '@/types/common'
 
-export const usePhoneList = () => {
+// Định nghĩa kiểu danh sách
+type ListType = 'IMPORT' | 'SALE'
+
+export const usePhoneList = (type: ListType = 'IMPORT') => {
     const [phones, setPhones] = useState<Phone[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const { toast } = useToast()
@@ -33,13 +36,15 @@ export const usePhoneList = () => {
     const fetchPhones = async (currentFilters: PhoneFilterParams) => {
         try {
             setIsLoading(true)
-            const res = await phoneService.getAll(currentFilters)
-            const sorted = (res.data || []).sort(
-                (a: any, b: any) =>
-                    new Date(b.created_at).getTime() -
-                    new Date(a.created_at).getTime(),
-            )
-            setPhones(sorted)
+            let res
+
+            // [LOGIC MỚI] Gọi API dựa trên type
+            if (type === 'SALE') {
+                res = await phoneService.getSales(currentFilters)
+            } else {
+                res = await phoneService.getAll(currentFilters)
+            }
+            setPhones(res.data || [])
             setMeta(res.meta) // Lưu meta backend trả về
         } catch (error) {
             toast({
@@ -61,7 +66,7 @@ export const usePhoneList = () => {
     // Riêng keyword sẽ được xử lý debounce ở UI event
     useEffect(() => {
         fetchPhones(filters)
-    }, [filters.page, filters.status, filters.start_date])
+    }, [filters.page, filters.status, filters.start_date, filters.end_date, type])
 
     // Hàm update filter cho UI dùng
     const setKeyword = (kw: string) => {

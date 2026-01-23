@@ -34,16 +34,20 @@ func (r *CustomerRepo) GetByID(id, userID int) (*model.Customer, error) {
 }
 
 // Tìm khách hàng theo SĐT hoặc CCCD
-func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string, userID int) (*model.Customer, error) {
+func (r *CustomerRepo) GetMatchCustomer(name, phone, idNumber string, userID int) (*model.Customer, error) {
+	if name == "" {
+		return nil, nil
+	}
+
 	// Ưu tiên CCCD
 	if idNumber != "" {
 		var c model.Customer
 		err := r.DB.Get(&c,
 			`SELECT id, name, phone, id_number, created_by, created_at
 			FROM customers
-			WHERE id_number = ? AND created_by = ?
+			WHERE name = ? AND id_number = ? AND created_by = ?
 			LIMIT 1`,
-			idNumber, userID,
+			name, idNumber, userID,
 		)
 
 		if err == nil {
@@ -60,9 +64,9 @@ func (r *CustomerRepo) GetByPhoneOrIdentity(phone, idNumber string, userID int) 
 		err := r.DB.Get(&c,
 			`SELECT id, name, phone, id_number, created_by, created_at
 			FROM customers
-			WHERE phone = ? AND created_by = ?
+			WHERE name = ? AND phone = ? AND created_by = ?
 			LIMIT 1`,
-			phone, userID,
+			name, phone, userID,
 		)
 
 		if err == nil {

@@ -17,6 +17,13 @@ export const phoneService = {
         return response.data
     },
 
+    getSales: async (params: PhoneFilterParams): Promise<PhoneListResponse> => {
+        const response = await http.get<PhoneListResponse>('/phones/sales', {
+            params,
+        })
+        return response.data
+    },
+
     create: async (data: any) => {
         const response = await http.post<CreatePhoneResponse>('/phones', data)
         return response.data
