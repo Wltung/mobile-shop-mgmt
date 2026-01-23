@@ -27,6 +27,13 @@ export const phoneBaseSchema = z.object({
         message: 'Ngày nhập không hợp lệ',
     }),
 
+    sale_price: z
+        .string()
+        .refine((val) => !isNaN(Number(val)), {
+            message: 'Giá nhập phải là số',
+        }) // Phải là số
+        .refine((val) => Number(val) >= 0, { message: 'Giá không được âm' }),
+
     // --- THÔNG TIN NGƯỜI BÁN ---
     seller_name: z.string().optional(),
     seller_phone: z.string().optional(),
@@ -93,6 +100,7 @@ export const defaultImportValues: ImportFormValues = {
     status: 'IN_STOCK',
     purchase_price: '',
     purchase_date: new Date().toISOString().split('T')[0],
+    sale_price: '',
     seller_name: '',
     seller_phone: '',
     seller_id: '',

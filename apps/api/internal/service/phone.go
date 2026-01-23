@@ -95,6 +95,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 		Details:       input.Details,
 		PurchasePrice: input.PurchasePrice,
 		Status:        status,
+		SalePrice:     &input.SalePrice,
 		PurchaseDate:  &now,
 		Note:          &input.Note,
 		ImportBy:      &importBy,

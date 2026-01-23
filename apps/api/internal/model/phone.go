@@ -16,10 +16,10 @@ type Phone struct {
 	// Status: 'IN_STOCK', 'SOLD', 'REPAIRING', 'RETURNED'
 	Status string `db:"status" json:"status"`
 
-	PurchasePrice float64 `db:"purchase_price" json:"purchase_price"`
+	PurchasePrice int64 `db:"purchase_price" json:"purchase_price"`
 
 	// SalePrice là con trỏ (*float64) vì trong DB nó có thể NULL (khi chưa bán)
-	SalePrice *float64 `db:"sale_price" json:"sale_price"`
+	SalePrice *int64 `db:"sale_price" json:"sale_price"`
 
 	// PurchaseDate: Thời gian mua điện thoại (cột datetime)
 	PurchaseDate *time.Time `db:"purchase_date" json:"purchase_date"`
@@ -58,7 +58,8 @@ type PhoneInput struct {
 	ModelName     string  `json:"model_name" binding:"required"`
 	Status        string  `json:"status"`
 	Details       JSONMap `json:"details"` // Frontend gửi JSON object lên
-	PurchasePrice float64 `json:"purchase_price" binding:"required"`
+	PurchasePrice int64   `json:"purchase_price" binding:"required"`
+	SalePrice     int64   `json:"sale_price"`
 	Note          string  `json:"note"`
 
 	// --- THÊM MỚI (Nhận từ FE) ---
@@ -81,8 +82,9 @@ type PhoneUpdateInput struct {
 	ModelName     *string  `json:"model_name"`
 	Status        *string  `json:"status"`
 	Details       *JSONMap `json:"details"`
-	PurchasePrice *float64 `json:"purchase_price"`
+	PurchasePrice *int64   `json:"purchase_price"`
 	PurchaseDate  *string  `json:"purchase_date"`
+	SalePrice     *int64   `json:"sale_price"`
 	Note          *string  `json:"note"`
 
 	// Thông tin người bán (Update SourceID)

@@ -62,6 +62,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
         purchase_date: formatDateForInput(
             phone.purchase_date || phone.created_at,
         ),
+        sale_price: String(phone.sale_price),
 
         seller_name: phone.seller_name || '',
         seller_phone: phone.seller_phone || '',
@@ -91,6 +92,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 status: values.status,
                 note: values.note,
                 purchase_date: values.purchase_date,
+                sale_price: Number(values.sale_price),
                 seller_name: values.seller_name,
                 seller_phone: values.seller_phone,
                 seller_id: values.seller_id,
@@ -184,41 +186,70 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                         </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="status"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className={labelClass}>
-                                                Trạng thái
-                                            </FormLabel>
-                                            <Select
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value}
-                                            >
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="status"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className={labelClass}>
+                                                    Trạng thái
+                                                </FormLabel>
+                                                <Select
+                                                    onValueChange={field.onChange}
+                                                    defaultValue={field.value}
+                                                >
+                                                    <FormControl>
+                                                        <SelectTrigger
+                                                            className={inputClass}
+                                                        >
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="IN_STOCK">
+                                                            Trong kho
+                                                        </SelectItem>
+                                                        <SelectItem value="REPAIRING">
+                                                            Đang sửa
+                                                        </SelectItem>
+                                                        <SelectItem value="SOLD">
+                                                            Đã bán
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="sale_price"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel
+                                                    className={labelClass}
+                                                >
+                                                    Giá bán (niêm yết)
+                                                </FormLabel>
                                                 <FormControl>
-                                                    <SelectTrigger
-                                                        className={inputClass}
-                                                    >
-                                                        <SelectValue />
-                                                    </SelectTrigger>
+                                                    <div className="relative">
+                                                        <Input
+                                                            type="number"
+                                                            placeholder='0'
+                                                            {...field}
+                                                            className={`${inputClass} pl-3 pr-8 font-bold`}
+                                                        />
+                                                        <span className="absolute right-3 top-2.5 text-sm text-slate-400">
+                                                            ₫
+                                                        </span>
+                                                    </div>
                                                 </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="IN_STOCK">
-                                                        Trong kho
-                                                    </SelectItem>
-                                                    <SelectItem value="REPAIRING">
-                                                        Đang sửa
-                                                    </SelectItem>
-                                                    <SelectItem value="SOLD">
-                                                        Đã bán
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </FormItem>
-                                    )}
-                                />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
 
+                                {/* CHI TIẾT MÁY */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
@@ -302,6 +333,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <div className="relative">
                                                         <Input
                                                             type="number"
+                                                            placeholder='99'
                                                             {...field}
                                                             className={`${inputClass} pr-8`}
                                                         />
@@ -423,6 +455,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             <FormControl>
                                                 <Input
                                                     {...field}
+                                                    placeholder='Nguyễn Văn A'
                                                     className={inputClass}
                                                 />
                                             </FormControl>
@@ -444,6 +477,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <FormControl>
                                                     <Input
                                                         {...field}
+                                                        placeholder='09xx...'
                                                         className={inputClass}
                                                     />
                                                 </FormControl>
@@ -463,6 +497,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <FormControl>
                                                     <Input
                                                         {...field}
+                                                        placeholder='Số căn cước công dân'
                                                         className={`${inputClass} font-mono`}
                                                     />
                                                 </FormControl>
@@ -482,6 +517,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             <FormControl>
                                                 <Textarea
                                                     {...field}
+                                                    placeholder='Chi tiết về tình trạng, phụ kiện đi kèm (nếu có)...'
                                                     className="w-full rounded-lg border-slate-300 text-sm leading-relaxed text-slate-800 shadow-sm focus:border-primary focus:ring-primary"
                                                     rows={4}
                                                 />

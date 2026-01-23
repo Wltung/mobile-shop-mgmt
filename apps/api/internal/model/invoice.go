@@ -24,7 +24,7 @@ type Invoice struct {
 	Type        string    `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
 	Status      string    `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
 	CustomerID  *int      `db:"customer_id" json:"customer_id"`
-	TotalAmount float64   `db:"total_amount" json:"total_amount"`
+	TotalAmount int64     `db:"total_amount" json:"total_amount"`
 	CreatedBy   int       `db:"created_by" json:"created_by"`
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 	Note        string    `db:"note" json:"note"`
@@ -42,8 +42,8 @@ type InvoiceItem struct {
 	PhoneID        *int       `db:"phone_id" json:"phone_id"`
 	Description    string     `db:"description" json:"description"`
 	Quantity       int        `db:"quantity" json:"quantity"`
-	UnitPrice      float64    `db:"unit_price" json:"unit_price"`
-	Amount         float64    `db:"amount" json:"amount"`
+	UnitPrice      int64      `db:"unit_price" json:"unit_price"`
+	Amount         int64      `db:"amount" json:"amount"`
 	WarrantyMonths int        `db:"warranty_months" json:"warranty_months"`
 	WarrantyExpiry *time.Time `db:"warranty_expiry" json:"warranty_expiry"`
 }
@@ -58,10 +58,10 @@ type CreateInvoiceInput struct {
 }
 
 type CreateItemInput struct {
-	ItemType       string  `json:"item_type" binding:"required,oneof=PHONE PART SERVICE"`
-	PhoneID        *int    `json:"phone_id"` // Bắt buộc nếu ItemType là PHONE
-	Description    string  `json:"description"`
-	Quantity       int     `json:"quantity" binding:"min=1"`
-	UnitPrice      float64 `json:"unit_price" binding:"min=0"`
-	WarrantyMonths int     `json:"warranty_months"`
+	ItemType       string `json:"item_type" binding:"required,oneof=PHONE PART SERVICE"`
+	PhoneID        *int   `json:"phone_id"` // Bắt buộc nếu ItemType là PHONE
+	Description    string `json:"description"`
+	Quantity       int    `json:"quantity" binding:"min=1"`
+	UnitPrice      int64  `json:"unit_price" binding:"min=0"`
+	WarrantyMonths int    `json:"warranty_months"`
 }

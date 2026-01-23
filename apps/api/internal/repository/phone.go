@@ -18,8 +18,8 @@ func NewPhoneRepo(db *sqlx.DB) *PhoneRepo {
 
 func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	query := `
-		INSERT INTO phones (imei, model_name, details, status, purchase_price, purchase_date, note, import_by, source_id)
-		VALUES (:imei, :model_name, :details, :status, :purchase_price, :purchase_date, :note, :import_by, :source_id)
+		INSERT INTO phones (imei, model_name, details, status, purchase_price, sale_price, purchase_date, note, import_by, source_id)
+		VALUES (:imei, :model_name, :details, :status, :purchase_price, :sale_price, :purchase_date, :note, :import_by, :source_id)
 	`
 	res, err := r.DB.NamedExec(query, p)
 	if err != nil {
@@ -132,7 +132,7 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 		c.phone as seller_phone
 	`
 	// Sắp xếp ưu tiên ngày nhập
-	orderBy := "COALESCE(p.purchase_date, p.created_at) DESC"
+	orderBy := "p.purchase_date DESC, p.created_at DESC"
 	offset := (filter.Page - 1) * filter.Limit
 
 	// Gọi hàm chung
@@ -243,6 +243,10 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 	if input.PurchaseDate != nil {
 		setClauses = append(setClauses, "purchase_date = ?")
 		args = append(args, *input.PurchaseDate)
+	}
+	if input.SalePrice != nil {
+		setClauses = append(setClauses, "sale_price = ?")
+		args = append(args, *input.SalePrice)
 	}
 	if input.Note != nil {
 		setClauses = append(setClauses, "note = ?")

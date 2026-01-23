@@ -59,6 +59,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                 model_name: values.model_name,
                 purchase_price: priceNumber,
                 status: values.status,
+                sale_price: Number(values.sale_price),
                 note: values.note || '',
                 seller_name: values.seller_name,
                 seller_phone: values.seller_phone,
@@ -255,28 +256,51 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                 )}
                             />
 
-                            {/* Ngày nhập - Sửa: Bỏ w-1/2 để full width, giúp icon lịch nằm sát phải */}
-                            <div className="md:col-span-2">
-                                <FormField
-                                    control={form.control}
-                                    name="purchase_date"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel className="text-sm font-semibold text-slate-700">
-                                                Ngày nhập
-                                            </FormLabel>
-                                            <FormControl>
+                            <FormField
+                                control={form.control}
+                                name="sale_price"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-sm font-semibold text-slate-700">
+                                            Giá bán dự kiến{' '}
+                                        </FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
                                                 <Input
-                                                    type="date"
+                                                    type="number"
+                                                    placeholder="0"
                                                     {...field}
-                                                    className={`${inputClass} block w-full py-3 sm:w-1/2`}
+                                                    className={inputClass}
                                                 />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                                                <span className="absolute right-3 top-3 text-sm font-medium text-slate-500">
+                                                    VND
+                                                </span>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            
+                            <FormField
+                                control={form.control}
+                                name="purchase_date"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-sm font-semibold text-slate-700">
+                                            Ngày nhập
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="date"
+                                                {...field}
+                                                className={`${inputClass} block`}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                     </div>
 

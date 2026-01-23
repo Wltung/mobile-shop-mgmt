@@ -141,6 +141,14 @@ export default function PhoneDetailPage() {
                                 value={phone.model_name}
                             />
                             <DetailRow
+                                label="Giá bán"
+                                value={
+                                    <span className="text-2xl font-bold text-blue-600">
+                                        {formatCurrency(phone.sale_price || 0)}
+                                    </span>
+                                }
+                            />
+                            <DetailRow
                                 label="Màu sắc"
                                 value={
                                     <span className="flex items-center justify-end gap-2">

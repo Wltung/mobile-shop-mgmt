@@ -85,7 +85,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 
 	// ---------------------------------------------------------
 	// 2. Tính toán items và tổng tiền (Logic cũ)
-	var totalAmount float64
+	var totalAmount int64
 	var items []model.InvoiceItem
 
 	for i, itemInput := range input.Items {
@@ -93,7 +93,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 			return 0, fmt.Errorf("mục thứ %d: loại hàng là Điện thoại thì bắt buộc phải chọn máy (PhoneID)", i+1)
 		}
 
-		amount := float64(itemInput.Quantity) * itemInput.UnitPrice
+		amount := int64(itemInput.Quantity) * itemInput.UnitPrice
 		totalAmount += amount
 
 		items = append(items, model.InvoiceItem{
