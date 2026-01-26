@@ -83,10 +83,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 
 	importBy := userID
 
-	status := input.Status
-	if status == "" {
-		status = "IN_STOCK"
-	}
+	status := "IN_STOCK"
 
 	// 2. Map dữ liệu từ Input sang Model
 	phone := model.Phone{

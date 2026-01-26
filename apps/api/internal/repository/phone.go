@@ -232,10 +232,6 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 		setClauses = append(setClauses, "model_name = ?")
 		args = append(args, *input.ModelName)
 	}
-	if input.Status != nil {
-		setClauses = append(setClauses, "status = ?")
-		args = append(args, *input.Status)
-	}
 	if input.PurchasePrice != nil {
 		setClauses = append(setClauses, "purchase_price = ?")
 		args = append(args, *input.PurchasePrice)

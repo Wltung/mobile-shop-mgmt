@@ -136,7 +136,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="flex h-full flex-col bg-white"
             >
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 lg:p-8">
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                         {/* CỘT 1: THÔNG TIN CƠ BẢN */}
                         <div className="space-y-5">
@@ -196,13 +196,12 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     Trạng thái
                                                 </FormLabel>
                                                 <Select
+                                                    disabled={true}
                                                     onValueChange={field.onChange}
                                                     defaultValue={field.value}
                                                 >
                                                     <FormControl>
-                                                        <SelectTrigger
-                                                            className={inputClass}
-                                                        >
+                                                        <SelectTrigger className={`${inputClass} bg-slate-100 opacity-100 cursor-not-allowed text-slate-500`}>
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                     </FormControl>
@@ -218,6 +217,9 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                    *Trạng thái chỉ thay đổi khi tạo hoá đơn bán hoặc phiếu sửa chữa.
+                                                </p>
                                             </FormItem>
                                         )}
                                     />

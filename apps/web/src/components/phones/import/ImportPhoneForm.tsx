@@ -200,6 +200,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                             Trạng thái
                                         </FormLabel>
                                         <Select
+                                            disabled={true}
                                             onValueChange={field.onChange}
                                             defaultValue={field.value}
                                         >
@@ -213,12 +214,6 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                                             <SelectContent>
                                                 <SelectItem value="IN_STOCK">
                                                     Trong kho
-                                                </SelectItem>
-                                                <SelectItem value="REPAIRING">
-                                                    Đang sửa
-                                                </SelectItem>
-                                                <SelectItem value="SOLD">
-                                                    Đã bán
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>

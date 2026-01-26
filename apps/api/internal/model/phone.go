@@ -56,7 +56,6 @@ type Phone struct {
 type PhoneInput struct {
 	IMEI          string  `json:"imei" binding:"required"`
 	ModelName     string  `json:"model_name" binding:"required"`
-	Status        string  `json:"status"`
 	Details       JSONMap `json:"details"` // Frontend gửi JSON object lên
 	PurchasePrice int64   `json:"purchase_price" binding:"required"`
 	SalePrice     int64   `json:"sale_price"`
@@ -80,7 +79,6 @@ type PhoneFilter struct {
 type PhoneUpdateInput struct {
 	IMEI          *string  `json:"imei"`
 	ModelName     *string  `json:"model_name"`
-	Status        *string  `json:"status"`
 	Details       *JSONMap `json:"details"`
 	PurchasePrice *int64   `json:"purchase_price"`
 	PurchaseDate  *string  `json:"purchase_date"`
