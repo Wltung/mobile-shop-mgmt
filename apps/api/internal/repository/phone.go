@@ -123,6 +123,9 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 		baseQuery += " AND DATE(p.purchase_date) BETWEEN ? AND ?"
 		args = append(args, filter.StartDate, filter.EndDate)
 	}
+	if filter.HasSalePrice {
+		baseQuery += " AND p.sale_price > 0"
+	}
 
 	// --- B. Config & Execute ---
 	selectClause := `
@@ -144,10 +147,13 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
 	// --- A. Build Query ---
 	baseQuery := `
 		FROM phones p 
-		LEFT JOIN invoice_items ii ON p.id = ii.phone_id
-		LEFT JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
-		LEFT JOIN customers c_buy ON inv.customer_id = c_buy.id
-		WHERE p.import_by = ? AND p.status = 'SOLD'
+        -- [SỬA] Dùng JOIN (Inner Join) để chỉ lấy item thuộc hoá đơn Bán
+        -- Item của hoá đơn Nhập sẽ bị loại bỏ tại đây vì inv.type != 'SALE'
+        JOIN invoice_items ii ON p.id = ii.phone_id
+        JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
+        
+        LEFT JOIN customers c_buy ON inv.customer_id = c_buy.id
+        WHERE p.import_by = ? AND p.status = 'SOLD'
 	`
 	args := []interface{}{userID}
 
@@ -173,7 +179,7 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
 		c_buy.name as buyer_name, 
 		inv.status as invoice_status
 	`
-	orderBy := "p.sale_date DESC"
+	orderBy := "p.sale_date DESC, inv.created_at DESC"
 	offset := (filter.Page - 1) * filter.Limit
 
 	// Gọi hàm chung (Lưu ý tính tổng theo sale_price)

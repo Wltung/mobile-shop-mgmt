@@ -192,16 +192,22 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                         name="status"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className={labelClass}>
+                                                <FormLabel
+                                                    className={labelClass}
+                                                >
                                                     Trạng thái
                                                 </FormLabel>
                                                 <Select
                                                     disabled={true}
-                                                    onValueChange={field.onChange}
+                                                    onValueChange={
+                                                        field.onChange
+                                                    }
                                                     defaultValue={field.value}
                                                 >
                                                     <FormControl>
-                                                        <SelectTrigger className={`${inputClass} bg-slate-100 opacity-100 cursor-not-allowed text-slate-500`}>
+                                                        <SelectTrigger
+                                                            className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500 opacity-100`}
+                                                        >
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                     </FormControl>
@@ -217,8 +223,10 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                         </SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                                <p className="text-[10px] text-slate-400 mt-1">
-                                                    *Trạng thái chỉ thay đổi khi tạo hoá đơn bán hoặc phiếu sửa chữa.
+                                                <p className="mt-1 text-[10px] text-slate-400">
+                                                    *Trạng thái chỉ thay đổi khi
+                                                    tạo hoá đơn bán hoặc phiếu
+                                                    sửa chữa.
                                                 </p>
                                             </FormItem>
                                         )}
@@ -237,7 +245,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <div className="relative">
                                                         <Input
                                                             type="number"
-                                                            placeholder='0'
+                                                            placeholder="0"
                                                             {...field}
                                                             className={`${inputClass} pl-3 pr-8 font-bold`}
                                                         />
@@ -335,7 +343,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <div className="relative">
                                                         <Input
                                                             type="number"
-                                                            placeholder='99'
+                                                            placeholder="99"
                                                             {...field}
                                                             className={`${inputClass} pr-8`}
                                                         />
@@ -457,7 +465,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             <FormControl>
                                                 <Input
                                                     {...field}
-                                                    placeholder='Nguyễn Văn A'
+                                                    placeholder="Nguyễn Văn A"
                                                     className={inputClass}
                                                 />
                                             </FormControl>
@@ -479,7 +487,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <FormControl>
                                                     <Input
                                                         {...field}
-                                                        placeholder='09xx...'
+                                                        placeholder="09xx..."
                                                         className={inputClass}
                                                     />
                                                 </FormControl>
@@ -499,7 +507,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <FormControl>
                                                     <Input
                                                         {...field}
-                                                        placeholder='Số căn cước công dân'
+                                                        placeholder="Số căn cước công dân"
                                                         className={`${inputClass} font-mono`}
                                                     />
                                                 </FormControl>
@@ -519,7 +527,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             <FormControl>
                                                 <Textarea
                                                     {...field}
-                                                    placeholder='Chi tiết về tình trạng, phụ kiện đi kèm (nếu có)...'
+                                                    placeholder="Chi tiết về tình trạng, phụ kiện đi kèm (nếu có)..."
                                                     className="w-full rounded-lg border-slate-300 text-sm leading-relaxed text-slate-800 shadow-sm focus:border-primary focus:ring-primary"
                                                     rows={4}
                                                 />

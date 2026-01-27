@@ -56,41 +56,77 @@ func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
 }
 
 func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID int) (int, error) {
-	// 1. VALIDATE THÔNG TIN KHÁCH HÀNG
-	if input.CustomerID == nil {
-		return 0, errors.New("Thiếu thông tin khách hàng (CustomerID)")
+	var finalCustomerID *int = input.CustomerID
+
+	// 1. LOGIC TỰ ĐỘNG TÌM/TẠO KHÁCH HÀNG (Giống hệt ImportPhone)
+	// Nếu FE không gửi ID (null), ta dùng Tên & SĐT để xử lý
+	if finalCustomerID == nil {
+		// Validate: Phải có ít nhất Tên để tạo
+		if input.CustomerName == "" {
+			return 0, errors.New("vui lòng nhập tên khách hàng")
+		}
+
+		// Gọi Repo để tìm khách cũ (Khớp Tên + SĐT)
+		// Lưu ý: IDNumber để rỗng vì bán hàng thường ít khi nhập CCCD
+		cust, err := s.CustomerRepo.GetMatchCustomer(input.CustomerName, input.CustomerPhone, "", userID)
+		if err != nil {
+			return 0, err
+		}
+
+		if cust != nil {
+			// Case A: Tìm thấy -> Dùng ID khách cũ
+			idVal := cust.ID
+			finalCustomerID = &idVal
+		} else {
+			// Case B: Không thấy -> Tạo khách mới
+			cName := input.CustomerName
+			// Nếu tên rỗng (phòng hờ) thì đặt mặc định
+			if cName == "" {
+				cName = "Khách lẻ"
+			}
+
+			var cPhone *string
+			if input.CustomerPhone != "" {
+				cPhone = &input.CustomerPhone
+			}
+
+			newID, err := s.CustomerRepo.Create(model.Customer{
+				Name:  cName,
+				Phone: cPhone,
+				// IDNumber: nil, // Bán hàng không bắt buộc CCCD
+				CreatedBy: userID,
+			})
+			if err != nil {
+				return 0, err
+			}
+
+			idVal := newID
+			finalCustomerID = &idVal
+		}
 	}
 
-	// Lấy thông tin khách hiện tại trong DB
-	cust, err := s.CustomerRepo.GetByID(*input.CustomerID, userID)
+	// Validate cuối cùng: Nếu sau tất cả vẫn không có CustomerID
+	if finalCustomerID == nil {
+		return 0, errors.New("không xác định được khách hàng")
+	}
+
+	// [FIX LỖI PANIC TẠI ĐÂY]
+	// Dùng *finalCustomerID thay vì *input.CustomerID
+	custCheck, err := s.CustomerRepo.GetByID(*finalCustomerID, userID)
 	if err != nil {
 		return 0, err
 	}
-	if cust == nil {
-		return 0, errors.New("Khách hàng không tồn tại trong hệ thống")
+	if custCheck == nil {
+		return 0, errors.New("khách hàng không tồn tại trong hệ thống")
 	}
 
-	// Rule 1: Tên không được trống và không được là "Khách vãng lai"
-	if cust.Name == "" || cust.Name == "Khách vãng lai" {
-		return 0, errors.New("Không thể tạo hoá đơn cho 'Khách vãng lai' hoặc tên trống. Vui lòng cập nhật Họ tên khách hàng.")
-	}
-
-	// Rule 2: Phải có ít nhất SĐT hoặc CCCD
-	hasPhone := cust.Phone != nil && *cust.Phone != ""
-	hasID := cust.IDNumber != nil && *cust.IDNumber != ""
-
-	if !hasPhone && !hasID {
-		return 0, errors.New("Thiếu thông tin liên lạc. Khách hàng bắt buộc phải có Số điện thoại hoặc Số CCCD.")
-	}
-
-	// ---------------------------------------------------------
-	// 2. Tính toán items và tổng tiền (Logic cũ)
+	// 2. TÍNH TOÁN ITEMS & TỔNG TIỀN
 	var totalAmount int64
 	var items []model.InvoiceItem
 
 	for i, itemInput := range input.Items {
 		if itemInput.ItemType == model.ItemTypePhone && itemInput.PhoneID == nil {
-			return 0, fmt.Errorf("mục thứ %d: loại hàng là Điện thoại thì bắt buộc phải chọn máy (PhoneID)", i+1)
+			return 0, fmt.Errorf("mục thứ %d: điện thoại bắt buộc phải chọn máy (PhoneID)", i+1)
 		}
 
 		amount := int64(itemInput.Quantity) * itemInput.UnitPrice
@@ -107,7 +143,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		})
 	}
 
-	// 3. Chuẩn bị Invoice Header
+	// 3. TẠO INVOICE HEADER
 	status := input.Status
 	if status == "" {
 		status = model.InvoiceStatusPaid
@@ -122,14 +158,14 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		InvoiceCode: code,
 		Type:        input.Type,
 		Status:      status,
-		CustomerID:  input.CustomerID,
+		CustomerID:  finalCustomerID, // Sử dụng ID đã xử lý
 		TotalAmount: totalAmount,
 		CreatedBy:   userID,
 		CreatedAt:   time.Now(),
 		Note:        input.Note,
 	}
 
-	// 4. Gọi Repo lưu
+	// 4. LƯU VÀO DB
 	return s.Repo.Create(invoice, items)
 }
 

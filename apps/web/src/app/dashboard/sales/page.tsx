@@ -31,9 +31,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import SalePhoneModal from '@/components/phones/sales/SalePhoneModal'
 
 export default function SalesPage() {
     const router = useRouter()
+
+    const [isSaleModalOpen, setIsSaleModalOpen] = useState(false)
 
     // Sử dụng hook list nhưng set logic riêng cho trang Sales
     const {
@@ -243,9 +246,7 @@ export default function SalesPage() {
                             label="Lập hoá đơn bán"
                             icon={<Plus className="h-5 w-5" />}
                             // Logic tạo hoá đơn bán sẽ làm sau (thường là chuyển sang trang POS bán hàng)
-                            onClick={() =>
-                                router.push('/dashboard/sales/create')
-                            }
+                            onClick={() => setIsSaleModalOpen(true)} // Mở modal
                         />
                     </div>
 
@@ -266,6 +267,13 @@ export default function SalesPage() {
                     </section>
                 </div>
             </div>
+
+            {/* Component Modal Bán Hàng */}
+            <SalePhoneModal
+                isOpen={isSaleModalOpen}
+                onClose={() => setIsSaleModalOpen(false)}
+                onSuccess={() => refresh()} // Refresh list sau khi bán xong
+            />
         </div>
     )
 }

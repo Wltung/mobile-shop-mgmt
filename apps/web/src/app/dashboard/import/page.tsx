@@ -96,6 +96,23 @@ export default function ImportPage() {
             ),
         },
         {
+            header: 'GIÁ BÁN',
+            accessorKey: 'sale_price',
+            cell: (item) => (
+                <span
+                    className={
+                        item.sale_price == null
+                            ? 'ml-5 font-extrabold text-slate-800'
+                            : 'font-bold text-slate-700'
+                    }
+                >
+                    {item.sale_price != null
+                        ? formatCurrency(item.sale_price)
+                        : '-'}
+                </span>
+            ),
+        },
+        {
             header: 'TRẠNG THÁI',
             accessorKey: 'status',
             className: 'text-center',

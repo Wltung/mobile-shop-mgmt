@@ -50,11 +50,13 @@ type InvoiceItem struct {
 
 // 2. Input DTO (Dữ liệu FE gửi lên để tạo hóa đơn)
 type CreateInvoiceInput struct {
-	Type       string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
-	Status     string            `json:"status"` // Default PAID
-	CustomerID *int              `json:"customer_id"`
-	Note       string            `json:"note"`
-	Items      []CreateItemInput `json:"items" binding:"required,min=1"`
+	Type          string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
+	Status        string            `json:"status"` // Default PAID
+	CustomerID    *int              `json:"customer_id"`
+	CustomerName  string            `json:"customer_name"`
+	CustomerPhone string            `json:"customer_phone"`
+	Note          string            `json:"note"`
+	Items         []CreateItemInput `json:"items" binding:"required,min=1"`
 }
 
 type CreateItemInput struct {
