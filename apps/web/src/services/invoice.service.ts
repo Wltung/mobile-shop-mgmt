@@ -23,4 +23,9 @@ export const invoiceService = {
         const response = await http.get<{ data: Invoice }>(`/invoices/${id}`)
         return response.data.data
     },
+
+    updateStatus: async (id: number, status: 'PAID' | 'DRAFT' | 'CANCELLED') => {
+        const response = await http.patch(`/invoices/${id}/status`, { status })
+        return response.data
+    }
 }

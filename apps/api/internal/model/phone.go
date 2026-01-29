@@ -42,7 +42,7 @@ type Phone struct {
 	// Dùng con trỏ (*string) vì có thể null nếu không có người bán (nhập tồn kho cũ)
 	SellerName     *string `db:"seller_name" json:"seller_name,omitempty"`
 	SellerPhone    *string `db:"seller_phone" json:"seller_phone,omitempty"`
-	SellerIDNumber *string `db:"seller_id_number" json:"seller_id_number,omitempty"`
+	SellerIDNumber *string `db:"seller_id" json:"seller_id,omitempty"`
 	BuyerName      *string `db:"buyer_name" json:"buyer_name,omitempty"`
 
 	// --- CÁC TRƯỜNG HỨNG DỮ LIỆU JOIN TỪ INVOICES ---

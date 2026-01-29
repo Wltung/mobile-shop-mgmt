@@ -81,6 +81,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
         defaultValues: defaultValues,
     })
 
+    const isLocked = phone.invoice_status === 'PAID'
+
     const onSubmit: SubmitHandler<EditFormValues> = async (values) => {
         setIsLoading(true)
         try {
@@ -130,6 +132,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
         'w-full h-10 rounded-lg border-slate-300 text-slate-800 text-sm focus:border-primary focus:ring-primary shadow-sm bg-white'
     const labelClass = 'block text-sm font-semibold text-slate-700 mb-1.5'
 
+    const disabledClass = "bg-slate-100 text-slate-500 cursor-not-allowed"
+
     return (
         <Form {...form}>
             <form
@@ -137,6 +141,13 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 className="flex h-full flex-col bg-white"
             >
                 <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 lg:p-8">
+                    {/* Hiển thị cảnh báo nếu bị khoá */}
+                    {isLocked && (
+                        <div className="mb-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-700 border border-blue-100">
+                            <span className="font-bold">Lưu ý:</span> Một số thông tin nhập hàng đã bị khoá vì hoá đơn nhập đã được thanh toán.
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                         {/* CỘT 1: THÔNG TIN CƠ BẢN */}
                         <div className="space-y-5">
@@ -148,6 +159,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                             </div>
 
                             <div className="space-y-4">
+                                {/* MODEL NAME: Bị khoá nếu PAID */}
                                 <FormField
                                     control={form.control}
                                     name="model_name"
@@ -159,7 +171,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                             <FormControl>
                                                 <Input
                                                     {...field}
-                                                    className={inputClass}
+                                                    disabled={isLocked}
+                                                    className={`${inputClass} ${isLocked ? disabledClass : ''}`}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -167,6 +180,7 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                     )}
                                 />
 
+                                {/* IMEI: Bị khoá nếu PAID */}
                                 <FormField
                                     control={form.control}
                                     name="imei"
@@ -179,7 +193,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <Input
                                                     {...field}
                                                     maxLength={15}
-                                                    className={`${inputClass} font-mono`}
+                                                    disabled={isLocked} // <--- LOCK
+                                                    className={`${inputClass} font-mono ${isLocked ? disabledClass : ''}`}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -421,7 +436,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <Input
                                                         type="date"
                                                         {...field}
-                                                        className={`block ${inputClass}`}
+                                                        disabled={isLocked} // <--- LOCK
+                                                        className={`block ${inputClass} ${isLocked ? disabledClass : ''}`}
                                                     />
                                                 </FormControl>
                                             </FormItem>
@@ -442,7 +458,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                         <Input
                                                             type="number"
                                                             {...field}
-                                                            className={`${inputClass} pl-3 pr-8 font-bold`}
+                                                            disabled={isLocked} // <--- LOCK
+                                                            className={`${inputClass} pl-3 pr-8 font-bold ${isLocked ? disabledClass : ''}`}
                                                         />
                                                         <span className="absolute right-3 top-2.5 text-sm text-slate-400">
                                                             ₫
@@ -466,7 +483,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                 <Input
                                                     {...field}
                                                     placeholder="Nguyễn Văn A"
-                                                    className={inputClass}
+                                                    disabled={isLocked} // <--- LOCK
+                                                    className={`${inputClass} ${isLocked ? disabledClass : ''}`}
                                                 />
                                             </FormControl>
                                         </FormItem>
@@ -488,7 +506,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <Input
                                                         {...field}
                                                         placeholder="09xx..."
-                                                        className={inputClass}
+                                                        disabled={isLocked} // <--- LOCK
+                                                        className={`${inputClass} ${isLocked ? disabledClass : ''}`}
                                                     />
                                                 </FormControl>
                                             </FormItem>
@@ -508,7 +527,8 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                     <Input
                                                         {...field}
                                                         placeholder="Số căn cước công dân"
-                                                        className={`${inputClass} font-mono`}
+                                                        disabled={isLocked} // <--- LOCK
+                                                        className={`${inputClass} font-mono ${isLocked ? disabledClass : ''}`}
                                                     />
                                                 </FormControl>
                                             </FormItem>

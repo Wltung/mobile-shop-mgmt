@@ -110,5 +110,5 @@ export const defaultImportValues: ImportFormValues = {
     accessories: [],
     note: '',
     battery: '',
-    create_invoice: true,
+    create_invoice: false,
 }

@@ -16,6 +16,7 @@ import { Phone } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
 // Thư viện in ấn (nếu muốn in xịn hơn window.print)
 import { useReactToPrint } from 'react-to-print'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 interface Props {
     isOpen: boolean
@@ -67,15 +68,6 @@ export default function InvoicePreviewModal({
             fetchInvoice()
         }
     }, [isOpen, invoiceId])
-
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-        }).format(val)
-
-    const formatDate = (val?: string) =>
-        val ? new Date(val).toLocaleDateString('vi-VN') : '---'
 
     if (!isOpen) return null
 

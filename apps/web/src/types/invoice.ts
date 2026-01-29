@@ -25,13 +25,24 @@ export interface InvoiceItem {
     }
 }
 
+export interface CreateInvoiceItem {
+    item_type: ItemType
+    phone_id?: number | null
+    description?: string
+    quantity: number
+    unit_price: number
+    warranty_months?: number
+}
+
 // Payload gửi lên API để tạo hóa đơn
 export interface CreateInvoiceRequest {
     type: InvoiceType
     status?: InvoiceStatus
     customer_id?: number | null
+    customer_name?: string 
+    customer_phone?: string
     note?: string
-    items: InvoiceItem[]
+    items: CreateInvoiceItem[]
 }
 
 // Response khi tạo thành công

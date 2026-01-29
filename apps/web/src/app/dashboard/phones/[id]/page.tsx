@@ -10,6 +10,8 @@ import {
     Download,
     FileText,
     Loader2,
+    AlertTriangle,
+    LockKeyholeOpen,
 } from 'lucide-react'
 
 // Import Hook Logic vừa tách
@@ -26,6 +28,7 @@ import { usePrintInvoice } from '@/hooks/usePrintInvoice'
 import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
 import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
 import PageLoading from '@/components/common/PageLoading'
+import { useLockInvoice } from '@/hooks/useLockInvoice'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
@@ -38,17 +41,20 @@ export default function PhoneDetailPage() {
         isInvoiceModalOpen,
         setIsInvoiceModalOpen,
         activeInvoiceId,
-        isCreatingInvoice,
         handlePrintInvoice,
-    } = usePrintInvoice({
+    } = usePrintInvoice({ phone })
+
+    const { handleLockInvoice, isLocking } = useLockInvoice({
         phone,
-        refreshPhone: async () => {
-            await refresh()
-        },
+        onSuccess: refresh,                  // Refresh lại trang khi thành công
+        onRequireUpdate: () => setIsEditModalOpen(true) // Mở modal sửa khi thiếu info
     })
 
     // 3. UI State (Edit Modal)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+
+    const canPrint = phone?.invoice_status === 'PAID'
+    const isDraft = phone?.invoice_status === 'DRAFT'
 
     if (isLoading) return <PageLoading title="Chi tiết máy" />
 
@@ -82,6 +88,16 @@ export default function PhoneDetailPage() {
                                 <span className="font-mono font-semibold text-slate-700">
                                     #{phone.invoice_code || '---'}
                                 </span>
+                                {/* Hiển thị thêm trạng thái hoá đơn nhập để dễ hiểu */}
+                                {phone.invoice_status && (
+                                    <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded ${
+                                        phone.invoice_status === 'PAID' 
+                                        ? 'bg-green-100 text-green-700' 
+                                        : 'bg-amber-100 text-amber-700'
+                                    }`}>
+                                        {phone.invoice_status === 'PAID' ? 'HOÀN THÀNH' : 'NHÁP'}
+                                    </span>
+                                )}
                             </>
                         }
                         // Action Buttons
@@ -97,19 +113,43 @@ export default function PhoneDetailPage() {
                                 </Button>
                                 <Button
                                     onClick={handlePrintInvoice}
-                                    disabled={isCreatingInvoice}
-                                    className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600"
+                                    disabled={!canPrint}
+                                    className={`gap-2 text-white shadow-md transition-all ${
+                                        canPrint 
+                                        ? 'bg-primary hover:bg-blue-600 shadow-primary/20' 
+                                        : 'bg-slate-300 cursor-not-allowed shadow-none'
+                                    }`}
                                 >
-                                    {isCreatingInvoice ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Printer className="h-5 w-5" />
-                                    )}
+                                    <Printer className="h-5 w-5" />
                                     <span>In hoá đơn</span>
                                 </Button>
                             </>
                         }
                     />
+
+                    {/* BANNER CHỐT NHẬP KHO */}
+                    {isDraft && (
+                        <div className="mt-2 py-6 border-y border-blue-200 bg-blue-50/50 -mx-6 px-6 lg:-mx-10 lg:px-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="max-w-3xl">
+                                <h4 className="text-blue-900 font-bold flex items-center gap-2 text-lg">
+                                    <AlertTriangle className="h-5 w-5 text-blue-600" />
+                                    Quy trình hoàn tất nhập kho
+                                </h4>
+                                <p className="text-blue-800/80 text-sm mt-1 leading-relaxed">
+                                    Vui lòng kiểm tra kỹ các thông tin chi tiết dưới đây trước khi thực hiện chốt nhập kho. 
+                                    Sau khi chốt, các thông tin hoá đơn sẽ được khoá để đảm bảo tính minh bạch và bạn có thể in phiếu nhập.
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={handleLockInvoice}
+                                disabled={isLocking}
+                                className="flex items-center justify-center gap-3 px-6 py-6 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold text-base transition-all shadow-xl shadow-slate-200 ring-4 ring-white min-w-[200px]"
+                            >
+                                {isLocking ? <Loader2 className="animate-spin" /> : <LockKeyholeOpen className="h-5 w-5" />}
+                                <span>Chốt nhập kho</span>
+                            </Button>
+                        </div>
+                    )}
 
                     {/* Grid Info */}
                     <div className="mt-4 grid flex-1 grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -268,6 +308,7 @@ export default function PhoneDetailPage() {
                 }}
             />
 
+            {/* Invoice Modal */}
             {activeInvoiceId > 0 && (
                 <InvoicePreviewModal
                     isOpen={isInvoiceModalOpen}

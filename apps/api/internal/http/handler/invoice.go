@@ -64,3 +64,28 @@ func (h *InvoiceHandler) GetInvoice(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": invoice})
 }
+
+// PATCH /api/invoices/:id/status
+func (h *InvoiceHandler) UpdateInvoiceStatus(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	var input struct {
+		Status string `json:"status" binding:"required,oneof=PAID DRAFT CANCELLED"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.Service.UpdateStatus(id, input.Status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật trạng thái thành công"})
+}

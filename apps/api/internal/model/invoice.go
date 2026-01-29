@@ -19,15 +19,16 @@ const (
 
 // 1. Entity map với Database
 type Invoice struct {
-	ID          int       `db:"id" json:"id"`
-	InvoiceCode string    `db:"invoice_code" json:"invoice_code"`
-	Type        string    `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
-	Status      string    `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
-	CustomerID  *int      `db:"customer_id" json:"customer_id"`
-	TotalAmount int64     `db:"total_amount" json:"total_amount"`
-	CreatedBy   int       `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	Note        string    `db:"note" json:"note"`
+	ID          int        `db:"id" json:"id"`
+	InvoiceCode string     `db:"invoice_code" json:"invoice_code"`
+	Type        string     `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
+	Status      string     `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
+	CustomerID  *int       `db:"customer_id" json:"customer_id"`
+	TotalAmount int64      `db:"total_amount" json:"total_amount"`
+	CreatedBy   int        `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	Note        string     `db:"note" json:"note"`
+	UpdatedAt   *time.Time `db:"updated_at" json:"updated_at"`
 
 	// Fields hiển thị (JOIN)
 	CustomerName     string        `db:"customer_name" json:"customer_name,omitempty"`
@@ -48,6 +49,7 @@ type InvoiceItem struct {
 	Amount         int64      `db:"amount" json:"amount"`
 	WarrantyMonths int        `db:"warranty_months" json:"warranty_months"`
 	WarrantyExpiry *time.Time `db:"warranty_expiry" json:"warranty_expiry"`
+	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
 
 	IMEI         *string  `db:"imei" json:"imei,omitempty"`
 	PhoneDetails *JSONMap `db:"phone_details" json:"phone_details,omitempty"`

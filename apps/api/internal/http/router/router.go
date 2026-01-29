@@ -67,6 +67,7 @@ func NewRouter(
 			// Invoice Routes
 			protected.POST("/invoices", invoiceHandler.CreateInvoice)
 			protected.GET("/invoices/:id", invoiceHandler.GetInvoice)
+			protected.PATCH("/invoices/:id/status", invoiceHandler.UpdateInvoiceStatus)
 		}
 	}
 

@@ -199,9 +199,10 @@ func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 			COALESCE(u.full_name, 'Unknown') as importer_name,
 			c.name as seller_name,
 			c.phone as seller_phone,
-			c.id_number as seller_id_number,
+			c.id_number as seller_id,
 			inv.invoice_code as invoice_code,  -- Lấy thêm cột này
-			inv.id as invoice_id
+			inv.id as invoice_id,
+			inv.status as invoice_status
 		FROM phones p
 		LEFT JOIN users u ON p.import_by = u.id
 		LEFT JOIN customers c ON p.source_id = c.id

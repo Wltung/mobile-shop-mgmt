@@ -76,34 +76,44 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
 
             const res = await phoneService.create(payload)
 
-            if (values.create_invoice) {
-                const customerId = res.source_id
-                await invoiceService.create({
-                    type: 'IMPORT',
-                    status: 'PAID',
-                    customer_id: customerId,
-                    note: `Phiếu nhập kho cho ${values.model_name} (IMEI: ${values.imei})`,
-                    items: [
-                        {
-                            item_type: 'PHONE',
-                            phone_id: res.phone_id,
-                            description: values.model_name,
-                            quantity: 1,
-                            unit_price: priceNumber,
-                            warranty_months: 0,
-                        },
-                    ],
-                })
-                toast({
-                    variant: 'default',
-                    title: 'Thành công',
-                    description: 'Đã nhập máy và tạo hóa đơn thanh toán.',
-                })
+            // 2. LUÔN TẠO HOÁ ĐƠN
+            // Nếu checkbox được chọn -> PAID (Chốt sổ). Nếu không -> DRAFT (Nháp/Nợ)
+            const invoiceStatus = values.create_invoice ? 'PAID' : 'DRAFT'
+            
+            const customerId = res.source_id
+
+            let finalCustomerName = values.seller_name
+            if (!finalCustomerName || finalCustomerName.trim() === '') {
+                finalCustomerName = 'Khách vãng lai'
+            }
+            
+            await invoiceService.create({
+                type: 'IMPORT',
+                status: invoiceStatus, // Sử dụng status dựa trên checkbox
+                customer_id: customerId,
+                customer_name: finalCustomerName, 
+                customer_phone: values.seller_phone,
+                note: `Phiếu nhập kho cho ${values.model_name} (IMEI: ${values.imei})`,
+                items: [
+                    {
+                        item_type: 'PHONE',
+                        phone_id: res.phone_id,
+                        description: values.model_name,
+                        quantity: 1,
+                        unit_price: priceNumber,
+                        warranty_months: 0,
+                    },
+                ],
+            })
+
+            // Thông báo
+            if (invoiceStatus === 'PAID') {
+                toast({ title: 'Thành công', description: 'Đã nhập kho và tạo hoá đơn thanh toán.' })
             } else {
-                toast({
-                    variant: 'default',
-                    title: 'Thành công',
-                    description: 'Đã nhập máy vào kho (Không tạo hóa đơn).',
+                toast({ 
+                    title: 'Đã lưu nháp', 
+                    description: 'Đã nhập kho. Hoá đơn ở trạng thái Nháp (có thể sửa thông tin nhập).',
+                    variant: "default" // Hoặc dùng màu khác để phân biệt
                 })
             }
 

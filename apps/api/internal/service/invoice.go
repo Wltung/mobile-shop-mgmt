@@ -172,3 +172,8 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 func (s *InvoiceService) GetInvoiceDetail(id int) (*model.Invoice, error) {
 	return s.Repo.GetByID(id)
 }
+
+func (s *InvoiceService) UpdateStatus(id int, status string) error {
+	// Có thể thêm logic kiểm tra user permissions tại đây nếu cần
+	return s.Repo.UpdateStatus(id, status)
+}

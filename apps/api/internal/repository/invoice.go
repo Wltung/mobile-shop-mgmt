@@ -129,3 +129,9 @@ func (r *InvoiceRepo) GetCountTodayByType(invType string) (int, error) {
 	err := r.DB.Get(&count, query, invType)
 	return count, err
 }
+
+func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
+	query := `UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?`
+	_, err := r.DB.Exec(query, status, id)
+	return err
+}
