@@ -5,6 +5,7 @@ import { Phone, PhoneFilterParams } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
 import { PaginationMeta } from '@/types/common'
+import { formatDateISO } from '@/lib/utils'
 
 // Định nghĩa kiểu danh sách
 type ListType = 'IMPORT' | 'SALE'
@@ -90,11 +91,6 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
 
     // Refresh data
     const refresh = () => fetchPhones(filters)
-
-    // Hàm Helper: Format Date sang YYYY-MM-DD
-    const formatDateISO = (date: Date) => {
-        return date.toISOString().split('T')[0]
-    }
 
     // Hàm set Filter theo Option (all, today, week, month)
     const setDateFilter = (type: string) => {

@@ -25,6 +25,7 @@ import EditPhoneModal from '@/components/phones/import/EditPhoneModal'
 import { usePrintInvoice } from '@/hooks/usePrintInvoice'
 import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
 import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
+import PageLoading from '@/components/common/PageLoading'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
@@ -49,16 +50,7 @@ export default function PhoneDetailPage() {
     // 3. UI State (Edit Modal)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-    if (isLoading) {
-        return (
-            <div className="flex h-screen flex-col bg-[#f8fafc]">
-                <DashboardHeader title="Chi tiết máy" />
-                <div className="flex flex-1 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            </div>
-        )
-    }
+    if (isLoading) return <PageLoading title="Chi tiết máy" />
 
     if (!phone) return null
 
@@ -97,23 +89,23 @@ export default function PhoneDetailPage() {
                             <>
                                 <Button
                                     variant="outline"
+                                    onClick={() => setIsEditModalOpen(true)}
+                                    className="gap-2 bg-white text-slate-700 shadow-sm hover:border-primary/50 hover:text-primary"
+                                >
+                                    <Edit className="h-5 w-5" />
+                                    <span>Sửa thông tin</span>
+                                </Button>
+                                <Button
                                     onClick={handlePrintInvoice}
                                     disabled={isCreatingInvoice}
-                                    className="gap-2 bg-white text-slate-700 shadow-sm hover:border-primary/50 hover:text-primary"
+                                    className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600"
                                 >
                                     {isCreatingInvoice ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                         <Printer className="h-5 w-5" />
                                     )}
-                                    <span>Tạo & In hoá đơn</span>
-                                </Button>
-                                <Button
-                                    onClick={() => setIsEditModalOpen(true)}
-                                    className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600"
-                                >
-                                    <Edit className="h-5 w-5" />
-                                    <span>Sửa thông tin</span>
+                                    <span>In hoá đơn</span>
                                 </Button>
                             </>
                         }

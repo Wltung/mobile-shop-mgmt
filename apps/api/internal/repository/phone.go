@@ -177,7 +177,9 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
 	selectClause := `
 		SELECT p.*, 
 		c_buy.name as buyer_name, 
-		inv.status as invoice_status
+		inv.status as invoice_status,
+		inv.id as invoice_id,
+		inv.invoice_code as invoice_code
 	`
 	orderBy := "p.sale_date DESC, inv.created_at DESC"
 	offset := (filter.Page - 1) * filter.Limit

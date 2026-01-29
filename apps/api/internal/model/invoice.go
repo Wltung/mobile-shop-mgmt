@@ -30,9 +30,11 @@ type Invoice struct {
 	Note        string    `db:"note" json:"note"`
 
 	// Fields hiển thị (JOIN)
-	CustomerName string        `db:"customer_name" json:"customer_name,omitempty"`
-	CreatorName  string        `db:"creator_name" json:"creator_name,omitempty"`
-	Items        []InvoiceItem `json:"items,omitempty"` // Để load chi tiết
+	CustomerName     string        `db:"customer_name" json:"customer_name,omitempty"`
+	CreatorName      string        `db:"creator_name" json:"creator_name,omitempty"`
+	CustomerPhone    *string       `db:"customer_phone" json:"customer_phone,omitempty"`
+	CustomerIDNumber *string       `db:"customer_id_number" json:"customer_id_number,omitempty"`
+	Items            []InvoiceItem `json:"items,omitempty"` // Để load chi tiết
 }
 
 type InvoiceItem struct {
@@ -46,6 +48,9 @@ type InvoiceItem struct {
 	Amount         int64      `db:"amount" json:"amount"`
 	WarrantyMonths int        `db:"warranty_months" json:"warranty_months"`
 	WarrantyExpiry *time.Time `db:"warranty_expiry" json:"warranty_expiry"`
+
+	IMEI         *string  `db:"imei" json:"imei,omitempty"`
+	PhoneDetails *JSONMap `db:"phone_details" json:"phone_details,omitempty"`
 }
 
 // 2. Input DTO (Dữ liệu FE gửi lên để tạo hóa đơn)

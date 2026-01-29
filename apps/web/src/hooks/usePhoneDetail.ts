@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { phoneService } from '@/services/phone.service'
 import { Phone } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 export const usePhoneDetail = (id: string | number) => {
     const [phone, setPhone] = useState<Phone | null>(null)
@@ -32,16 +33,6 @@ export const usePhoneDetail = (id: string | number) => {
     useEffect(() => {
         if (id) fetchDetail()
     }, [id])
-
-    // Helper functions
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-        }).format(val)
-
-    const formatDate = (val: string) =>
-        val ? new Date(val).toLocaleDateString('vi-VN') : '---'
 
     return {
         phone,

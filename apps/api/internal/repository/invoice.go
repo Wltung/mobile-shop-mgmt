@@ -85,7 +85,8 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	var invoice model.Invoice
 	// Lấy Header
 	query := `
-		SELECT i.*, u.full_name as creator_name, c.name as customer_name
+		SELECT i.*, u.full_name as creator_name, c.name as customer_name, 
+			c.phone as customer_phone, c.id_number as customer_id_number -- Lấy thêm phone/address khách nếu cần
 		FROM invoices i
 		LEFT JOIN users u ON i.created_by = u.id
 		LEFT JOIN customers c ON i.customer_id = c.id
@@ -98,7 +99,15 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 
 	// Lấy Items
 	var items []model.InvoiceItem
-	queryItems := `SELECT * FROM invoice_items WHERE invoice_id = ?`
+	queryItems := `
+		SELECT 
+			ii.*,
+			p.imei as imei,
+			p.details as phone_details
+		FROM invoice_items ii
+		LEFT JOIN phones p ON ii.phone_id = p.id
+		WHERE ii.invoice_id = ?
+	`
 	err = r.DB.Select(&items, queryItems, id)
 	if err != nil {
 		return nil, err

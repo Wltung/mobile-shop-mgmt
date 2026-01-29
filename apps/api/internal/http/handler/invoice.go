@@ -52,7 +52,13 @@ func (h *InvoiceHandler) GetInvoice(c *gin.Context) {
 
 	invoice, err := h.Service.GetInvoiceDetail(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy hóa đơn"})
+		// [SỬA] Kiểm tra kỹ loại lỗi để trả về status code đúng
+		if err.Error() == "sql: no rows in result set" { // Hoặc check sql.ErrNoRows nếu import database/sql
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy hóa đơn"})
+		} else {
+			// Log lỗi ra console để debug
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi server: " + err.Error()})
+		}
 		return
 	}
 

@@ -6,12 +6,23 @@ export type ItemType = 'PHONE' | 'PART' | 'SERVICE'
 
 // Dữ liệu chi tiết 1 dòng trong hóa đơn
 export interface InvoiceItem {
+    id: number
     item_type: ItemType
     phone_id?: number | null // Có thể null nếu bán phụ kiện
     description?: string
     quantity: number
     unit_price: number
+    amount: number
     warranty_months?: number
+    warranty_expiry?: string
+    imei?: string
+    phone_details?: {
+        color?: string
+        storage?: string
+        appearance?: string
+        battery?: string
+        [key: string]: any
+    }
 }
 
 // Payload gửi lên API để tạo hóa đơn

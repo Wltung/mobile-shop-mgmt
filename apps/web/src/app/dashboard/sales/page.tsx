@@ -157,9 +157,13 @@ export default function SalesPage() {
                 <div className="flex items-center justify-center gap-2">
                     <button
                         className="rounded p-2 text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                        onClick={() =>
-                            router.push(`/dashboard/phones/${item.id}`)
-                        }
+                        onClick={() => {
+                            if (item.invoice_id) {
+                                router.push(
+                                    `/dashboard/sales/${item.invoice_id}`,
+                                )
+                            }
+                        }}
                         title="Xem chi tiết"
                     >
                         <Eye className="h-4 w-4" />
