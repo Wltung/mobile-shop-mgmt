@@ -25,7 +25,7 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 
-import { useContactForm } from '@/hooks/useContactForm'
+import { useContactForm } from '@/hooks/auth/useContactForm'
 
 export default function ContactForm() {
     const { form, isLoading, onSubmit } = useContactForm()

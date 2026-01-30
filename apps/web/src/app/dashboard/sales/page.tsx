@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'next/navigation'
 
 // Hooks & Types
-import { usePhoneList } from '@/hooks/usePhoneList'
+import { usePhoneList } from '@/hooks/phone/usePhoneList'
 import { Phone } from '@/types/phone'
 import { ColumnDef } from '@/types/common'
 

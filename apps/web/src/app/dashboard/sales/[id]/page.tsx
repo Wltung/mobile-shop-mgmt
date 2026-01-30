@@ -28,10 +28,10 @@ import PageHeader from '@/components/common/detail/PageHeader'
 import { useToast } from '@/hooks/use-toast'
 import InvoiceStatusBadge from '@/components/common/badges/InvoiceStatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { useInvoiceDetail } from '@/hooks/useInvoiceDetail'
+import { useInvoiceDetail } from '@/hooks/invoice/useInvoiceDetail'
 import PageLoading from '@/components/common/PageLoading'
 import EditSaleModal from '@/components/phones/sales/EditSaleModal'
-import { useLockSale } from '@/hooks/useLockSaleInvoice'
+import { useLockSale } from '@/hooks/invoice/useLockSaleInvoice'
 
 // --- LOCAL COMPONENT: InfoBlock (Thay thế DetailRow để hiển thị dạng dọc) ---
 const InfoBlock = ({

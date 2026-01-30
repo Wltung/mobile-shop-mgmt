@@ -23,7 +23,7 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form'
-import { useResetPassword } from '@/hooks/useResetPassword'
+import { useResetPassword } from '@/hooks/auth/useResetPassword'
 
 export default function ResetPasswordForm() {
     const { form, isLoading, onSubmit } = useResetPassword()

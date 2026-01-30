@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 // Import Hook Logic vừa tách
-import { usePhoneDetail } from '@/hooks/usePhoneDetail'
+import { usePhoneDetail } from '@/hooks/phone/usePhoneDetail'
 
 import { Button } from '@/components/ui/button'
 import DashboardHeader from '@/components/dashboard/DashboardHeader'
@@ -24,11 +24,11 @@ import DetailCard from '@/components/common/detail/DetailCard'
 import DetailRow from '@/components/common/detail/DetailRow'
 import PageHeader from '@/components/common/detail/PageHeader'
 import EditPhoneModal from '@/components/phones/import/EditPhoneModal'
-import { usePrintInvoice } from '@/hooks/usePrintInvoice'
+import { usePrintInvoice } from '@/hooks/invoice/usePrintInvoice'
 import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
 import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
 import PageLoading from '@/components/common/PageLoading'
-import { useLockImport } from '@/hooks/useLockImportInvoice'
+import { useLockImport } from '@/hooks/invoice/useLockImportInvoice'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()

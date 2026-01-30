@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Search, Eye, Trash2, Package, DollarSign } from 'lucide-react'
-import { usePhoneList } from '@/hooks/usePhoneList'
+import { usePhoneList } from '@/hooks/phone/usePhoneList'
 import { Phone } from '@/types/phone'
 import { ColumnDef } from '@/types/common'
 import { useRouter } from 'next/navigation'

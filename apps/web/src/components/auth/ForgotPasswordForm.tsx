@@ -13,7 +13,7 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form'
-import { useForgotPassword } from '@/hooks/useForgotPassword'
+import { useForgotPassword } from '@/hooks/auth/useForgotPassword'
 
 export default function ForgotPasswordForm() {
     const { form, isLoading, onSubmit } = useForgotPassword()

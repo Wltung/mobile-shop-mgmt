@@ -4,7 +4,7 @@
 import { Loader2, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Phone } from '@/types/phone'
-import { usePhoneSearch } from '@/hooks/usePhoneSearch'
+import { usePhoneSearch } from '@/hooks/phone/usePhoneSearch'
 import { useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
 
