@@ -5,7 +5,7 @@ import { Phone, PhoneFilterParams } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
 import { PaginationMeta } from '@/types/common'
-import { formatDateISO } from '@/lib/utils'
+import { formatDateForInput } from '@/lib/utils'
 
 // Định nghĩa kiểu danh sách
 type ListType = 'IMPORT' | 'SALE'
@@ -99,20 +99,20 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         let end = ''
 
         if (type === 'today') {
-            start = formatDateISO(today)
-            end = formatDateISO(today)
+            start = formatDateForInput(today)
+            end = formatDateForInput(today)
         } else if (type === 'week') {
             // Lấy ngày đầu tuần (Thứ 2)
             const day = today.getDay() // 0 (CN) -> 6 (T7)
             const diff = today.getDate() - day + (day === 0 ? -6 : 1)
             const monday = new Date(today.setDate(diff))
-            start = formatDateISO(monday)
-            end = formatDateISO(new Date()) // Đến hiện tại
+            start = formatDateForInput(monday)
+            end = formatDateForInput(new Date()) // Đến hiện tại
         } else if (type === 'month') {
             // Ngày đầu tháng
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-            start = formatDateISO(firstDay)
-            end = formatDateISO(new Date())
+            start = formatDateForInput(firstDay)
+            end = formatDateForInput(new Date())
         } else {
             // type === "all" -> Reset rỗng
             start = ''

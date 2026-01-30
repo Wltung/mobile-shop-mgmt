@@ -124,11 +124,11 @@ export default function SalesPage() {
                 const status = item.invoice_status || 'DRAFT'
                 const config = {
                     PAID: {
-                        label: 'Đã thanh toán',
+                        label: 'Đã hoàn thành',
                         class: 'bg-green-100 text-green-700',
                     },
                     DRAFT: {
-                        label: 'Chờ thanh toán',
+                        label: 'Chưa hoàn thành',
                         class: 'bg-amber-100 text-amber-700',
                     },
                     CANCELLED: {
@@ -224,9 +224,9 @@ export default function SalesPage() {
                             <SelectItem value="ALL">
                                 Tất cả trạng thái
                             </SelectItem>
-                            <SelectItem value="PAID">Đã thanh toán</SelectItem>
+                            <SelectItem value="PAID">Đã hoàn thành</SelectItem>
                             <SelectItem value="DRAFT">
-                                Chờ thanh toán
+                                Chưa hoàn thành
                             </SelectItem>
                             <SelectItem value="CANCELLED">Đã huỷ</SelectItem>
                         </SelectContent>

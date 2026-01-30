@@ -93,6 +93,7 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                 customer_id: customerId,
                 customer_name: finalCustomerName, 
                 customer_phone: values.seller_phone,
+                payment_method: 'CASH',
                 note: `Phiếu nhập kho cho ${values.model_name} (IMEI: ${values.imei})`,
                 items: [
                     {

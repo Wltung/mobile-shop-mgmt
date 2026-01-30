@@ -27,5 +27,10 @@ export const invoiceService = {
     updateStatus: async (id: number, status: 'PAID' | 'DRAFT' | 'CANCELLED') => {
         const response = await http.patch(`/invoices/${id}/status`, { status })
         return response.data
+    },
+
+    update: async (id: number, data: any) => {
+        const response = await http.patch(`/invoices/${id}`, data)
+        return response.data
     }
 }

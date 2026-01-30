@@ -28,8 +28,14 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 
 	// 2. Insert Invoice Header
 	queryInv := `
-		INSERT INTO invoices (invoice_code, type, status, customer_id, total_amount, created_by, note, created_at)
-		VALUES (:invoice_code, :type, :status, :customer_id, :total_amount, :created_by, :note, :created_at)
+		INSERT INTO invoices (
+            invoice_code, type, status, payment_method, 
+            customer_id, total_amount, created_by, note, created_at
+        )
+		VALUES (
+            :invoice_code, :type, :status, :payment_method, 
+            :customer_id, :total_amount, :created_by, :note, :created_at
+        )
 	`
 	res, err := tx.NamedExec(queryInv, inv)
 	if err != nil {
@@ -134,4 +140,50 @@ func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
 	query := `UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?`
 	_, err := r.DB.Exec(query, status, id)
 	return err
+}
+
+func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
+	// 1. Update Invoice Table
+	queryInv := `
+		UPDATE invoices 
+		SET payment_method = COALESCE(:payment_method, payment_method),
+			created_at = COALESCE(:created_at, created_at),
+			note = COALESCE(:note, note),
+			updated_at = NOW()
+		WHERE id = :id
+	`
+
+	// Map struct input sang map để dùng NamedExec (hoặc dùng struct nếu map đúng db tag)
+	params := map[string]interface{}{
+		"id":             id,
+		"payment_method": input.PaymentMethod,
+		"created_at":     input.CreatedAt,
+		"note":           input.Note,
+	}
+
+	_, err := r.DB.NamedExec(queryInv, params)
+	if err != nil {
+		return err
+	}
+
+	// 2. Update Customer Info (Nếu có thay đổi tên/sđt)
+	// Đầu tiên lấy customer_id của invoice này
+	var customerID int
+	err = r.DB.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", id)
+	if err == nil && customerID > 0 {
+		// Update bảng customer
+		queryCust := `
+			UPDATE customers
+			SET name = COALESCE(?, name),
+				phone = COALESCE(?, phone),
+				updated_at = NOW()
+			WHERE id = ?
+		`
+		_, err = r.DB.Exec(queryCust, input.CustomerName, input.CustomerPhone, customerID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

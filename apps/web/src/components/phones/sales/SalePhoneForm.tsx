@@ -31,6 +31,7 @@ import { phoneService } from '@/services/phone.service'
 import { invoiceService } from '@/services/invoice.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
+import PhoneSearchSelect from './PhoneSearchSelect'
 
 interface Props {
     onSuccess: () => void
@@ -39,12 +40,7 @@ interface Props {
 
 export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
-    const [isSearching, setIsSearching] = useState(false)
-    const [searchResults, setSearchResults] = useState<Phone[]>([])
-    const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null)
-
-    const [searchTerm, setSearchTerm] = useState('')
-    const searchRef = useRef<HTMLDivElement>(null)
+    const [selectedPhonePrice, setSelectedPhonePrice] = useState<number | null>(null)
 
     const { toast } = useToast()
 
@@ -54,61 +50,18 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     })
 
     // --- LOGIC TÌM KIẾM MÁY ---
-    const handleSearch = useMemo(
-        () =>
-            debounce(async (keyword: string) => {
-                if (!keyword.trim()) {
-                    setSearchResults([])
-                    setIsSearching(false)
-                    return
-                }
-
-                setIsSearching(true)
-                try {
-                    const res = await phoneService.getAll({
-                        keyword,
-                        status: 'IN_STOCK',
-                        limit: 5,
-                        page: 1,
-                        has_sale_price: true,
-                    })
-                    setSearchResults(res.data ?? [])
-                } finally {
-                    setIsSearching(false)
-                }
-            }, 500),
-        [],
-    )
-
-    const onSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value
-        setSearchTerm(value)
-        handleSearch(value)
-    }
-
-    const selectPhone = (phone: Phone) => {
-        setSelectedPhone(phone)
+    const handleSelectPhone = (phone: Phone) => {
+        // 1. Cập nhật ID máy vào form
         form.setValue('phone_id', phone.id, { shouldValidate: true })
 
+        // 2. Tự động điền giá bán nếu có
         if (phone.sale_price) {
             form.setValue('actual_sale_price', String(phone.sale_price))
+            setSelectedPhonePrice(phone.sale_price)
+        } else {
+            setSelectedPhonePrice(null)
         }
-        setSearchResults([])
     }
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                searchRef.current &&
-                !searchRef.current.contains(event.target as Node)
-            ) {
-                setSearchResults([])
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () =>
-            document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
 
     // --- SUBMIT FORM ---
     const onSubmit: SubmitHandler<SaleFormValues> = async (values) => {
@@ -129,6 +82,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
             const payload = {
                 type: 'SALE',
                 status: finalStatus,
+                payment_method: values.payment_method,
 
                 // --- GỬI THÔNG TIN ĐỂ BE TỰ XỬ LÝ (KHÔNG CONFLICT) ---
                 customer_name: values.customer_name,
@@ -140,7 +94,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                     {
                         item_type: 'PHONE',
                         phone_id: values.phone_id,
-                        description: selectedPhone?.model_name || 'Điện thoại',
+                        description: 'Điện thoại',
                         quantity: 1,
                         unit_price: Number(values.actual_sale_price),
                         warranty_months: Number(values.warranty),
@@ -237,101 +191,20 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                             Thông tin máy bán
                         </h4>
                         <div className="space-y-4">
+                            {/* --- THAY THẾ TOÀN BỘ LOGIC SEARCH CŨ BẰNG COMPONENT NÀY --- */}
                             <FormField
                                 control={form.control}
                                 name="phone_id"
-                                render={({ field }) => (
-                                    <FormItem
-                                        className="relative"
-                                        ref={searchRef}
-                                    >
-                                        <FormLabel className={labelClass}>
-                                            Tìm máy (IMEI hoặc Đời máy){' '}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
-                                        </FormLabel>
+                                render={({ field, fieldState }) => (
+                                    <FormItem>
                                         <FormControl>
-                                            <div className="relative">
-                                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                                                    <Search className="h-5 w-5" />
-                                                </span>
-                                                <Input
-                                                    placeholder="Nhập IMEI hoặc tên máy để tìm..."
-                                                    className={`${inputClass} pl-10`}
-                                                    onChange={
-                                                        onSearchInputChange
-                                                    }
-                                                    value={
-                                                        selectedPhone
-                                                            ? `${selectedPhone.model_name} - ${selectedPhone.imei}`
-                                                            : searchTerm
-                                                    }
-                                                    onFocus={() => {
-                                                        if (selectedPhone) {
-                                                            setSelectedPhone(
-                                                                null,
-                                                            )
-                                                            setSearchTerm('')
-                                                            field.onChange(0)
-                                                        }
-                                                    }}
-                                                />
-                                                {isSearching && (
-                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <PhoneSearchSelect
+                                                label="Tìm máy (IMEI hoặc Đời máy)"
+                                                onSelect={handleSelectPhone}
+                                                error={fieldState.error?.message}
+                                            />
                                         </FormControl>
-
-                                        {searchResults.length > 0 &&
-                                            !selectedPhone && (
-                                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                                                    {searchResults.map(
-                                                        (phone) => (
-                                                            <div
-                                                                key={phone.id}
-                                                                className="cursor-pointer border-b border-slate-100 px-4 py-3 last:border-0 hover:bg-slate-50"
-                                                                onClick={() =>
-                                                                    selectPhone(
-                                                                        phone,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <p className="font-bold text-slate-800">
-                                                                    {
-                                                                        phone.model_name
-                                                                    }
-                                                                </p>
-                                                                <div className="mt-1 flex justify-between text-xs text-slate-500">
-                                                                    <span className="font-mono">
-                                                                        IMEI:{' '}
-                                                                        {
-                                                                            phone.imei
-                                                                        }
-                                                                    </span>
-                                                                    <span className="font-medium text-primary">
-                                                                        {phone.sale_price
-                                                                            ? new Intl.NumberFormat(
-                                                                                  'vi-VN',
-                                                                                  {
-                                                                                      style: 'currency',
-                                                                                      currency:
-                                                                                          'VND',
-                                                                                  },
-                                                                              ).format(
-                                                                                  phone.sale_price,
-                                                                              )
-                                                                            : 'Chưa định giá'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </div>
-                                            )}
-                                        <FormMessage />
+                                        {/* Không cần FormMessage ở đây vì component đã handle hiển thị error */}
                                     </FormItem>
                                 )}
                             />
@@ -342,13 +215,8 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                         Giá bán niêm yết
                                     </label>
                                     <div className="py-2 text-sm font-bold text-slate-900">
-                                        {selectedPhone?.sale_price
-                                            ? new Intl.NumberFormat('vi-VN', {
-                                                  style: 'currency',
-                                                  currency: 'VND',
-                                              }).format(
-                                                  selectedPhone.sale_price,
-                                              )
+                                        {selectedPhonePrice
+                                            ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPhonePrice)
                                             : '--'}
                                     </div>
                                 </div>
@@ -358,7 +226,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                     name="actual_sale_price"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="mb-1 text-xs font-medium uppercase text-slate-700">
+                                            <FormLabel className="block mb-1 text-xs font-medium uppercase text-slate-700">
                                                 Giá bán thực tế
                                             </FormLabel>
                                             <FormControl>
@@ -383,7 +251,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                     name="warranty"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className="mb-1 text-xs font-medium uppercase text-slate-700">
+                                            <FormLabel className="block mb-1 text-xs font-medium uppercase text-slate-700">
                                                 Bảo hành
                                             </FormLabel>
                                             <Select
@@ -400,8 +268,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                                         Không bảo hành
                                                     </SelectItem>
                                                     <SelectItem value="3">
-                                                        3 tháng
-                                                    </SelectItem>
+                                                        3 tháng</SelectItem>
                                                     <SelectItem value="6">
                                                         6 tháng
                                                     </SelectItem>

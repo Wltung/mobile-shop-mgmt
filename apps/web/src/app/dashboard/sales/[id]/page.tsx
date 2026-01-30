@@ -10,6 +10,9 @@ import {
     CreditCard,
     FileText,
     CheckCircle2,
+    AlertTriangle,
+    Loader2,
+    UnlockKeyhole,
 } from 'lucide-react'
 
 // Services & Types
@@ -27,6 +30,8 @@ import InvoiceStatusBadge from '@/components/common/badges/InvoiceStatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useInvoiceDetail } from '@/hooks/useInvoiceDetail'
 import PageLoading from '@/components/common/PageLoading'
+import EditSaleModal from '@/components/phones/sales/EditSaleModal'
+import { useLockSale } from '@/hooks/useLockSaleInvoice'
 
 // --- LOCAL COMPONENT: InfoBlock (Thay thế DetailRow để hiển thị dạng dọc) ---
 const InfoBlock = ({
@@ -50,13 +55,26 @@ const InfoBlock = ({
 
 export default function SaleDetailPage() {
     const { id } = useParams()
-    const { invoice, isLoading } = useInvoiceDetail(Number(id))
+// 1. Hook lấy dữ liệu
+const { invoice, isLoading, refresh } = useInvoiceDetail(Number(id))
+    
+// UI State
+const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+
+// 2. Hook Chốt đơn (Logic tách biệt)
+const { handleLockSale, isLocking } = useLockSale({
+    invoice,
+    onSuccess: refresh,
+    onRequireUpdate: () => setIsEditModalOpen(true)
+})
 
     if (isLoading) return <PageLoading title="Chi tiết hoá đơn" />
     if (!invoice) return null
 
     // Lấy item điện thoại đầu tiên để hiển thị chi tiết
     const phoneItem = invoice.items?.find((i) => i.item_type === 'PHONE')
+    const isDraft = invoice.status === 'DRAFT'
+    const isPaid = invoice.status === 'PAID'
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
@@ -89,18 +107,50 @@ export default function SaleDetailPage() {
                             <>
                                 <Button
                                     variant="outline"
+                                    onClick={() => setIsEditModalOpen(true)}
                                     className="gap-2 border-slate-300 bg-white text-slate-700 shadow-sm hover:border-primary hover:text-primary"
                                 >
                                     <Edit className="h-4 w-4" />
                                     <span>Sửa thông tin</span>
                                 </Button>
-                                <Button className="gap-2 bg-primary text-white shadow-md shadow-primary/20 hover:bg-blue-600">
+                                <Button 
+                                    disabled={!isPaid}
+                                    className={`gap-2 text-white shadow-md transition-all ${
+                                        isPaid 
+                                        ? 'bg-primary hover:bg-blue-600 shadow-primary/20' 
+                                        : 'bg-slate-300 cursor-not-allowed shadow-none'
+                                    }`}
+                                >
                                     <Printer className="h-4 w-4" />
                                     <span>In hoá đơn</span>
                                 </Button>
                             </>
                         }
                     />
+
+                    {/* --- BANNER CHỐT ĐƠN (Chỉ hiện khi DRAFT) --- */}
+                    {isDraft && (
+                        <div className="mt-2 py-6 border-y border-blue-200 bg-blue-50/50 -mx-6 px-6 lg:-mx-10 lg:px-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="max-w-3xl">
+                                <h4 className="text-blue-900 font-bold flex items-center gap-2 text-lg">
+                                    <AlertTriangle className="h-5 w-5 text-blue-600" />
+                                    Đơn hàng đang ở trạng thái Nháp
+                                </h4>
+                                <p className="text-blue-800/80 text-sm mt-1 leading-relaxed">
+                                    Vui lòng kiểm tra kỹ thông tin khách hàng và máy bán trước khi chốt đơn. 
+                                    Sau khi chốt, các thông tin chính sẽ được khoá để đảm bảo tính chính xác khi in hoá đơn.
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={handleLockSale}
+                                disabled={isLocking}
+                                className="flex items-center justify-center gap-3 px-6 py-6 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold text-base transition-all shadow-xl shadow-slate-200 ring-4 ring-white min-w-[200px]"
+                            >
+                                {isLocking ? <Loader2 className="animate-spin" /> : <UnlockKeyhole className="h-5 w-5" />}
+                                <span>Chốt đơn bán</span>
+                            </Button>
+                        </div>
+                    )}
 
                     {/* 3. INFO GRIDS */}
                     <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -244,6 +294,19 @@ export default function SaleDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Thêm Modal vào cuối */}
+            {invoice && (
+                <EditSaleModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onSuccess={() => {
+                        // Refresh data (bạn có thể dùng refresh() từ hook useInvoiceDetail nếu đã viết, hoặc reload page)
+                        window.location.reload() 
+                    }}
+                    invoice={invoice}
+                />
+            )}
         </div>
     )
 }

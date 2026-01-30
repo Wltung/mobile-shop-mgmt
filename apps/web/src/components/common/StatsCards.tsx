@@ -15,11 +15,11 @@ export default function StatsCards({ stats }: StatsCardsProps) {
     }
 
     return (
-        <div className="flex flex-1 gap-4 overflow-x-auto pb-2 md:pb-0">
+        <div className="flex flex-1 gap-4 overflow-x-hidden pb-2 md:pb-0">
             {stats.map((stat, index) => (
                 <div
                     key={index}
-                    className="flex min-w-[200px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-transform hover:scale-[1.02]"
+                    className="flex min-w-[200px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-transform"
                 >
                     <div
                         className={`flex size-10 items-center justify-center rounded-full ${colorStyles[stat.color] || colorStyles.blue}`}

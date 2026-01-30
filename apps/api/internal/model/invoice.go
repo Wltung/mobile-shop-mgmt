@@ -19,16 +19,17 @@ const (
 
 // 1. Entity map với Database
 type Invoice struct {
-	ID          int        `db:"id" json:"id"`
-	InvoiceCode string     `db:"invoice_code" json:"invoice_code"`
-	Type        string     `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
-	Status      string     `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
-	CustomerID  *int       `db:"customer_id" json:"customer_id"`
-	TotalAmount int64      `db:"total_amount" json:"total_amount"`
-	CreatedBy   int        `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
-	Note        string     `db:"note" json:"note"`
-	UpdatedAt   *time.Time `db:"updated_at" json:"updated_at"`
+	ID            int        `db:"id" json:"id"`
+	InvoiceCode   string     `db:"invoice_code" json:"invoice_code"`
+	Type          string     `db:"type" json:"type"`     // IMPORT, SALE, REPAIR
+	Status        string     `db:"status" json:"status"` // DRAFT, PAID, CANCELLED
+	CustomerID    *int       `db:"customer_id" json:"customer_id"`
+	PaymentMethod string     `db:"payment_method" json:"payment_method"`
+	TotalAmount   int64      `db:"total_amount" json:"total_amount"`
+	CreatedBy     int        `db:"created_by" json:"created_by"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	Note          string     `db:"note" json:"note"`
+	UpdatedAt     *time.Time `db:"updated_at" json:"updated_at"`
 
 	// Fields hiển thị (JOIN)
 	CustomerName     string        `db:"customer_name" json:"customer_name,omitempty"`
@@ -58,7 +59,8 @@ type InvoiceItem struct {
 // 2. Input DTO (Dữ liệu FE gửi lên để tạo hóa đơn)
 type CreateInvoiceInput struct {
 	Type          string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
-	Status        string            `json:"status"` // Default PAID
+	Status        string            `json:"status"` // Default
+	PaymentMethod string            `json:"payment_method"`
 	CustomerID    *int              `json:"customer_id"`
 	CustomerName  string            `json:"customer_name"`
 	CustomerPhone string            `json:"customer_phone"`
@@ -73,4 +75,14 @@ type CreateItemInput struct {
 	Quantity       int    `json:"quantity" binding:"min=1"`
 	UnitPrice      int64  `json:"unit_price" binding:"min=0"`
 	WarrantyMonths int    `json:"warranty_months"`
+}
+
+type UpdateInvoiceInput struct {
+	CustomerName  *string `json:"customer_name"`
+	CustomerPhone *string `json:"customer_phone"`
+	// CustomerCCCD *string `json:"customer_cccd"` // Nếu cần sau này
+
+	PaymentMethod *string `json:"payment_method"`
+	CreatedAt     *string `json:"created_at"` // Cho phép sửa ngày bán
+	Note          *string `json:"note"`
 }

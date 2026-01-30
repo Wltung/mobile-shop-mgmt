@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { invoiceService } from '@/services/invoice.service'
@@ -10,32 +10,33 @@ export const useInvoiceDetail = (id: number) => {
     const router = useRouter()
     const { toast } = useToast()
 
-    useEffect(() => {
+    // Tách hàm fetch ra và dùng useCallback để tái sử dụng
+    const fetchInvoice = useCallback(async () => {
         if (!id || isNaN(id)) return
 
-        const fetchInvoice = async () => {
-            try {
-                setIsLoading(true)
-                const data = await invoiceService.getDetail(id)
-                setInvoice(data)
-            } catch (error) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Lỗi',
-                    description: 'Không tìm thấy hoặc không thể tải hoá đơn.',
-                })
-                router.push('/dashboard/sales') // Quay về trang danh sách nếu lỗi
-            } finally {
-                setIsLoading(false)
-            }
+        try {
+            setIsLoading(true)
+            const data = await invoiceService.getDetail(id)
+            setInvoice(data)
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Lỗi',
+                description: 'Không tìm thấy hoặc không thể tải hoá đơn.',
+            })
+            // router.push('/dashboard/sales') // Tuỳ chọn: Có thể bỏ redirect tự động để UX mượt hơn
+        } finally {
+            setIsLoading(false)
         }
+    }, [id, toast])
 
+    useEffect(() => {
         fetchInvoice()
-    }, [id, router, toast])
+    }, [fetchInvoice])
 
-    return {
-        invoice,
-        isLoading,
-        // Có thể return thêm các hàm action khác nếu cần (ví dụ: cancelInvoice...)
+    return { 
+        invoice, 
+        isLoading, 
+        refresh: fetchInvoice // <--- Export hàm này ra
     }
 }

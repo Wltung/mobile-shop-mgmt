@@ -28,7 +28,7 @@ import { usePrintInvoice } from '@/hooks/usePrintInvoice'
 import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
 import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
 import PageLoading from '@/components/common/PageLoading'
-import { useLockInvoice } from '@/hooks/useLockInvoice'
+import { useLockImport } from '@/hooks/useLockImportInvoice'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
@@ -44,10 +44,10 @@ export default function PhoneDetailPage() {
         handlePrintInvoice,
     } = usePrintInvoice({ phone })
 
-    const { handleLockInvoice, isLocking } = useLockInvoice({
+    const { handleLockImport, isLocking } = useLockImport({
         phone,
-        onSuccess: refresh,                  // Refresh lại trang khi thành công
-        onRequireUpdate: () => setIsEditModalOpen(true) // Mở modal sửa khi thiếu info
+        onSuccess: refresh,
+        onRequireUpdate: () => setIsEditModalOpen(true)
     })
 
     // 3. UI State (Edit Modal)
@@ -141,7 +141,7 @@ export default function PhoneDetailPage() {
                                 </p>
                             </div>
                             <Button 
-                                onClick={handleLockInvoice}
+                                onClick={handleLockImport}
                                 disabled={isLocking}
                                 className="flex items-center justify-center gap-3 px-6 py-6 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold text-base transition-all shadow-xl shadow-slate-200 ring-4 ring-white min-w-[200px]"
                             >

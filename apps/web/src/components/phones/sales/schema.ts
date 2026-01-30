@@ -1,7 +1,7 @@
 // src/components/sales/schema.ts
 import * as z from 'zod'
 
-export const salePhoneSchema = z.object({
+export const salePhoneBase = z.object({
     // --- KHÁCH HÀNG ---
     customer_name: z.string().min(1, 'Vui lòng nhập tên khách hàng'),
     customer_phone: z
@@ -25,11 +25,22 @@ export const salePhoneSchema = z.object({
     payment_status: z.enum(['PAID', 'DRAFT']), // Đã thanh toán / Chờ thanh toán
 
     note: z.string().optional(),
-
-    create_invoice: z.boolean(), // Toggle "Tạo hoá đơn"
 })
 
+export const salePhoneSchema = salePhoneBase
+    .extend({
+        create_invoice: z.boolean(),
+    })
+
+export const editSaleSchema = salePhoneBase
+    .extend({
+        // Thêm trường ngày bán (datetime string từ input type="datetime-local")
+        sale_date: z.string().optional(),
+        customer_id_number: z.string().optional(),
+    })
+
 export type SaleFormValues = z.infer<typeof salePhoneSchema>
+export type EditSaleFormValues = z.infer<typeof editSaleSchema>
 
 export const defaultSaleValues: SaleFormValues = {
     customer_name: '',

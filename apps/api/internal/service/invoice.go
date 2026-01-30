@@ -155,14 +155,15 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 	}
 
 	invoice := model.Invoice{
-		InvoiceCode: code,
-		Type:        input.Type,
-		Status:      status,
-		CustomerID:  finalCustomerID, // Sử dụng ID đã xử lý
-		TotalAmount: totalAmount,
-		CreatedBy:   userID,
-		CreatedAt:   time.Now(),
-		Note:        input.Note,
+		InvoiceCode:   code,
+		Type:          input.Type,
+		Status:        status,
+		PaymentMethod: input.PaymentMethod,
+		CustomerID:    finalCustomerID, // Sử dụng ID đã xử lý
+		TotalAmount:   totalAmount,
+		CreatedBy:     userID,
+		CreatedAt:     time.Now(),
+		Note:          input.Note,
 	}
 
 	// 4. LƯU VÀO DB
@@ -176,4 +177,8 @@ func (s *InvoiceService) GetInvoiceDetail(id int) (*model.Invoice, error) {
 func (s *InvoiceService) UpdateStatus(id int, status string) error {
 	// Có thể thêm logic kiểm tra user permissions tại đây nếu cần
 	return s.Repo.UpdateStatus(id, status)
+}
+
+func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput) error {
+	return s.Repo.Update(id, input)
 }

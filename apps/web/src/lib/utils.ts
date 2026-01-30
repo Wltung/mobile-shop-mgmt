@@ -26,7 +26,30 @@ export const formatDate = (dateStr: string | undefined) => {
     })
 }
 
-// Hàm Helper: Format Date sang YYYY-MM-DD
-export const formatDateISO = (date: Date) => {
-    return date.toISOString().split('T')[0]
+// Helper: Chuyển đổi Date/String sang ISO Local Time
+// Giúp tránh lỗi lệch ngày/giờ do toISOString() mặc định dùng UTC
+const toLocalISOString = (dateVal: string | Date) => {
+    const date = new Date(dateVal)
+    // Trừ đi offset (phút) để đưa về giờ địa phương trước khi toISO
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString()
+}
+
+/**
+ * Format cho input type="date"
+ * Output: YYYY-MM-DD
+ */
+export const formatDateForInput = (dateVal: string | Date | undefined) => {
+    if (!dateVal) return ''
+    return toLocalISOString(dateVal).split('T')[0]
+}
+
+/**
+ * Format cho input type="datetime-local"
+ * Output: YYYY-MM-DDTHH:mm
+ */
+export const formatDateTimeForInput = (dateVal: string | Date | undefined) => {
+    if (!dateVal) return ''
+    // Lấy 16 ký tự đầu: YYYY-MM-DDTHH:mm
+    return toLocalISOString(dateVal).slice(0, 16)
 }

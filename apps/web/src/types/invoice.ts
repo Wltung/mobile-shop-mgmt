@@ -38,6 +38,7 @@ export interface CreateInvoiceItem {
 export interface CreateInvoiceRequest {
     type: InvoiceType
     status?: InvoiceStatus
+    payment_method?: string
     customer_id?: number | null
     customer_name?: string 
     customer_phone?: string
@@ -56,6 +57,7 @@ export interface Invoice {
     invoice_code: string // HDN-..., HDB-...
     type: InvoiceType
     status: InvoiceStatus
+    payment_method?: string
     customer_id: number | null
     total_amount: number
     created_by: number
@@ -68,5 +70,6 @@ export interface Invoice {
     // Thông tin mở rộng (nếu Backend có JOIN)
     customer_name?: string
     customer_phone?: string
+    customer_id_number?: string
     creator_name?: string
 }
