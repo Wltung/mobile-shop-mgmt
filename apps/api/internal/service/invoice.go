@@ -3,20 +3,19 @@ package service
 import (
 	"api/internal/model"
 	"api/internal/repository"
-	"errors"
 	"fmt"
 	"time"
 )
 
 type InvoiceService struct {
-	Repo         *repository.InvoiceRepo
-	CustomerRepo *repository.CustomerRepo
+	Repo            *repository.InvoiceRepo
+	CustomerService *CustomerService
 }
 
-func NewInvoiceService(repo *repository.InvoiceRepo, custRepo *repository.CustomerRepo) *InvoiceService {
+func NewInvoiceService(repo *repository.InvoiceRepo, custService *CustomerService) *InvoiceService {
 	return &InvoiceService{
-		Repo:         repo,
-		CustomerRepo: custRepo,
+		Repo:            repo,
+		CustomerService: custService,
 	}
 }
 
@@ -56,72 +55,32 @@ func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
 }
 
 func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID int) (int, error) {
-	var finalCustomerID *int = input.CustomerID
+	// ------------------------------------------------------------------
+	// 1. XỬ LÝ KHÁCH HÀNG (Thông qua CustomerService)
+	// ------------------------------------------------------------------
 
-	// 1. LOGIC TỰ ĐỘNG TÌM/TẠO KHÁCH HÀNG (Giống hệt ImportPhone)
-	// Nếu FE không gửi ID (null), ta dùng Tên & SĐT để xử lý
-	if finalCustomerID == nil {
-		// Validate: Phải có ít nhất Tên để tạo
-		if input.CustomerName == "" {
-			return 0, errors.New("vui lòng nhập tên khách hàng")
-		}
-
-		// Gọi Repo để tìm khách cũ (Khớp Tên + SĐT)
-		// Lưu ý: IDNumber để rỗng vì bán hàng thường ít khi nhập CCCD
-		cust, err := s.CustomerRepo.GetMatchCustomer(input.CustomerName, input.CustomerPhone, "", userID)
-		if err != nil {
-			return 0, err
-		}
-
-		if cust != nil {
-			// Case A: Tìm thấy -> Dùng ID khách cũ
-			idVal := cust.ID
-			finalCustomerID = &idVal
-		} else {
-			// Case B: Không thấy -> Tạo khách mới
-			cName := input.CustomerName
-			// Nếu tên rỗng (phòng hờ) thì đặt mặc định
-			if cName == "" {
-				cName = "Khách lẻ"
-			}
-
-			var cPhone *string
-			if input.CustomerPhone != "" {
-				cPhone = &input.CustomerPhone
-			}
-
-			newID, err := s.CustomerRepo.Create(model.Customer{
-				Name:  cName,
-				Phone: cPhone,
-				// IDNumber: nil, // Bán hàng không bắt buộc CCCD
-				CreatedBy: userID,
-			})
-			if err != nil {
-				return 0, err
-			}
-
-			idVal := newID
-			finalCustomerID = &idVal
-		}
+	// Chuẩn bị dữ liệu định danh
+	custInput := model.CustomerIdentityInput{
+		Name:  input.CustomerName,
+		Phone: input.CustomerPhone,
+		// Lưu ý: Input model cần có trường CustomerIDNumber (đã thêm ở bước trước)
+		// Nếu chưa có trong model gốc, bạn cần đảm bảo struct CreateInvoiceInput đã có field này.
+		IDNumber: input.CustomerIDNumber,
 	}
 
-	// Validate cuối cùng: Nếu sau tất cả vẫn không có CustomerID
-	if finalCustomerID == nil {
-		return 0, errors.New("không xác định được khách hàng")
-	}
-
-	// [FIX LỖI PANIC TẠI ĐÂY]
-	// Dùng *finalCustomerID thay vì *input.CustomerID
-	custCheck, err := s.CustomerRepo.GetByID(*finalCustomerID, userID)
+	// Gọi Service để xử lý logic nghiệp vụ:
+	// - IMPORT: Bắt buộc Tên + (SĐT/CCCD)
+	// - SALE: Không bắt buộc (nếu trống -> Khách lẻ)
+	// - Tự động tìm khách cũ hoặc tạo mới
+	finalCustomerID, err := s.CustomerService.HandleCustomerForInvoice(input.Type, custInput)
 	if err != nil {
 		return 0, err
 	}
-	if custCheck == nil {
-		return 0, errors.New("khách hàng không tồn tại trong hệ thống")
-	}
 
+	// ------------------------------------------------------------------
 	// 2. TÍNH TOÁN ITEMS & TỔNG TIỀN
-	var totalAmount int64
+	// ------------------------------------------------------------------
+	var totalAmount int64 = 0
 	var items []model.InvoiceItem
 
 	for i, itemInput := range input.Items {
@@ -143,7 +102,9 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		})
 	}
 
-	// 3. TẠO INVOICE HEADER
+	// ------------------------------------------------------------------
+	// 3. TẠO HEADER HOÁ ĐƠN
+	// ------------------------------------------------------------------
 	status := input.Status
 	if status == "" {
 		status = model.InvoiceStatusPaid

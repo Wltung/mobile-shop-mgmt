@@ -26,9 +26,10 @@ func main() {
 	invoiceRepo := repository.NewInvoiceRepo(dbConn)
 
 	// Service
-	phoneService := service.NewPhoneService(phoneRepo, customerRepo)
+	customerService := service.NewCustomerService(customerRepo)
+	phoneService := service.NewPhoneService(phoneRepo, customerService)
 	authService := service.NewAuthService(userRepo, tokenManager)
-	invoiceService := service.NewInvoiceService(invoiceRepo, customerRepo)
+	invoiceService := service.NewInvoiceService(invoiceRepo, customerService)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, cfg)

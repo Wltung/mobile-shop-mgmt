@@ -58,14 +58,15 @@ type InvoiceItem struct {
 
 // 2. Input DTO (Dữ liệu FE gửi lên để tạo hóa đơn)
 type CreateInvoiceInput struct {
-	Type          string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
-	Status        string            `json:"status"` // Default
-	PaymentMethod string            `json:"payment_method"`
-	CustomerID    *int              `json:"customer_id"`
-	CustomerName  string            `json:"customer_name"`
-	CustomerPhone string            `json:"customer_phone"`
-	Note          string            `json:"note"`
-	Items         []CreateItemInput `json:"items" binding:"required,min=1"`
+	Type             string            `json:"type" binding:"required,oneof=IMPORT SALE REPAIR"`
+	Status           string            `json:"status"` // Default
+	PaymentMethod    string            `json:"payment_method"`
+	CustomerID       *int              `json:"customer_id"`
+	CustomerName     string            `json:"customer_name"`
+	CustomerPhone    string            `json:"customer_phone"`
+	CustomerIDNumber string            `json:"customer_id_number"`
+	Note             string            `json:"note"`
+	Items            []CreateItemInput `json:"items" binding:"required,min=1"`
 }
 
 type CreateItemInput struct {
@@ -78,11 +79,16 @@ type CreateItemInput struct {
 }
 
 type UpdateInvoiceInput struct {
-	CustomerName  *string `json:"customer_name"`
-	CustomerPhone *string `json:"customer_phone"`
-	// CustomerCCCD *string `json:"customer_cccd"` // Nếu cần sau này
+	CustomerName     *string `json:"customer_name"`
+	CustomerPhone    *string `json:"customer_phone"`
+	CustomerIDNumber *string `json:"customer_id_number"` // Nếu cần sau này
 
+	Status        string  `json:"payment_status"`
 	PaymentMethod *string `json:"payment_method"`
-	CreatedAt     *string `json:"created_at"` // Cho phép sửa ngày bán
 	Note          *string `json:"note"`
+	CreatedAt     *string `json:"created_at"`
+
+	PhoneID         *int   `json:"phone_id"`
+	ActualSalePrice string `json:"actual_sale_price"` // FE gửi string, cần convert
+	Warranty        string `json:"warranty"`
 }

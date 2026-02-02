@@ -143,46 +143,56 @@ func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
 }
 
 func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	// 1. Update Invoice Table
 	queryInv := `
 		UPDATE invoices 
-		SET payment_method = COALESCE(:payment_method, payment_method),
-			created_at = COALESCE(:created_at, created_at),
-			note = COALESCE(:note, note),
-			updated_at = NOW()
-		WHERE id = :id
+		SET payment_method = ?, status = ?, note = ?, updated_at = NOW()
+		WHERE id = ?
 	`
+
+	if _, err := tx.Exec(queryInv, input.PaymentMethod, input.Status, input.Note, id); err != nil {
+		return err
+	}
+
+	// Nếu có sửa ngày tạo (CreatedAt)
+	if input.CreatedAt != nil {
+		if _, err := tx.Exec("UPDATE invoices SET created_at = ? WHERE id = ?", *input.CreatedAt, id); err != nil {
+			return err
+		}
+	}
+
+	// 2. Cập nhật thông tin Khách hàng (Customer)
+	// Lấy customer_id hiện tại của hoá đơn
+	var customerID int
+	if err := tx.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", id); err == nil && customerID > 0 {
+		queryCust := `
+			UPDATE customers 
+			SET name = ?, phone = ?, id_number = ?, updated_at = NOW()
+			WHERE id = ?
+		`
+		if _, err := tx.Exec(queryCust, input.CustomerName, input.CustomerPhone, input.CustomerIDNumber, customerID); err != nil {
+			return err
+		}
+	}
 
 	// Map struct input sang map để dùng NamedExec (hoặc dùng struct nếu map đúng db tag)
 	params := map[string]interface{}{
 		"id":             id,
 		"payment_method": input.PaymentMethod,
-		"created_at":     input.CreatedAt,
+		"status":         input.Status,
 		"note":           input.Note,
+		"created_at":     input.CreatedAt,
 	}
 
-	_, err := r.DB.NamedExec(queryInv, params)
+	_, err = r.DB.NamedExec(queryInv, params)
 	if err != nil {
 		return err
-	}
-
-	// 2. Update Customer Info (Nếu có thay đổi tên/sđt)
-	// Đầu tiên lấy customer_id của invoice này
-	var customerID int
-	err = r.DB.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", id)
-	if err == nil && customerID > 0 {
-		// Update bảng customer
-		queryCust := `
-			UPDATE customers
-			SET name = COALESCE(?, name),
-				phone = COALESCE(?, phone),
-				updated_at = NOW()
-			WHERE id = ?
-		`
-		_, err = r.DB.Exec(queryCust, input.CustomerName, input.CustomerPhone, customerID)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -11,3 +11,10 @@ type Customer struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
+
+// Input dùng cho hàm GetOrCreate
+type CustomerIdentityInput struct {
+	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+	IDNumber string `json:"id_number"`
+}

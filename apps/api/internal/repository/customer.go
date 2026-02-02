@@ -15,95 +15,92 @@ func NewCustomerRepo(db *sqlx.DB) *CustomerRepo {
 	return &CustomerRepo{DB: db}
 }
 
-func (r *CustomerRepo) GetByID(id, userID int) (*model.Customer, error) {
-	var c model.Customer
-	query := `
-		SELECT id, name, phone, id_number, created_by, created_at
-		FROM customers
-		WHERE id = ? AND created_by = ?
-		LIMIT 1
+// GetOrCreate: Triển khai logic định danh và khởi tạo
+func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput) (int, error) {
+	// 1. Validate sơ bộ: Nếu không có tên, không thể định danh -> trả về 0 (Khách lẻ)
+	if input.Name == "" {
+		return 0, nil
+	}
+
+	// 2. BƯỚC 1: KIỂM TRA (CHECK)
+	// Tìm bản ghi có Name khớp VÀ (Phone khớp HOẶC ID_Number khớp)
+	var existingCust model.Customer
+	queryCheck := `
+		SELECT id, name, phone, id_number 
+		FROM customers 
+		WHERE name = ? AND (
+			(phone IS NOT NULL AND phone = ?) OR 
+			(id_number IS NOT NULL AND id_number = ?)
+		) LIMIT 1
 	`
-	err := r.DB.Get(&c, query, id, userID)
+	// Lưu ý: Nếu input.Phone rỗng, query vẫn an toàn vì 'phone = ""' sẽ không khớp NULL
+	err := r.DB.Get(&existingCust, queryCheck, input.Name, input.Phone, input.IDNumber)
+
+	// 3. BƯỚC 2: QUYẾT ĐỊNH (DECISION)
+	if err == nil {
+		// A. TRƯỜNG HỢP TÌM THẤY -> Trả về ID hiện có
+		// Đồng thời chạy logic "Làm giàu dữ liệu" (Update Động)
+		go r.enrichCustomerData(existingCust, input)
+		return existingCust.ID, nil
+	}
+
 	if err == sql.ErrNoRows {
-		return nil, nil
+		// B. TRƯỜNG HỢP KHÔNG THẤY
+		// Kiểm tra điều kiện đủ thông tin để tạo mới: Name + (Phone OR IDNumber)
+		hasContact := input.Phone != "" || input.IDNumber != ""
+
+		if hasContact {
+			// Tạo mới (INSERT)
+			queryInsert := `INSERT INTO customers (name, phone, id_number) VALUES (?, ?, ?)`
+
+			// Xử lý Null cho Phone/IDNumber khi insert
+			var phonePtr, idPtr *string
+			if input.Phone != "" {
+				phonePtr = &input.Phone
+			}
+			if input.IDNumber != "" {
+				idPtr = &input.IDNumber
+			}
+
+			res, err := r.DB.Exec(queryInsert, input.Name, phonePtr, idPtr)
+			if err != nil {
+				return 0, err
+			}
+			id, _ := res.LastInsertId()
+			return int(id), nil
+		}
+
+		// Không đủ thông tin (chỉ có Tên hoặc trống hết) -> Coi là Khách vãng lai
+		return 0, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
+
+	return 0, err
 }
 
-// Tìm khách hàng theo SĐT hoặc CCCD
-func (r *CustomerRepo) GetMatchCustomer(name, phone, idNumber string, userID int) (*model.Customer, error) {
-	if name == "" {
-		return nil, nil
+// enrichCustomerData: Logic Update Động (Bổ sung thông tin)
+// Hàm này private, chỉ gọi nội bộ khi tìm thấy khách cũ
+func (r *CustomerRepo) enrichCustomerData(current model.Customer, input model.CustomerIdentityInput) {
+	shouldUpdate := false
+
+	// Prepare pointers for update
+	newPhone := current.Phone
+	newID := current.IDNumber
+
+	// Quy tắc bổ sung Phone: Chỉ update khi DB đang trống và Input có dữ liệu
+	if (current.Phone == nil || *current.Phone == "") && input.Phone != "" {
+		newPhone = &input.Phone
+		shouldUpdate = true
 	}
 
-	// Ưu tiên CCCD
-	if idNumber != "" {
-		var c model.Customer
-		err := r.DB.Get(&c,
-			`SELECT id, name, phone, id_number, created_by, created_at
-			FROM customers
-			WHERE name = ? AND id_number = ? AND created_by = ?
-			LIMIT 1`,
-			name, idNumber, userID,
-		)
-
-		if err == nil {
-			return &c, nil
-		}
-		if err != sql.ErrNoRows {
-			return nil, err
-		}
+	// Quy tắc bổ sung ID_Number: Chỉ update khi DB đang trống và Input có dữ liệu
+	if (current.IDNumber == nil || *current.IDNumber == "") && input.IDNumber != "" {
+		newID = &input.IDNumber
+		shouldUpdate = true
 	}
 
-	// Fallback SĐT
-	if phone != "" {
-		var c model.Customer
-		err := r.DB.Get(&c,
-			`SELECT id, name, phone, id_number, created_by, created_at
-			FROM customers
-			WHERE name = ? AND phone = ? AND created_by = ?
-			LIMIT 1`,
-			name, phone, userID,
-		)
-
-		if err == nil {
-			return &c, nil
-		}
-		if err != sql.ErrNoRows {
-			return nil, err
-		}
+	// Ràng buộc toàn vẹn: Không ghi đè dữ liệu đã có
+	if shouldUpdate {
+		queryUpdate := `UPDATE customers SET phone = ?, id_number = ?, updated_at = NOW() WHERE id = ?`
+		_, _ = r.DB.Exec(queryUpdate, newPhone, newID, current.ID)
 	}
-
-	return nil, nil
-}
-
-// Tạo khách hàng mới
-func (r *CustomerRepo) Create(c model.Customer) (int, error) {
-	query := `
-		INSERT INTO customers (name, phone, id_number, created_by) 
-		VALUES (:name, :phone, :id_number, :created_by)
-	`
-	result, err := r.DB.NamedExec(query, c)
-	if err != nil {
-		return 0, err
-	}
-	id, err := result.LastInsertId()
-	return int(id), err
-}
-
-func (r *CustomerRepo) Update(c model.Customer) error {
-	query := `
-		UPDATE customers 
-		SET 
-			name = :name, 
-			phone = :phone, 
-			id_number = :id_number,
-			updated_at = NOW()
-		WHERE id = :id AND created_by = :created_by
-	`
-	_, err := r.DB.NamedExec(query, c)
-	return err
 }

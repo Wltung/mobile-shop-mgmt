@@ -43,24 +43,6 @@ func (r *PhoneRepo) GetByIMEI(imei string, userID int) (*model.Phone, error) {
 	return &phone, nil
 }
 
-// Lấy toàn bộ danh sách điện thoại (Mới nhất lên đầu)
-func (r *PhoneRepo) GetAll() ([]model.Phone, error) {
-	var phones []model.Phone
-	// Left Join để lỡ user bị xóa thì vẫn hiện phone
-	query := `
-		SELECT p.*, u.full_name as importer_name 
-		FROM phones p
-		LEFT JOIN users u ON p.import_by = u.id
-		ORDER BY p.created_at DESC
-	`
-
-	err := r.DB.Select(&phones, query)
-	if err != nil {
-		return nil, err
-	}
-	return phones, nil
-}
-
 // Hàm nội bộ: Chạy Count, Sum và Select dựa trên baseQuery đã build
 func (r *PhoneRepo) fetchList(
 	baseQuery string,

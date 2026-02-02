@@ -8,19 +8,21 @@ import (
 )
 
 type PhoneService struct {
-	Repo         *repository.PhoneRepo
-	CustomerRepo *repository.CustomerRepo
+	Repo            *repository.PhoneRepo
+	CustomerService *CustomerService
 }
 
-func NewPhoneService(repo *repository.PhoneRepo, custRepo *repository.CustomerRepo) *PhoneService {
+func NewPhoneService(repo *repository.PhoneRepo, custService *CustomerService) *PhoneService {
 	return &PhoneService{
-		Repo:         repo,
-		CustomerRepo: custRepo,
+		Repo:            repo,
+		CustomerService: custService,
 	}
 }
 
 func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *int, error) {
-	// 1. Business Logic: Kiểm tra xem IMEI đã tồn tại chưa
+	// ---------------------------------------------------------
+	// 1. BUSINESS LOGIC: KIỂM TRA IMEI
+	// ---------------------------------------------------------
 	exists, err := s.Repo.GetByIMEI(input.IMEI, userID)
 
 	if err != nil {
@@ -31,59 +33,43 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 		return 0, nil, errors.New("IMEI này đã tồn tại")
 	}
 
-	var sourceID *int = nil
-
-	hasSellerInfo := input.SellerName != "" || input.SellerPhone != "" || input.SellerID != ""
-
-	if hasSellerInfo {
-		// Tìm khách cũ
-		cust, err := s.CustomerRepo.GetMatchCustomer(input.SellerName, input.SellerPhone, input.SellerID, userID)
-		if err != nil {
-			return 0, nil, err
-		}
-
-		if cust != nil {
-			sourceID = &cust.ID // Lấy ID khách cũ
-		} else {
-			// Tạo khách mới
-			// Xử lý pointer cho string rỗng để lưu NULL vào DB Customer nếu cần
-			var phonePtr *string
-			var idPtr *string
-			if input.SellerPhone != "" {
-				phonePtr = &input.SellerPhone
-			}
-			if input.SellerID != "" {
-				idPtr = &input.SellerID
-			}
-
-			// Validate: Nếu không có tên thì đặt tên mặc định hoặc báo lỗi
-			sellerName := input.SellerName
-			if sellerName == "" {
-				sellerName = "Khách vãng lai"
-			}
-
-			newID, err := s.CustomerRepo.Create(model.Customer{
-				Name:      sellerName,
-				Phone:     phonePtr,
-				IDNumber:  idPtr,
-				CreatedBy: userID,
-			})
-			if err != nil {
-				return 0, nil, err
-			}
-
-			// Ép kiểu int về *int
-			idVal := newID
-			sourceID = &idVal
-		}
+	// ---------------------------------------------------------
+	// 2. XỬ LÝ KHÁCH HÀNG (Qua CustomerService)
+	// ---------------------------------------------------------
+	// Chuyển đổi dữ liệu từ PhoneInput sang CustomerIdentityInput
+	// Lưu ý: SellerID trong PhoneInput tương ứng với CCCD (IDNumber)
+	custInput := model.CustomerIdentityInput{
+		Name:     input.SellerName,
+		Phone:    input.SellerPhone,
+		IDNumber: input.SellerID,
 	}
 
-	// 2. Chuẩn bị dữ liệu
+	// Gọi CustomerService với context "IMPORT".
+	// Hàm này sẽ tự động:
+	// - Validate (bắt buộc Tên + SĐT/CCCD)
+	// - Tìm khách cũ hoặc Tạo mới
+	// - Enrich dữ liệu thiếu
+	sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// ---------------------------------------------------------
+	// 3. CHUẨN BỊ DỮ LIỆU PHONE
+	// ---------------------------------------------------------
 	now := time.Now() // Ngày nhập mặc định là hôm nay
 
-	importBy := userID
-
 	status := "IN_STOCK"
+
+	// Xử lý logic SalePrice (Giá bán dự kiến)
+	// Nếu input.SalePrice = 0 thì coi như chưa có giá bán (NULL trong DB)
+	var salePrice *int64
+	if input.SalePrice > 0 {
+		val := input.SalePrice
+		salePrice = &val
+	}
+
+	importBy := userID
 
 	// 2. Map dữ liệu từ Input sang Model
 	phone := model.Phone{
@@ -91,14 +77,19 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 		ModelName:     input.ModelName,
 		Details:       input.Details,
 		PurchasePrice: input.PurchasePrice,
-		Status:        status,
-		SalePrice:     &input.SalePrice,
-		PurchaseDate:  &now,
-		Note:          &input.Note,
-		ImportBy:      &importBy,
-		SourceID:      sourceID,
+
+		Status:       status,
+		SalePrice:    salePrice,
+		PurchaseDate: &now,
+		Note:         &input.Note,
+
+		ImportBy: &importBy,
+		SourceID: sourceID,
 	}
 
+	// ---------------------------------------------------------
+	// 4. LƯU VÀO DB
+	// ---------------------------------------------------------
 	newPhoneID, err := s.Repo.Create(phone)
 	if err != nil {
 		return 0, nil, err
@@ -148,94 +139,42 @@ func (s *PhoneService) UpdatePhone(id int, input model.PhoneUpdateInput, userID 
 		return errors.New("máy không tìm thấy")
 	}
 
-	// 2. Xử lý thông tin Người Bán (Chỉ chạy nếu có gửi 1 trong các trường liên quan)
-	var newSourceID *int = nil // Mặc định nil (không update cột này)
+	// ---------------------------------------------------------
+	// 2. XỬ LÝ CẬP NHẬT NGƯỜI BÁN (SOURCE / CUSTOMER)
+	// ---------------------------------------------------------
+	var newSourceID *int = nil
 
-	// Kiểm tra xem user có gửi thông tin seller không
-	hasSellerUpdate := input.SellerName != nil || input.SellerPhone != nil || input.SellerID != nil
-
-	if hasSellerUpdate {
-		// Lấy giá trị từ input hoặc fallback về giá trị cũ nếu input thiếu
-		// (Logic này tuỳ bạn: Patch là thay thế hay merge? Ở đây giả sử merge với cái cũ nếu thiếu)
-
-		sName := ""
-		if input.SellerName != nil {
-			sName = *input.SellerName
-		} else if existingPhone.SellerName != nil {
-			sName = *existingPhone.SellerName
-		}
-
+	// Chỉ xử lý logic khách hàng nếu có gửi thông tin người bán lên (SellerName != nil)
+	if input.SellerName != nil {
+		// Chuẩn bị dữ liệu input cho CustomerService
+		// Helper để lấy string từ pointer an toàn
+		sName := *input.SellerName
 		sPhone := ""
 		if input.SellerPhone != nil {
 			sPhone = *input.SellerPhone
-		} else if existingPhone.SellerPhone != nil {
-			sPhone = *existingPhone.SellerPhone
 		}
-
-		sID := ""
+		sID := "" // SellerID tương ứng với CCCD
 		if input.SellerID != nil {
 			sID = *input.SellerID
-		} else if existingPhone.SellerIDNumber != nil {
-			sID = *existingPhone.SellerIDNumber
 		}
 
-		// Xử lý các con trỏ string để lưu vào DB (nếu rỗng thì lưu NULL)
-		var pPtr, iPtr *string
-		if sPhone != "" {
-			pPtr = &sPhone
-		}
-		if sID != "" {
-			iPtr = &sID
-		}
-		if sName == "" {
-			sName = "Khách vãng lai"
+		custInput := model.CustomerIdentityInput{
+			Name:     sName,
+			Phone:    sPhone,
+			IDNumber: sID,
 		}
 
-		// LOGIC MỚI:
-		// Trường hợp A: Máy đã có người bán (SourceID != nil) -> Cập nhật thông tin người đó
-		if existingPhone.SourceID != nil {
-			err := s.CustomerRepo.Update(model.Customer{
-				ID:        *existingPhone.SourceID,
-				Name:      sName,
-				Phone:     pPtr,
-				IDNumber:  iPtr,
-				CreatedBy: userID,
-			})
-			if err != nil {
-				return err
-			}
-			// Giữ nguyên SourceID cũ (chỉ cập nhật nội dung)
-			// Lưu ý: Nếu muốn truyền newSourceID vào UpdateDynamic, ta có thể gán nó bằng SourceID cũ
-			// Tuy nhiên, logic repo UpdateDynamic thường chỉ update nếu source_id khác nil.
-			// Ở đây ta đã update customer rồi, không cần update source_id trong bảng phones nữa.
-		} else {
-			// Trường hợp B: Máy chưa có người bán (SourceID == nil) -> Tìm hoặc Tạo mới (Logic cũ)
-
-			// Tìm khách cũ theo SĐT/CCCD
-			cust, err := s.CustomerRepo.GetMatchCustomer(sName, sPhone, sID, userID)
-			if err != nil {
-				return err
-			}
-
-			if cust != nil {
-				// Tìm thấy -> Link tới ID khách này
-				idVal := cust.ID
-				newSourceID = &idVal
-			} else {
-				// Chưa có -> Tạo khách mới
-				newID, err := s.CustomerRepo.Create(model.Customer{
-					Name:      sName,
-					Phone:     pPtr,
-					IDNumber:  iPtr,
-					CreatedBy: userID,
-				})
-				if err != nil {
-					return err
-				}
-				idVal := newID
-				newSourceID = &idVal
-			}
+		// Gọi CustomerService với context "IMPORT" (vì nguồn gốc máy nhập vào cần định danh rõ)
+		// Logic bên trong sẽ tự động:
+		// - Tìm khách cũ khớp SĐT/CCCD -> Trả về ID cũ + Update thông tin mới (Enrich)
+		// - Hoặc tạo khách mới nếu chưa có
+		// - Validate tên bắt buộc
+		sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput)
+		if err != nil {
+			return err
 		}
+
+		newSourceID = sourceID
 	}
 
 	// 3. Gọi Repo Dynamic Update

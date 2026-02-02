@@ -28,6 +28,7 @@ import { phoneBaseSchema, EditFormValues, defaultImportValues } from './schema' 
 import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
+import { formatDateForInput } from '@/lib/utils'
 
 interface Props {
     phone: Phone
@@ -38,19 +39,6 @@ interface Props {
 export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
-
-    const formatDateForInput = (dateString?: string) => {
-        if (!dateString) return ''
-        try {
-            // Cách 1: Cắt chuỗi trực tiếp (Nhanh, hiệu quả nếu chuỗi chuẩn ISO)
-            return dateString.split('T')[0]
-
-            // Cách 2: Dùng Date object (An toàn hơn nếu format lạ)
-            // return new Date(dateString).toISOString().split('T')[0]
-        } catch (e) {
-            return ''
-        }
-    }
 
     // Map dữ liệu từ API vào Form
     const defaultValues: Partial<EditFormValues> = {
