@@ -15,6 +15,11 @@ export const formatCurrency = (val: number | string | undefined) => {
     }).format(num)
 }
 
+export const formatJustDate = (dateStr: string | undefined) => {
+    if (!dateStr) return ''
+    return new Date(dateStr).toLocaleDateString('vi-VN')
+}
+
 export const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return ''
     return new Date(dateStr).toLocaleString('vi-VN', {

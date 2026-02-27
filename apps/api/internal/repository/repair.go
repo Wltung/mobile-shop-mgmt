@@ -45,6 +45,7 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 			part_cost = COALESCE(?, part_cost),
 			repair_price = COALESCE(?, repair_price),
 			repair_type = COALESCE(?, repair_type),
+			status = COALESCE(?, status),             -- Thêm dòng này
 			updated_at = NOW()
 		WHERE id = ?
 	`
@@ -54,6 +55,7 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 		input.PartCost,
 		input.RepairPrice,
 		input.RepairType,
+		input.Status,
 		id,
 	)
 	return err
@@ -68,4 +70,78 @@ func (r *RepairRepo) GetByID(id int) (*model.Repair, error) {
 		return nil, err
 	}
 	return &repair, nil
+}
+
+// GetAll: Lấy danh sách phiếu sửa chữa (có phân trang và filter)
+func (r *RepairRepo) GetAll(filter model.RepairFilter) ([]model.RepairListItem, int, error) {
+	offset := (filter.Page - 1) * filter.Limit
+	var items []model.RepairListItem
+	var total int
+
+	// Base query JOIN với customers và phones
+	baseQuery := `
+		FROM repairs r
+		LEFT JOIN customers c ON r.customer_id = c.id
+		LEFT JOIN phones p ON r.phone_id = p.id
+		WHERE 1=1
+	`
+	var args []interface{}
+
+	// Xử lý Filters
+	if filter.Keyword != "" {
+		baseQuery += ` AND (c.name LIKE ? OR c.phone LIKE ? OR r.description LIKE ?)`
+		kw := "%" + filter.Keyword + "%"
+		args = append(args, kw, kw, kw)
+	}
+	if filter.Status != "" && filter.Status != "ALL" {
+		baseQuery += ` AND r.status = ?`
+		args = append(args, filter.Status)
+	}
+	if filter.StartDate != "" && filter.EndDate != "" {
+		baseQuery += ` AND DATE(r.created_at) >= ? AND DATE(r.created_at) <= ?`
+		args = append(args, filter.StartDate, filter.EndDate)
+	}
+
+	// 1. Đếm tổng số bản ghi (để phân trang)
+	countQuery := `SELECT COUNT(*) ` + baseQuery
+	if err := r.DB.Get(&total, countQuery, args...); err != nil {
+		return nil, 0, err
+	}
+
+	// 2. Lấy dữ liệu
+	selectQuery := `
+		SELECT 
+			r.*, 
+			c.name as customer_name, 
+			c.phone as customer_phone,
+			p.model_name as phone_model
+	` + baseQuery + ` ORDER BY r.created_at DESC LIMIT ? OFFSET ?`
+
+	args = append(args, filter.Limit, offset)
+
+	if err := r.DB.Select(&items, selectQuery, args...); err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+// GetStats: Lấy số liệu thống kê cho trang sửa chữa
+func (r *RepairRepo) GetStats() (int, int, error) {
+	var repairingCount int
+	var completedTodayCount int
+
+	// Đếm máy Đang sửa
+	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE status = 'REPAIRING'`)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Đếm máy Hoàn thành hôm nay
+	err = r.DB.Get(&completedTodayCount, `SELECT COUNT(*) FROM repairs WHERE status = 'COMPLETED' AND DATE(updated_at) = CURDATE()`)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return repairingCount, completedTodayCount, nil
 }

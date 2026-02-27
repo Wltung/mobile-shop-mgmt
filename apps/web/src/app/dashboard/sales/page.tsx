@@ -49,7 +49,7 @@ export default function SalesPage() {
         setPage,
         setDateFilter,
         formatCurrency,
-        formatDate,
+        formatJustDate,
         setStatus,
         refresh,
     } = usePhoneList('SALE')
@@ -79,7 +79,7 @@ export default function SalesPage() {
             accessorKey: 'sale_date',
             cell: (item) => (
                 <span className="whitespace-nowrap text-slate-600">
-                    {item.sale_date ? formatDate(item.sale_date) : '---'}
+                    {item.sale_date ? formatJustDate(item.sale_date) : '---'}
                 </span>
             ),
         },

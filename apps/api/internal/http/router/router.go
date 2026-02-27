@@ -80,6 +80,7 @@ func NewRouter(
 			repairs := protected.Group("/repairs")
 			{
 				repairs.POST("", repairHandler.CreateRepair)
+				repairs.GET("", repairHandler.GetRepairs)
 				repairs.GET("/:id", repairHandler.GetRepair)
 				repairs.PATCH("/:id", repairHandler.UpdateRepair)
 			}

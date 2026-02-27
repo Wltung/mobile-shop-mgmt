@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search, Eye, Trash2, Package, DollarSign } from 'lucide-react'
-import { usePhoneList } from '@/hooks/phone/usePhoneList'
-import { Phone } from '@/types/phone'
-import { ColumnDef } from '@/types/common'
+import { Plus, Search, Eye, Trash2, Wrench, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+
+// Giả định bạn sẽ tạo hook này tương tự usePhoneList
+import { useRepairList } from '@/hooks/repair/useRepairList' 
+import { Repair } from '@/types/repair'
+import { ColumnDef } from '@/types/common'
 
 // Import Generic Components
 import DashboardHeader from '@/components/dashboard/DashboardHeader'
@@ -19,13 +21,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import ImportPhoneModal from '@/components/phones/import/ImportPhoneModal'
 import PageActionButton from '@/components/common/PageActionButton'
 
-export default function ImportPage() {
+// Chú ý: Component CreateRepairModal sẽ được tạo ở bước sau
+// import CreateRepairModal from '@/components/repairs/CreateRepairModal'
+
+export default function RepairListPage() {
     const router = useRouter()
+    
+    // Gọi custom hook (API) - Các state và function y hệt usePhoneList
     const {
-        phones,
+        repairs,
         isLoading,
         stats,
         meta,
@@ -37,100 +43,96 @@ export default function ImportPage() {
         formatCurrency,
         formatJustDate,
         refresh,
-    } = usePhoneList('IMPORT')
+    } = useRepairList()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
 
-    // --- 1. CẤU HÌNH STATS ---
+    // --- 1. CẤU HÌNH STATS (Khớp với hình thiết kế) ---
     const statItems = [
         {
-            label: 'Tổng máy kho',
-            value: `${stats.totalPhones} máy`,
-            icon: <Package className="h-5 w-5" />,
+            label: 'Máy đang sửa',
+            value: `${stats?.repairingCount || 0} máy`,
+            icon: <Wrench className="h-5 w-5" />,
             color: 'blue' as const,
         },
         {
-            label: 'Tổng giá trị nhập',
-            value: formatCurrency(stats.totalValue),
-            icon: <DollarSign className="h-5 w-5" />,
+            label: 'Hoàn thành hôm nay',
+            value: `${stats?.completedTodayCount || 0} máy`,
+            icon: <CheckCircle2 className="h-5 w-5" />,
             color: 'green' as const,
         },
     ]
 
     // --- 2. CẤU HÌNH CỘT BẢNG (COLUMNS) ---
-    const columns: ColumnDef<Phone>[] = [
+    const columns: ColumnDef<Repair>[] = [
         {
-            header: 'NGÀY NHẬP',
-            accessorKey: 'purchase_date',
+            header: 'NGÀY NHẬN',
+            accessorKey: 'created_at',
             cell: (item) => (
-                <span className="whitespace-nowrap">
-                    {formatJustDate(item.purchase_date)}
+                <span className="whitespace-nowrap font-medium text-slate-500">
+                    {formatJustDate(item.created_at)}
+                </span>
+            ),
+        },
+        {
+            header: 'KHÁCH HÀNG',
+            accessorKey: 'customer_name',
+            cell: (item) => (
+                <span className="font-bold text-slate-900">
+                    {item.customer_name || 'Khách lẻ'}
                 </span>
             ),
         },
         {
             header: 'ĐỜI MÁY',
-            accessorKey: 'model_name',
+            accessorKey: 'device_name',
             cell: (item) => (
-                <span className="font-medium text-slate-900">
-                    {item.model_name}
+                <span className="font-semibold text-slate-700">
+                    {item.device_name || '---'}
                 </span>
             ),
         },
         {
-            header: 'IMEI',
-            accessorKey: 'imei',
-            cell: (item) => (
-                <span className="font-mono font-bold text-slate-700">
-                    {item.imei}
-                </span>
-            ),
-        },
-        {
-            header: 'GIÁ NHẬP',
-            accessorKey: 'purchase_price',
-            cell: (item) => (
-                <span className="font-bold text-slate-700">
-                    {formatCurrency(item.purchase_price)}
-                </span>
-            ),
-        },
-        {
-            header: 'GIÁ BÁN',
-            accessorKey: 'sale_price',
-            cell: (item) => (
-                <span
-                    className={
-                        item.sale_price == null
-                            ? 'ml-5 font-extrabold text-slate-800'
-                            : 'font-bold text-slate-700'
-                    }
-                >
-                    {item.sale_price != null
-                        ? formatCurrency(item.sale_price)
-                        : '-'}
-                </span>
-            ),
+            header: 'GIÁ SỬA',
+            accessorKey: 'repair_price',
+            className: 'text-right', // Căn phải cho cột tiền tệ
+            cell: (item) => {
+                // Tính tổng tiền linh kiện và tiền công
+                const partCost = item.part_cost || 0
+                const repairPrice = item.repair_price || 0
+                const total = partCost + repairPrice
+
+                return (
+                    <span className="flex justify-end font-bold text-slate-700">
+                        {total > 0 ? formatCurrency(total) : '---'}
+                    </span>
+                )
+            },
         },
         {
             header: 'TRẠNG THÁI',
             accessorKey: 'status',
             className: 'text-center',
             cell: (item) => {
+                // Map màu sắc badge khớp với hình ảnh thiết kế
                 const styles: Record<string, string> = {
-                    IN_STOCK: 'bg-green-100 text-green-800',
-                    SOLD: 'bg-slate-100 text-slate-800',
-                    REPAIRING: 'bg-yellow-100 text-yellow-800',
+                    PENDING: 'bg-slate-100 text-slate-700',
+                    REPAIRING: 'bg-yellow-100 text-yellow-700',
+                    WAITING_CUSTOMER: 'bg-blue-100 text-blue-700',
+                    COMPLETED: 'bg-green-100 text-green-700',
+                    DELIVERED: 'bg-emerald-100 text-emerald-800',
                 }
                 const labels: Record<string, string> = {
-                    IN_STOCK: 'Trong kho',
-                    SOLD: 'Đã bán',
+                    PENDING: 'Chờ kiểm tra',
                     REPAIRING: 'Đang sửa',
+                    WAITING_CUSTOMER: 'Chờ khách',
+                    COMPLETED: 'Hoàn thành',
+                    DELIVERED: 'Đã giao',
                 }
                 return (
                     <div className="flex justify-center">
                         <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[item.status]}`}
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${styles[item.status] || styles.PENDING}`}
                         >
                             {labels[item.status] || item.status}
                         </span>
@@ -144,16 +146,19 @@ export default function ImportPage() {
             cell: (item) => (
                 <div className="flex items-center justify-center gap-2">
                     <button
-                        className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary"
+                        className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
                         onClick={() =>
-                            router.push(`/dashboard/phones/${item.id}`)
+                            router.push(`/dashboard/repairs/${item.id}`)
                         }
                         title="Xem chi tiết"
                     >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-5 w-5" />
                     </button>
-                    <button className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
+                    <button 
+                        className="rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        title="Xóa phiếu"
+                    >
+                        <Trash2 className="h-5 w-5" />
                     </button>
                 </div>
             ),
@@ -168,8 +173,8 @@ export default function ImportPage() {
                     <Search className="h-5 w-5" />
                 </div>
                 <Input
-                    placeholder="Tìm kiếm theo mã IMEI, Tên máy..."
-                    className="h-10 border-slate-300 pl-10 focus-visible:ring-primary"
+                    placeholder="Tìm kiếm theo IMEI, Tên khách..."
+                    className="h-10 border-slate-300 pl-10 focus-visible:ring-primary bg-slate-50/50"
                     value={filters.keyword || ''}
                     onChange={(e) => setKeyword(e.target.value)}
                 />
@@ -177,13 +182,11 @@ export default function ImportPage() {
             <div className="flex w-full gap-3 md:w-auto">
                 <div className="relative min-w-[160px] flex-1 md:flex-none">
                     <Select onValueChange={setDateFilter} defaultValue="all">
-                        <SelectTrigger className="h-10 border-slate-300">
-                            <SelectValue placeholder="Thời gian" />
+                        <SelectTrigger className="h-10 border-slate-300 font-medium text-slate-600">
+                            <SelectValue placeholder="Tất cả thời gian" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">
-                                Tất cả thời gian
-                            </SelectItem>
+                            <SelectItem value="all">Tất cả thời gian</SelectItem>
                             <SelectItem value="today">Hôm nay</SelectItem>
                             <SelectItem value="week">Tuần này</SelectItem>
                             <SelectItem value="month">Tháng này</SelectItem>
@@ -195,16 +198,15 @@ export default function ImportPage() {
                         onValueChange={setStatus}
                         value={filters.status || 'ALL'}
                     >
-                        <SelectTrigger className="h-10 border-slate-300">
+                        <SelectTrigger className="h-10 border-slate-300 font-medium text-slate-600">
                             <SelectValue placeholder="Tất cả trạng thái" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">
-                                Tất cả trạng thái
-                            </SelectItem>
-                            <SelectItem value="IN_STOCK">Trong kho</SelectItem>
-                            <SelectItem value="SOLD">Đã bán</SelectItem>
+                            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                            <SelectItem value="PENDING">Chờ kiểm tra</SelectItem>
                             <SelectItem value="REPAIRING">Đang sửa</SelectItem>
+                            <SelectItem value="WAITING_CUSTOMER">Chờ khách</SelectItem>
+                            <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -214,7 +216,7 @@ export default function ImportPage() {
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
-            <DashboardHeader title="Quản lý Nhập máy" />
+            <DashboardHeader title="Quản lý Sửa chữa" />
 
             <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
@@ -222,9 +224,8 @@ export default function ImportPage() {
                     <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                         <StatsCards stats={statItems} />
 
-                        {/* --- SỬ DỤNG COMPONENT CHUNG --- */}
                         <PageActionButton
-                            label="Nhập máy mới"
+                            label="Tiếp nhận máy sửa"
                             icon={<Plus className="h-5 w-5" />}
                             onClick={() => setIsModalOpen(true)}
                         />
@@ -233,11 +234,11 @@ export default function ImportPage() {
                     {/* TABLE SECTION */}
                     <section className="flex flex-col gap-4">
                         <h3 className="text-lg font-bold leading-tight text-[#0f172a]">
-                            Lịch sử Nhập máy
+                            Lịch sử Sửa chữa
                         </h3>
 
                         <DataTable
-                            data={phones}
+                            data={repairs}
                             columns={columns}
                             isLoading={isLoading}
                             meta={meta}
@@ -248,11 +249,12 @@ export default function ImportPage() {
                 </div>
             </div>
 
-            <ImportPhoneModal
+            {/* Component Modal tạo mới sẽ được gọi ở đây */}
+            {/* <CreateRepairModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refresh()}
-            />
+            /> */}
         </div>
     )
 }

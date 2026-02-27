@@ -1,26 +1,23 @@
-// src/hooks/usePhoneList.ts
+// apps/web/src/hooks/repair/useRepairList.ts
 import { useState, useEffect, useCallback } from 'react'
-import { phoneService } from '@/services/phone.service'
-import { Phone, PhoneFilterParams } from '@/types/phone'
+import { repairService } from '@/services/repair.service'
+import { Repair, RepairFilterParams } from '@/types/repair'
 import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
 import { PaginationMeta } from '@/types/common'
 import { formatCurrency, formatDateForInput, formatJustDate } from '@/lib/utils'
 
-// Định nghĩa kiểu danh sách
-type ListType = 'IMPORT' | 'SALE'
-
-export const usePhoneList = (type: ListType = 'IMPORT') => {
-    const [phones, setPhones] = useState<Phone[]>([])
+export const useRepairList = () => {
+    const [repairs, setRepairs] = useState<Repair[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const { toast } = useToast()
 
     // State Filter
-    const [filters, setFilters] = useState<PhoneFilterParams>({
+    const [filters, setFilters] = useState<RepairFilterParams>({
         page: 1,
-        limit: 5,
+        limit: 5, // Trùng với limit của bạn trong phone
         keyword: '',
-        status: '',
+        status: 'ALL',
         start_date: '',
         end_date: '',
     })
@@ -34,24 +31,30 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         total_value: 0,
     })
 
-    const fetchPhones = async (currentFilters: PhoneFilterParams) => {
+    // Cấu hình Stats riêng cho phần Sửa chữa
+    const [stats, setStats] = useState({ repairingCount: 0, completedTodayCount: 0 })
+
+    const fetchRepairs = async (currentFilters: RepairFilterParams) => {
         try {
             setIsLoading(true)
-            let res
-
-            // [LOGIC MỚI] Gọi API dựa trên type
-            if (type === 'SALE') {
-                res = await phoneService.getSales(currentFilters)
+            
+            const res = await repairService.getAll(currentFilters)
+            
+            setRepairs(res.data || [])
+            setMeta(res.meta)
+            
+            // Giả định backend trả về stats. Nếu chưa có, mock tạm để UI không lỗi
+            if (res.stats) {
+                setStats(res.stats)
             } else {
-                res = await phoneService.getAll(currentFilters)
+                setStats({ repairingCount: 0, completedTodayCount: 0 })
             }
-            setPhones(res.data || [])
-            setMeta(res.meta) // Lưu meta backend trả về
+
         } catch (error) {
             toast({
                 variant: 'destructive',
                 title: 'Lỗi',
-                description: 'Không thể tải danh sách điện thoại.',
+                description: 'Không thể tải danh sách phiếu sửa chữa.',
             })
         } finally {
             setIsLoading(false)
@@ -60,27 +63,25 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
 
     // Debounce search: Chỉ gọi API sau khi ngừng gõ 500ms
     const debouncedFetch = useCallback(
-        debounce((nextFilters) => fetchPhones(nextFilters), 500),
+        debounce((nextFilters) => fetchRepairs(nextFilters), 500),
         [],
     )
 
     // Riêng keyword sẽ được xử lý debounce ở UI event
     useEffect(() => {
-        fetchPhones(filters)
+        fetchRepairs(filters)
     }, [
         filters.page,
         filters.status,
         filters.start_date,
         filters.end_date,
-        type,
     ])
 
     // Hàm update filter cho UI dùng
     const setKeyword = (kw: string) => {
-        // Update state để UI hiển thị
         setFilters((prev) => {
-            const next = { ...prev, keyword: kw, page: 1 } // Reset về trang 1 khi search
-            debouncedFetch(next) // Gọi API qua debounce
+            const next = { ...prev, keyword: kw, page: 1 } 
+            debouncedFetch(next) 
             return next
         })
     }
@@ -90,7 +91,7 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
     const setPage = (p: number) => setFilters((prev) => ({ ...prev, page: p }))
 
     // Refresh data
-    const refresh = () => fetchPhones(filters)
+    const refresh = () => fetchRepairs(filters)
 
     // Hàm set Filter theo Option (all, today, week, month)
     const setDateFilter = (type: string) => {
@@ -102,19 +103,16 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
             start = formatDateForInput(today)
             end = formatDateForInput(today)
         } else if (type === 'week') {
-            // Lấy ngày đầu tuần (Thứ 2)
-            const day = today.getDay() // 0 (CN) -> 6 (T7)
+            const day = today.getDay() 
             const diff = today.getDate() - day + (day === 0 ? -6 : 1)
             const monday = new Date(today.setDate(diff))
             start = formatDateForInput(monday)
-            end = formatDateForInput(new Date()) // Đến hiện tại
+            end = formatDateForInput(new Date()) 
         } else if (type === 'month') {
-            // Ngày đầu tháng
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
             start = formatDateForInput(firstDay)
             end = formatDateForInput(new Date())
         } else {
-            // type === "all" -> Reset rỗng
             start = ''
             end = ''
         }
@@ -123,15 +121,15 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
             ...prev,
             start_date: start,
             end_date: end,
-            page: 1, // Reset về trang 1 khi lọc
+            page: 1, 
         }))
     }
 
     return {
-        phones,
+        repairs,
         isLoading,
         meta,
-        stats: { totalPhones: meta.total, totalValue: meta.total_value },
+        stats, // Trả ra stats của sửa chữa
         filters,
         setKeyword,
         setStatus,

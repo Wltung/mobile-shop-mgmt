@@ -12,6 +12,7 @@ type Repair struct {
 	PartCost       *int64     `db:"part_cost" json:"part_cost"`             // Tiền linh kiện dự kiến
 	RepairPrice    *int64     `db:"repair_price" json:"repair_price"`       // Tiền công + tổng báo giá dự kiến
 	DevicePassword *string    `db:"device_password" json:"device_password"` // Mật khẩu máy
+	Status         string     `db:"status" json:"status"`
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -42,4 +43,27 @@ type UpdateRepairInput struct {
 	PartCost       *int64  `json:"part_cost" binding:"omitempty,min=0"`
 	RepairPrice    *int64  `json:"repair_price" binding:"omitempty,min=0"`
 	RepairType     *string `json:"repair_type" binding:"omitempty,oneof=NORMAL WARRANTY"`
+	Status         *string `json:"status" binding:"omitempty,oneof=PENDING REPAIRING WAITING_CUSTOMER COMPLETED DELIVERED"`
+}
+
+// Thêm struct gom nhóm tham số Filter (Giống PhoneFilter)
+type RepairFilter struct {
+	Page      int    `form:"page"`
+	Limit     int    `form:"limit"`
+	Keyword   string `form:"keyword"`
+	Status    string `form:"status"`
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+}
+
+// Thêm struct mở rộng dùng riêng cho danh sách (chứa các trường JOIN)
+type RepairListItem struct {
+	Repair // Nhúng toàn bộ field của Repair
+
+	CustomerName  *string `db:"customer_name" json:"customer_name"`
+	CustomerPhone *string `db:"customer_phone" json:"customer_phone"`
+	PhoneModel    *string `db:"phone_model" json:"-"` // Giấu đi, FE không cần
+
+	// Field tự tính toán trong Service
+	DeviceName string `json:"device_name"`
 }

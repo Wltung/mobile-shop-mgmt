@@ -90,3 +90,34 @@ func (h *RepairHandler) GetRepair(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": repair})
 }
+
+func (h *RepairHandler) GetRepairs(c *gin.Context) {
+	var filter model.RepairFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	items, total, stats, err := h.Service.GetRepairs(filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Tính Meta
+	totalPages := total / filter.Limit
+	if total%filter.Limit != 0 {
+		totalPages++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  items,
+		"stats": stats,
+		"meta": map[string]interface{}{
+			"page":        filter.Page,
+			"limit":       filter.Limit,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
+}
