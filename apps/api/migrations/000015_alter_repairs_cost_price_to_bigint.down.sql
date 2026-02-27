@@ -1,0 +1,3 @@
+ALTER TABLE repairs
+    MODIFY COLUMN part_cost DECIMAL(12,2) NULL,
+    MODIFY COLUMN repair_price DECIMAL(12,2) NULL;

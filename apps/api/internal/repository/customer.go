@@ -16,7 +16,7 @@ func NewCustomerRepo(db *sqlx.DB) *CustomerRepo {
 }
 
 // GetOrCreate: Triển khai logic định danh và khởi tạo
-func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput) (int, error) {
+func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput, userID int) (int, error) {
 	// 1. Validate sơ bộ: Nếu không có tên, không thể định danh -> trả về 0 (Khách lẻ)
 	if input.Name == "" {
 		return 0, nil
@@ -26,15 +26,18 @@ func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput) (int, erro
 	// Tìm bản ghi có Name khớp VÀ (Phone khớp HOẶC ID_Number khớp)
 	var existingCust model.Customer
 	queryCheck := `
-		SELECT id, name, phone, id_number 
+		SELECT id, name, phone, id_number, created_by 
 		FROM customers 
-		WHERE name = ? AND (
-			(phone IS NOT NULL AND phone = ?) OR 
-			(id_number IS NOT NULL AND id_number = ?)
-		) LIMIT 1
+		WHERE created_by = ? 
+			AND name = ? 
+			AND (
+				(phone IS NOT NULL AND phone != '' AND phone = ?) OR 
+				(id_number IS NOT NULL AND id_number != '' AND id_number = ?)
+			) 
+		LIMIT 1
 	`
 	// Lưu ý: Nếu input.Phone rỗng, query vẫn an toàn vì 'phone = ""' sẽ không khớp NULL
-	err := r.DB.Get(&existingCust, queryCheck, input.Name, input.Phone, input.IDNumber)
+	err := r.DB.Get(&existingCust, queryCheck, userID, input.Name, input.Phone, input.IDNumber)
 
 	// 3. BƯỚC 2: QUYẾT ĐỊNH (DECISION)
 	if err == nil {
@@ -51,7 +54,7 @@ func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput) (int, erro
 
 		if hasContact {
 			// Tạo mới (INSERT)
-			queryInsert := `INSERT INTO customers (name, phone, id_number) VALUES (?, ?, ?)`
+			queryInsert := `INSERT INTO customers (name, phone, id_number, created_by) VALUES (?, ?, ?, ?)`
 
 			// Xử lý Null cho Phone/IDNumber khi insert
 			var phonePtr, idPtr *string
@@ -62,7 +65,7 @@ func (r *CustomerRepo) GetOrCreate(input model.CustomerIdentityInput) (int, erro
 				idPtr = &input.IDNumber
 			}
 
-			res, err := r.DB.Exec(queryInsert, input.Name, phonePtr, idPtr)
+			res, err := r.DB.Exec(queryInsert, input.Name, phonePtr, idPtr, userID)
 			if err != nil {
 				return 0, err
 			}
@@ -100,7 +103,7 @@ func (r *CustomerRepo) enrichCustomerData(current model.Customer, input model.Cu
 
 	// Ràng buộc toàn vẹn: Không ghi đè dữ liệu đã có
 	if shouldUpdate {
-		queryUpdate := `UPDATE customers SET phone = ?, id_number = ?, updated_at = NOW() WHERE id = ?`
-		_, _ = r.DB.Exec(queryUpdate, newPhone, newID, current.ID)
+		queryUpdate := `UPDATE customers SET phone = ?, id_number = ?, updated_at = NOW() WHERE id = ? AND created_by = ?`
+		_, _ = r.DB.Exec(queryUpdate, newPhone, newID, current.ID, current.CreatedBy)
 	}
 }

@@ -49,7 +49,7 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, *in
 	// - Validate (bắt buộc Tên + SĐT/CCCD)
 	// - Tìm khách cũ hoặc Tạo mới
 	// - Enrich dữ liệu thiếu
-	sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput)
+	sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput, userID)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -169,7 +169,7 @@ func (s *PhoneService) UpdatePhone(id int, input model.PhoneUpdateInput, userID 
 		// - Tìm khách cũ khớp SĐT/CCCD -> Trả về ID cũ + Update thông tin mới (Enrich)
 		// - Hoặc tạo khách mới nếu chưa có
 		// - Validate tên bắt buộc
-		sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput)
+		sourceID, err := s.CustomerService.HandleCustomerForInvoice("IMPORT", custInput, userID)
 		if err != nil {
 			return err
 		}

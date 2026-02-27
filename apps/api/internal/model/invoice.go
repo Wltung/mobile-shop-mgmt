@@ -83,7 +83,7 @@ type UpdateInvoiceInput struct {
 	CustomerPhone    *string `json:"customer_phone"`
 	CustomerIDNumber *string `json:"customer_id_number"` // Nếu cần sau này
 
-	Status        string  `json:"payment_status"`
+	Status        *string `json:"payment_status"`
 	PaymentMethod *string `json:"payment_method"`
 	Note          *string `json:"note"`
 	CreatedAt     *string `json:"created_at"`

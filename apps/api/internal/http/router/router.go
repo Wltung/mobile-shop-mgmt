@@ -17,6 +17,7 @@ func NewRouter(
 	authHandler *handler.AuthHandler,
 	phoneHandler *handler.PhoneHandler,
 	invoiceHandler *handler.InvoiceHandler,
+	repairHandler *handler.RepairHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -59,16 +60,29 @@ func NewRouter(
 		protected.Use(middleware.Auth(cfg))
 		{
 			// Phone Routes
-			protected.POST("/phones", phoneHandler.CreatePhone)
-			protected.GET("/phones", phoneHandler.GetImportPhones)
-			protected.GET("/phones/sales", phoneHandler.GetSalePhones)
-			protected.GET("/phones/:id", phoneHandler.GetPhoneDetail)
-			protected.PATCH("/phones/:id", phoneHandler.UpdatePhone)
+			phones := protected.Group("phones")
+			{
+				phones.POST("", phoneHandler.CreatePhone)
+				phones.GET("", phoneHandler.GetImportPhones)
+				phones.GET("/sales", phoneHandler.GetSalePhones)
+				phones.GET("/:id", phoneHandler.GetPhoneDetail)
+				phones.PATCH("/:id", phoneHandler.UpdatePhone)
+			}
 			// Invoice Routes
-			protected.POST("/invoices", invoiceHandler.CreateInvoice)
-			protected.GET("/invoices/:id", invoiceHandler.GetInvoice)
-			protected.PATCH("/invoices/:id/status", invoiceHandler.UpdateInvoiceStatus)
-			protected.PATCH("/invoices/:id", invoiceHandler.UpdateInvoice)
+			invoices := protected.Group("/invoices")
+			{
+				invoices.POST("", invoiceHandler.CreateInvoice)
+				invoices.GET("/:id", invoiceHandler.GetInvoice)
+				invoices.PATCH("/:id/status", invoiceHandler.UpdateInvoiceStatus)
+				invoices.PATCH("/:id", invoiceHandler.UpdateInvoice)
+			}
+			// Repair Routes
+			repairs := protected.Group("/repairs")
+			{
+				repairs.POST("", repairHandler.CreateRepair)
+				repairs.GET("/:id", repairHandler.GetRepair)
+				repairs.PATCH("/:id", repairHandler.UpdateRepair)
+			}
 		}
 	}
 

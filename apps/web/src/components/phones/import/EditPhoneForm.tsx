@@ -71,7 +71,16 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
 
     const isLocked = phone.invoice_status === 'PAID'
 
+    const { isDirty } = form.formState
+
     const onSubmit: SubmitHandler<EditFormValues> = async (values) => {
+        // [LOGIC 1] Nếu form chưa sửa gì thì không gọi API
+        if (!isDirty) {
+            toast({ title: 'Thông báo', description: 'Không có thay đổi nào được thực hiện.' })
+            onCancel() // Đóng modal
+            return
+        }
+        
         setIsLoading(true)
         try {
             // Chuẩn bị payload gửi lên API

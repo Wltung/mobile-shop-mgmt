@@ -24,20 +24,23 @@ func main() {
 	phoneRepo := repository.NewPhoneRepo(dbConn)
 	customerRepo := repository.NewCustomerRepo(dbConn)
 	invoiceRepo := repository.NewInvoiceRepo(dbConn)
+	repairRepo := repository.NewRepairRepo(dbConn)
 
 	// Service
 	customerService := service.NewCustomerService(customerRepo)
 	phoneService := service.NewPhoneService(phoneRepo, customerService)
 	authService := service.NewAuthService(userRepo, tokenManager)
 	invoiceService := service.NewInvoiceService(invoiceRepo, customerService)
+	repairService := service.NewRepairService(repairRepo, customerService)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, cfg)
 	phoneHandler := handler.NewPhoneHandler(phoneService)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
+	repairHandler := handler.NewRepairHandler(repairService)
 
 	// Init Router (Giao việc định tuyến cho package router)
-	r := router.NewRouter(cfg, authHandler, phoneHandler, invoiceHandler)
+	r := router.NewRouter(cfg, authHandler, phoneHandler, invoiceHandler, repairHandler)
 
 	// Start Server
 	r.Run(":" + cfg.ServerPort)

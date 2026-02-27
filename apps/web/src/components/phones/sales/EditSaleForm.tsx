@@ -87,12 +87,32 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         }
     }
 
+    // Thêm formState để lấy isDirty
+    const { formState: { isDirty } } = form
+
     const onSubmit: SubmitHandler<EditSaleFormValues> = async (values) => {
+        if (!isDirty) {
+            toast({ title: 'Thông báo', description: 'Không có thay đổi nào được thực hiện.' })
+            onCancel()
+            return
+        }
+
         setIsLoading(true)
         try {
             const payload = {
                 ...values,
-                created_at: values.sale_date ? new Date(values.sale_date).toISOString() : undefined,
+                // Xử lý ngày: Nếu có giá trị thì format ISO, nếu rỗng thì gửi undefined (để BE không update)
+                sale_date: values.sale_date ? new Date(values.sale_date).toISOString() : undefined,
+                
+                // Xử lý các trường optional khác: Nếu rỗng -> gửi undefined
+                customer_id_number: values.customer_id_number || undefined,
+                note: values.note || undefined,
+                
+                // Phone ID: Nếu bằng 0 hoặc không có -> undefined
+                phone_id: values.phone_id && values.phone_id > 0 ? values.phone_id : undefined,
+                
+                // Giá bán: Convert sang string chuẩn, nếu rỗng -> undefined
+                actual_sale_price: values.actual_sale_price ? String(values.actual_sale_price) : undefined
             }
 
             await invoiceService.update(invoice.id, payload)

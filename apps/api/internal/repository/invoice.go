@@ -142,58 +142,145 @@ func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
 	return err
 }
 
-func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
+func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomerID *int) error {
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// 1. Update Invoice Table
+	// ---------------------------------------------------------
+	// 1. UPDATE INVOICE HEADER
+	// ---------------------------------------------------------
+	// Sử dụng logic COALESCE(?, col): Nếu tham số là NULL, giữ nguyên giá trị cột cũ
 	queryInv := `
 		UPDATE invoices 
-		SET payment_method = ?, status = ?, note = ?, updated_at = NOW()
-		WHERE id = ?
+		SET payment_method = COALESCE(?, payment_method),
+			status = COALESCE(?, status), 
+			note = COALESCE(?, note),
+			created_at = COALESCE(?, created_at),
+			updated_at = NOW()
 	`
 
-	if _, err := tx.Exec(queryInv, input.PaymentMethod, input.Status, input.Note, id); err != nil {
+	// Tạo slice chứa các tham số theo đúng thứ tự của dấu ?
+	args := []interface{}{
+		input.PaymentMethod,
+		input.Status,
+		input.Note,
+		input.CreatedAt,
+	}
+
+	// Logic động: Nếu có newCustomerID -> thêm vào câu query
+	if newCustomerID != nil {
+		queryInv += `, customer_id = ?`
+		args = append(args, *newCustomerID)
+	}
+
+	// Thêm điều kiện WHERE
+	queryInv += ` WHERE id = ?`
+	args = append(args, id)
+
+	// Sử dụng Exec (thay vì NamedExec) vì chúng ta đã dùng ?
+	if _, err := tx.Exec(queryInv, args...); err != nil {
 		return err
 	}
 
-	// Nếu có sửa ngày tạo (CreatedAt)
-	if input.CreatedAt != nil {
-		if _, err := tx.Exec("UPDATE invoices SET created_at = ? WHERE id = ?", *input.CreatedAt, id); err != nil {
+	// ---------------------------------------------------------
+	// 2. XỬ LÝ MÁY & NGÀY BÁN (PHONES TABLE)
+	// ---------------------------------------------------------
+	var currentItem struct {
+		ID      int `db:"id"`
+		PhoneID int `db:"phone_id"`
+	}
+	// Lấy Item loại PHONE
+	err = tx.Get(&currentItem, "SELECT id, phone_id FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1", id)
+
+	if err == nil {
+		targetPhoneID := currentItem.PhoneID
+		isPhoneSwapped := false
+
+		// A. Logic Đổi Máy (Nếu có gửi PhoneID và khác máy cũ)
+		if input.PhoneID != nil && *input.PhoneID != currentItem.PhoneID {
+			newPhoneID := *input.PhoneID
+
+			// 1. Trả máy cũ về kho (Revert)
+			_, err = tx.Exec("UPDATE phones SET status = 'IN_STOCK', sale_price = NULL, sale_date = NULL WHERE id = ?", currentItem.PhoneID)
+			if err != nil {
+				return err
+			}
+
+			// 2. Cập nhật Invoice Item trỏ sang máy mới
+			_, err = tx.Exec("UPDATE invoice_items SET phone_id = ?, description = (SELECT model_name FROM phones WHERE id = ?) WHERE id = ?", newPhoneID, newPhoneID, currentItem.ID)
+			if err != nil {
+				return err
+			}
+
+			targetPhoneID = newPhoneID
+			isPhoneSwapped = true
+		}
+
+		// B. Cập nhật thông tin máy đích (Target Phone)
+		updatePhoneQuery := `UPDATE phones SET status = 'SOLD', updated_at = NOW()`
+		var phoneArgs []interface{}
+
+		// - Update Giá bán (nếu có input)
+		if input.ActualSalePrice != "" {
+			updatePhoneQuery += `, sale_price = ?`
+			phoneArgs = append(phoneArgs, input.ActualSalePrice)
+		}
+
+		// - Update Ngày bán
+		// Ưu tiên ngày từ input.CreatedAt (SaleDate). Nếu không có nhưng là Đổi máy -> dùng NOW()
+		if input.CreatedAt != nil {
+			updatePhoneQuery += `, sale_date = ?`
+			phoneArgs = append(phoneArgs, *input.CreatedAt)
+		} else if isPhoneSwapped {
+			updatePhoneQuery += `, sale_date = NOW()`
+		}
+
+		updatePhoneQuery += ` WHERE id = ?`
+		phoneArgs = append(phoneArgs, targetPhoneID)
+
+		if _, err := tx.Exec(updatePhoneQuery, phoneArgs...); err != nil {
 			return err
+		}
+
+		// C. Cập nhật giá và bảo hành trong Invoice Items
+		updateItemQuery := `UPDATE invoice_items SET updated_at = NOW()`
+		var itemArgs []interface{}
+
+		if input.ActualSalePrice != "" {
+			updateItemQuery += `, unit_price = ?, amount = ?`
+			itemArgs = append(itemArgs, input.ActualSalePrice, input.ActualSalePrice)
+		}
+		if input.Warranty != "" {
+			updateItemQuery += `, warranty_months = ?`
+			itemArgs = append(itemArgs, input.Warranty)
+		}
+
+		updateItemQuery += ` WHERE id = ?`
+		itemArgs = append(itemArgs, currentItem.ID)
+
+		if _, err := tx.Exec(updateItemQuery, itemArgs...); err != nil {
+			return err
+		}
+
+		// D. Cập nhật Tổng tiền hoá đơn
+		if input.ActualSalePrice != "" {
+			if _, err := tx.Exec("UPDATE invoices SET total_amount = ? WHERE id = ?", input.ActualSalePrice, id); err != nil {
+				return err
+			}
 		}
 	}
 
-	// 2. Cập nhật thông tin Khách hàng (Customer)
-	// Lấy customer_id hiện tại của hoá đơn
+	return tx.Commit()
+}
+func (r *InvoiceRepo) GetCustomerIDByInvoiceID(invoiceID int) (int, error) {
 	var customerID int
-	if err := tx.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", id); err == nil && customerID > 0 {
-		queryCust := `
-			UPDATE customers 
-			SET name = ?, phone = ?, id_number = ?, updated_at = NOW()
-			WHERE id = ?
-		`
-		if _, err := tx.Exec(queryCust, input.CustomerName, input.CustomerPhone, input.CustomerIDNumber, customerID); err != nil {
-			return err
-		}
-	}
-
-	// Map struct input sang map để dùng NamedExec (hoặc dùng struct nếu map đúng db tag)
-	params := map[string]interface{}{
-		"id":             id,
-		"payment_method": input.PaymentMethod,
-		"status":         input.Status,
-		"note":           input.Note,
-		"created_at":     input.CreatedAt,
-	}
-
-	_, err = r.DB.NamedExec(queryInv, params)
+	// Sử dụng Get (safe) hoặc QueryRow
+	err := r.DB.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", invoiceID)
 	if err != nil {
-		return err
+		return 0, err
 	}
-
-	return nil
+	return customerID, nil
 }

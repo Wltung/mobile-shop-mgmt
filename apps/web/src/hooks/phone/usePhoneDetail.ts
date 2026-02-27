@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { phoneService } from '@/services/phone.service'
 import { Phone } from '@/types/phone'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDateForInput } from '@/lib/utils'
 
 export const usePhoneDetail = (id: string | number) => {
     const [phone, setPhone] = useState<Phone | null>(null)
@@ -38,7 +38,7 @@ export const usePhoneDetail = (id: string | number) => {
         phone,
         isLoading,
         formatCurrency,
-        formatDate,
+        formatDateForInput,
         refresh: fetchDetail,
         router, // Trả về router để nút Back sử dụng
     }

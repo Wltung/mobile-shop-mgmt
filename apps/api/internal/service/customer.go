@@ -15,7 +15,7 @@ func NewCustomerService(repo *repository.CustomerRepo) *CustomerService {
 }
 
 // HandleCustomerForInvoice: Xử lý khách hàng dựa trên loại hoá đơn
-func (s *CustomerService) HandleCustomerForInvoice(invoiceType string, input model.CustomerIdentityInput) (*int, error) {
+func (s *CustomerService) HandleCustomerForInvoice(invoiceType string, input model.CustomerIdentityInput, userID int) (*int, error) {
 	// 1. Ràng buộc theo loại Dịch vụ
 	switch invoiceType {
 	case "IMPORT":
@@ -35,7 +35,7 @@ func (s *CustomerService) HandleCustomerForInvoice(invoiceType string, input mod
 	}
 
 	// 2. Gọi Repo để xử lý GetOrCreate
-	custID, err := s.Repo.GetOrCreate(input)
+	custID, err := s.Repo.GetOrCreate(input, userID)
 	if err != nil {
 		return nil, err
 	}

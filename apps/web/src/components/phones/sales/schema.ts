@@ -10,7 +10,7 @@ export const salePhoneBase = z.object({
         .regex(/(84|0[3|5|7|8|9])+([0-9]{8})\b/g, 'Số điện thoại không hợp lệ'),
 
     // --- MÁY BÁN ---
-    phone_id: z.number().positive('Vui lòng nhập đời máy hoặc imei'),
+    phone_id: z.number().optional(),
 
     // --- THANH TOÁN ---
     actual_sale_price: z
@@ -30,6 +30,7 @@ export const salePhoneBase = z.object({
 export const salePhoneSchema = salePhoneBase
     .extend({
         create_invoice: z.boolean(),
+        phone_id: z.number().positive("Vui lòng chọn máy"),
     })
 
 export const editSaleSchema = salePhoneBase
@@ -37,6 +38,7 @@ export const editSaleSchema = salePhoneBase
         // Thêm trường ngày bán (datetime string từ input type="datetime-local")
         sale_date: z.string().optional(),
         customer_id_number: z.string().optional(),
+        phone_id: z.number().optional(),
     })
 
 export type SaleFormValues = z.infer<typeof salePhoneSchema>

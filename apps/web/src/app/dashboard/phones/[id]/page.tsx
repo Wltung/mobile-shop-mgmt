@@ -34,7 +34,7 @@ export default function PhoneDetailPage() {
     const { id } = useParams()
 
     // 1. Sử dụng Hook để lấy dữ liệu và logic
-    const { phone, isLoading, formatCurrency, formatDate, refresh } =
+    const { phone, isLoading, formatCurrency, formatDateForInput, refresh } =
         usePhoneDetail(Number(id))
     // 2. Logic Hook (In hoá đơn)
     const {
@@ -227,7 +227,7 @@ export default function PhoneDetailPage() {
                         >
                             <DetailRow
                                 label="Ngày nhập"
-                                value={formatDate(phone.purchase_date)}
+                                value={formatDateForInput(phone.purchase_date)}
                             />
                             <DetailRow
                                 label="Giá nhập"

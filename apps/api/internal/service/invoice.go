@@ -72,7 +72,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 	// - IMPORT: Bắt buộc Tên + (SĐT/CCCD)
 	// - SALE: Không bắt buộc (nếu trống -> Khách lẻ)
 	// - Tự động tìm khách cũ hoặc tạo mới
-	finalCustomerID, err := s.CustomerService.HandleCustomerForInvoice(input.Type, custInput)
+	finalCustomerID, err := s.CustomerService.HandleCustomerForInvoice(input.Type, custInput, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -140,6 +140,38 @@ func (s *InvoiceService) UpdateStatus(id int, status string) error {
 	return s.Repo.UpdateStatus(id, status)
 }
 
-func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput) error {
-	return s.Repo.Update(id, input)
+func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput, userID int) error {
+	var newCustomerID *int = nil
+
+	// 1. NẾU CÓ DỮ LIỆU KHÁCH HÀNG -> ĐỊNH DANH LẠI
+	// (Check xem user có gửi thông tin khách hàng không)
+	if input.CustomerName != nil {
+		cName := *input.CustomerName
+		cPhone := ""
+		if input.CustomerPhone != nil {
+			cPhone = *input.CustomerPhone
+		}
+		cIDNum := ""
+		if input.CustomerIDNumber != nil {
+			cIDNum = *input.CustomerIDNumber
+		}
+
+		custInput := model.CustomerIdentityInput{
+			Name:     cName,
+			Phone:    cPhone,
+			IDNumber: cIDNum,
+		}
+
+		// Gọi Service để lấy ID (Cũ hoặc Mới)
+		// Context là "SALE" hoặc lấy từ DB, tạm thời dùng "SALE" cho lỏng validate
+		// hoặc bạn có thể query invoice type để truyền context chính xác.
+		custID, err := s.CustomerService.HandleCustomerForInvoice("SALE", custInput, userID)
+		if err != nil {
+			return err
+		}
+		newCustomerID = custID
+	}
+
+	// 2. GỌI REPO UPDATE HOÁ ĐƠN
+	return s.Repo.Update(id, input, newCustomerID)
 }

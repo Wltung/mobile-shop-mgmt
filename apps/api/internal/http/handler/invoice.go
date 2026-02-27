@@ -105,7 +105,14 @@ func (h *InvoiceHandler) UpdateInvoice(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.UpdateInvoice(id, input); err != nil {
+	userIDFloat, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập hoặc phiên làm việc hết hạn"})
+		return
+	}
+	userID := int(userIDFloat.(float64))
+
+	if err := h.Service.UpdateInvoice(id, input, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
