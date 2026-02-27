@@ -22,6 +22,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import PageActionButton from '@/components/common/PageActionButton'
+import CreateRepairModal from '@/components/phones/repairs/CreateRepairModal'
 
 // Chú ý: Component CreateRepairModal sẽ được tạo ở bước sau
 // import CreateRepairModal from '@/components/repairs/CreateRepairModal'
@@ -250,11 +251,11 @@ export default function RepairListPage() {
             </div>
 
             {/* Component Modal tạo mới sẽ được gọi ở đây */}
-            {/* <CreateRepairModal
+            <CreateRepairModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refresh()}
-            /> */}
+            />
         </div>
     )
 }
