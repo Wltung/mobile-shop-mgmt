@@ -121,3 +121,31 @@ func (h *RepairHandler) GetRepairs(c *gin.Context) {
 		},
 	})
 }
+
+// POST /api/repairs/:id/complete
+func (h *RepairHandler) CompleteRepair(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	userIDFloat, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
+		return
+	}
+	userID := int(userIDFloat.(float64))
+
+	invoiceID, err := h.Service.CompleteRepair(id, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Đã hoàn thành sửa chữa và xuất hoá đơn",
+		"invoice_id": invoiceID, // Trả về ID hoá đơn để FE có thể redirect sang trang In
+	})
+}

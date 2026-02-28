@@ -62,14 +62,20 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 }
 
 // GetByID: Lấy chi tiết phiếu sửa
-func (r *RepairRepo) GetByID(id int) (*model.Repair, error) {
-	var repair model.Repair
-	query := `SELECT * FROM repairs WHERE id = ? LIMIT 1`
-	err := r.DB.Get(&repair, query, id)
+func (r *RepairRepo) GetByID(id int) (*model.RepairListItem, error) {
+	var item model.RepairListItem
+	query := `
+		SELECT r.*, c.name as customer_name, c.phone as customer_phone, p.model_name as phone_model
+		FROM repairs r
+		LEFT JOIN customers c ON r.customer_id = c.id
+		LEFT JOIN phones p ON r.phone_id = p.id
+		WHERE r.id = ? LIMIT 1
+	`
+	err := r.DB.Get(&item, query, id)
 	if err != nil {
 		return nil, err
 	}
-	return &repair, nil
+	return &item, nil
 }
 
 // GetAll: Lấy danh sách phiếu sửa chữa (có phân trang và filter)

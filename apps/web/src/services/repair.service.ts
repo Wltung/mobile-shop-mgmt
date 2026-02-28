@@ -33,4 +33,10 @@ export const repairService = {
         )
         return response.data
     },
+
+    complete: async (id: number) => {
+        // [SỬA LẠI Ở ĐÂY]: Dùng http thay vì axiosInstance
+        const response = await http.post<{ message: string; invoice_id: number }>(`/repairs/${id}/complete`)
+        return response.data
+    },
 }

@@ -58,9 +58,14 @@ export const editRepairSchema = repairBaseSchema.extend({
         'REPAIRING',
         'WAITING_CUSTOMER',
         'COMPLETED',
-        'DELIVERED',
     ]),
     repair_type: z.enum(['NORMAL', 'WARRANTY']),
+    technical_note: z.string().optional(),
+    parts: z.array(z.object({
+        name: z.string().min(1, 'Nhập tên'),
+        price: z.string().refine((val) => !isNaN(Number(val)), { message: 'Phải là số' }),
+        warranty: z.string().refine((val) => !isNaN(Number(val)), { message: 'Phải là số' })
+    })),
 })
 
 // --- XUẤT TYPE CHO FORM ---

@@ -48,3 +48,20 @@ export interface CreateRepairResponse {
     message: string
     repair_id: number
 }
+
+export interface RepairPart {
+    name: string
+    price: number
+    warranty: number
+}
+
+export interface ParsedRepairData {
+    mainError: string
+    imei: string
+    color: string
+    accessories: string
+    appointmentDate: string
+    technicalNote: string
+    deviceName: string
+    parts: RepairPart[]
+}

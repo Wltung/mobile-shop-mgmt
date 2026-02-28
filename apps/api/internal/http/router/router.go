@@ -83,6 +83,7 @@ func NewRouter(
 				repairs.GET("", repairHandler.GetRepairs)
 				repairs.GET("/:id", repairHandler.GetRepair)
 				repairs.PATCH("/:id", repairHandler.UpdateRepair)
+				repairs.POST("/:id/complete", repairHandler.CompleteRepair)
 			}
 		}
 	}

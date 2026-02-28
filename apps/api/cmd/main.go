@@ -31,7 +31,7 @@ func main() {
 	phoneService := service.NewPhoneService(phoneRepo, customerService)
 	authService := service.NewAuthService(userRepo, tokenManager)
 	invoiceService := service.NewInvoiceService(invoiceRepo, customerService)
-	repairService := service.NewRepairService(repairRepo, customerService)
+	repairService := service.NewRepairService(repairRepo, customerService, invoiceService)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, cfg)
