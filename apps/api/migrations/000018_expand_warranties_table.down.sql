@@ -1,0 +1,12 @@
+ALTER TABLE warranties
+DROP COLUMN customer_id,
+DROP COLUMN phone_id,
+DROP COLUMN invoice_id,
+DROP COLUMN device_name,
+DROP COLUMN imei,
+DROP COLUMN description,
+DROP COLUMN technical_note,
+DROP COLUMN status,
+DROP COLUMN cost,
+DROP COLUMN created_at,
+DROP COLUMN updated_at;

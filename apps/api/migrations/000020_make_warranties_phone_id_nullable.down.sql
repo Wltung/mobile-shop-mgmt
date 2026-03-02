@@ -1,0 +1,2 @@
+ALTER TABLE warranties
+MODIFY COLUMN phone_id INT NOT NULL;

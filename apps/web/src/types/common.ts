@@ -12,7 +12,7 @@ export interface StatItem {
     label: string
     value: string | number
     icon: ReactNode
-    color: 'blue' | 'green' | 'yellow' | 'red' | 'purple' // Định nghĩa các theme màu
+    color: 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'indigo' | 'emerald' // Định nghĩa các theme màu
 }
 
 export interface PaginationMeta {

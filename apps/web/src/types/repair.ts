@@ -15,6 +15,7 @@ export interface Repair {
     repair_price?: number
     device_password?: string
     status: RepairStatus // Trạng thái phiếu sửa
+    invoice_id?: number
     created_at: string
     updated_at?: string
 

@@ -110,7 +110,7 @@ export default function DashboardPage() {
 
                             {/* Card 4: Bảo hành */}
                             <Link
-                                href="/dashboard/warranty"
+                                href="/dashboard/warranties"
                                 className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                             >
                                 <div className="rounded-full bg-primary/10 p-3 text-primary transition-colors group-hover:bg-primary group-hover:text-white">

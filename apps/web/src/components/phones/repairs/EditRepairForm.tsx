@@ -5,7 +5,6 @@ import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Save, User, Smartphone, Banknote, Wrench, AlertTriangle, Trash2 } from 'lucide-react'
 
-// ... (Giữ nguyên các thẻ import UI như Button, Input, Form, Select... ở trên) ...
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,12 +28,10 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    // 1. BÓC TÁCH DESCRIPTION
     const parsedData = useMemo(() => {
         return parseRepairDescription(repair.description, repair.device_name, repair.part_cost)
     }, [repair])
 
-    // 2. KHỞI TẠO FORM
     const form = useForm<EditRepairValues>({
         resolver: zodResolver(editRepairSchema),
         defaultValues: {
@@ -55,7 +52,6 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
         },
     })
 
-    // --- FIX LỖI CHỈ LƯU 1 LẦN: Cập nhật lại form khi có dữ liệu mới ---
     useEffect(() => {
         form.reset({
             customer_name: repair.customer_name || '',
@@ -82,10 +78,9 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
     const totalPartCost = watchParts.reduce((sum, p) => sum + (Number(p.price) || 0), 0)
     const totalCost = totalPartCost + (Number(watchLabor) || 0)
 
-    const isLocked = repair.status === 'COMPLETED' || repair.status === 'DELIVERED'
+    const isLocked = repair.status === 'COMPLETED'
 
     const onSubmit: SubmitHandler<EditRepairValues> = async (values) => {
-        // --- FIX LỖI: Bỏ đi check isDirty để tránh form bị "liệt" khi react-hook-form nhầm lẫn trạng thái ---
         setIsLoading(true)
         try {
             const finalDescription = buildRepairDescription({
@@ -101,10 +96,8 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
             })
 
             const payload = {
-                // (Ghi chú: customer_name, customer_phone hiện FE gửi nhưng BE phải update lại repo thì mới lưu được)
                 customer_name: values.customer_name,
                 customer_phone: values.customer_phone,
-
                 description: finalDescription,
                 device_password: values.device_password || undefined,
                 part_cost: totalPartCost, 
@@ -113,9 +106,17 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                 status: values.status,
             }
 
+            // 1. Cập nhật thông tin phiếu trước
             await repairService.update(repair.id, payload)
 
-            toast({ title: 'Thành công', description: 'Đã cập nhật phiếu sửa chữa.' })
+            // 2. Nếu trạng thái là HOÀN THÀNH và phiếu chưa có Hoá đơn -> Gọi tạo hoá đơn
+            if (values.status === 'COMPLETED' && !repair.invoice_id) {
+                await repairService.complete(repair.id)
+                toast({ title: 'Thành công', description: 'Đã lưu và tự động tạo hoá đơn sửa chữa!' })
+            } else {
+                toast({ title: 'Thành công', description: 'Đã cập nhật phiếu sửa chữa.' })
+            }
+
             onSuccess()
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Lỗi', description: error.response?.data?.error || 'Không thể cập nhật phiếu.' })
@@ -133,7 +134,12 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
                 <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* ... (Giữ AlertTriangle isLocked) ... */}
+                    {isLocked && (
+                        <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 flex items-center gap-3 text-blue-800">
+                            <AlertTriangle className="h-5 w-5" />
+                            <span className="text-sm">Phiếu này đã <b>hoàn thành và xuất hoá đơn</b>. Việc chỉnh sửa chi phí ở đây sẽ không làm thay đổi hoá đơn đã xuất.</span>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* --- CỘT TRÁI --- */}
@@ -144,15 +150,12 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                     <Smartphone className="h-5 w-5" />
                                     <h3>THÔNG TIN THIẾT BỊ</h3>
                                 </div>
-                                
-                                {/* --- ĐÃ MỞ KHOÁ ĐỜI MÁY --- */}
                                 <FormField control={form.control} name="device_name" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className={labelClass}>Đời máy</FormLabel>
                                         <FormControl><Input {...field} className={inputClass} /></FormControl>
                                     </FormItem>
                                 )} />
-                                
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField control={form.control} name="imei" render={({ field }) => (
                                         <FormItem><FormLabel className={labelClass}>IMEI/Serial</FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
@@ -161,7 +164,6 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                         <FormItem><FormLabel className={labelClass}>Màu sắc</FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
                                     )} />
                                 </div>
-
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField control={form.control} name="device_password" render={({ field }) => (
                                         <FormItem><FormLabel className={labelClass}>Mật khẩu</FormLabel><FormControl><Input {...field} className={`${inputClass} text-red-500 font-mono font-bold bg-red-50/30 border-red-200`} /></FormControl></FormItem>
@@ -175,7 +177,6 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                             {/* BLOCK 2: CHI TIẾT SỬA CHỮA */}
                             <div className={`${cardClass} flex-1`}>
                                 <div className={cardHeaderClass}><Wrench className="h-5 w-5" /><h3>CHI TIẾT SỬA CHỮA</h3></div>
-                                
                                 <FormField control={form.control} name="description" render={({ field }) => (
                                     <FormItem><FormLabel className={labelClass}>Mô tả lỗi <span className="text-red-500">*</span></FormLabel><FormControl><Textarea {...field} rows={3} className="w-full rounded-lg bg-white border-slate-300 text-sm leading-relaxed text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500" /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -183,14 +184,14 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField control={form.control} name="status" render={({ field }) => (
                                         <FormItem><FormLabel className={labelClass}>Trạng thái</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            {/* Disabled select nếu phiếu đã chốt, tránh nhân viên lùi trạng thái */}
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={isLocked}>
                                                 <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
                                                 <SelectContent>
                                                     <SelectItem value="PENDING">Chờ kiểm tra</SelectItem>
                                                     <SelectItem value="REPAIRING">Đang sửa</SelectItem>
                                                     <SelectItem value="WAITING_CUSTOMER">Chờ khách</SelectItem>
                                                     <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
-                                                    <SelectItem value="DELIVERED">Đã giao khách</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </FormItem>
@@ -199,7 +200,6 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                         <FormItem><FormLabel className={labelClass}>Hẹn trả máy</FormLabel><FormControl><Input type="datetime-local" {...field} className={`${inputClass} block`} /></FormControl></FormItem>
                                     )} />
                                 </div>
-
                                 <FormField control={form.control} name="technical_note" render={({ field }) => (
                                     <FormItem><FormLabel className={labelClass}>Ghi chú kỹ thuật</FormLabel><FormControl><Textarea {...field} rows={2} className="w-full rounded-lg bg-slate-50 border-slate-200 text-sm leading-relaxed text-slate-900 shadow-inner focus:border-blue-500 focus:bg-white" /></FormControl></FormItem>
                                 )} />
@@ -211,14 +211,10 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                             {/* BLOCK 3: KHÁCH HÀNG */}
                             <div className={cardClass}>
                                 <div className={cardHeaderClass}><User className="h-5 w-5" /><h3>THÔNG TIN KHÁCH HÀNG</h3></div>
-                                
-                                {/* --- ĐÃ MỞ KHOÁ TÊN KHÁCH --- */}
                                 <FormField control={form.control} name="customer_name" render={({ field }) => (
                                     <FormItem><FormLabel className={labelClass}>Họ và tên <span className="text-red-500">*</span></FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
                                 )} />
-                                
                                 <div className="grid grid-cols-2 gap-4">
-                                    {/* --- ĐÃ MỞ KHOÁ SĐT --- */}
                                     <FormField control={form.control} name="customer_phone" render={({ field }) => (
                                         <FormItem><FormLabel className={labelClass}>Số điện thoại <span className="text-red-500">*</span></FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
                                     )} />
@@ -227,7 +223,6 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                             </div>
 
                             {/* BLOCK 4: CHI PHÍ & LINH KIỆN */}
-                            {/* ... (Toàn bộ phần Bảng tính tiền động Dynamic Array giữ nguyên y hệt bản trước) ... */}
                             <div className={`p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex-1 flex flex-col`}>
                                 <div className={cardHeaderClass}><Banknote className="h-5 w-5" /><h3>CHI PHÍ & LINH KIỆN</h3></div>
                                 <div className="space-y-3">

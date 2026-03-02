@@ -13,6 +13,7 @@ type Repair struct {
 	RepairPrice    *int64     `db:"repair_price" json:"repair_price"`       // Tiền công + tổng báo giá dự kiến
 	DevicePassword *string    `db:"device_password" json:"device_password"` // Mật khẩu máy
 	Status         string     `db:"status" json:"status"`
+	InvoiceID      *int       `db:"invoice_id" json:"invoice_id"`
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -44,6 +45,7 @@ type UpdateRepairInput struct {
 	RepairPrice    *int64  `json:"repair_price" binding:"omitempty,min=0"`
 	RepairType     *string `json:"repair_type" binding:"omitempty,oneof=NORMAL WARRANTY"`
 	Status         *string `json:"status" binding:"omitempty,oneof=PENDING REPAIRING WAITING_CUSTOMER COMPLETED DELIVERED"`
+	InvoiceID      *int    `json:"invoice_id"`
 }
 
 // Thêm struct gom nhóm tham số Filter (Giống PhoneFilter)

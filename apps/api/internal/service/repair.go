@@ -5,6 +5,7 @@ import (
 	"api/internal/repository"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -146,24 +147,65 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		return 0, errors.New("không tìm thấy phiếu sửa chữa")
 	}
 
-	// 2. Logic bóc tách Tên thiết bị (DeviceName)
+	if repair.InvoiceID != nil {
+		return *repair.InvoiceID, nil
+	}
+
+	// 2 & 3. Gộp chung logic duyệt Description để bóc tách Tên thiết bị và Linh kiện
 	deviceName := "Thiết bị sửa chữa"
 	if repair.PhoneModel != nil {
 		deviceName = *repair.PhoneModel
-	} else if repair.Description != nil {
-		desc := *repair.Description
-		if strings.HasPrefix(desc, "[Máy ngoài: ") {
-			endIdx := strings.Index(desc, "]")
-			if endIdx > -1 {
-				deviceName = desc[14:endIdx]
+	}
+
+	var items []model.CreateItemInput
+	hasParsedParts := false
+
+	if repair.Description != nil {
+		// Cắt nội dung thành từng dòng để xử lý trong 1 vòng lặp duy nhất
+		lines := strings.Split(*repair.Description, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+
+			// 2.1 Bóc tách Tên thiết bị (Nếu là máy ngoài)
+			if repair.PhoneModel == nil && strings.HasPrefix(line, "[Máy ngoài: ") {
+				endIdx := strings.Index(line, "]")
+				if endIdx > -1 {
+					// Dùng TrimPrefix thay vì cắt index cứng [14:endIdx] sẽ an toàn hơn với Unicode
+					nameStr := strings.TrimPrefix(line[:endIdx], "[Máy ngoài: ")
+					deviceName = strings.TrimSpace(nameStr)
+				}
+			}
+
+			// 2.2 Bóc tách Linh kiện
+			if strings.HasPrefix(line, "- Linh kiện: ") {
+				content := strings.TrimPrefix(line, "- Linh kiện: ")
+				parts := strings.Split(content, "|")
+
+				// Cấu trúc: Tên | Giá | Bảo Hành
+				if len(parts) >= 3 {
+					name := strings.TrimSpace(parts[0])
+					priceStr := strings.TrimSpace(parts[1])
+					warrantyStr := strings.TrimSpace(parts[2])
+
+					price, _ := strconv.ParseInt(priceStr, 10, 64)
+					warranty, _ := strconv.Atoi(warrantyStr)
+
+					items = append(items, model.CreateItemInput{
+						ItemType:       model.ItemTypePart,
+						PhoneID:        repair.PhoneID,
+						Description:    name,
+						Quantity:       1,
+						UnitPrice:      price,
+						WarrantyMonths: warranty,
+					})
+					hasParsedParts = true
+				}
 			}
 		}
 	}
 
-	// 3. Chuẩn bị Items cho Hoá đơn
-	var items []model.CreateItemInput
-
-	if repair.PartCost != nil && *repair.PartCost > 0 {
+	// 3.1 DỰ PHÒNG: Nếu không bóc tách được linh kiện nào (do phiếu cũ), dùng tạm Tổng tiền linh kiện
+	if !hasParsedParts && repair.PartCost != nil && *repair.PartCost > 0 {
 		items = append(items, model.CreateItemInput{
 			ItemType:    model.ItemTypePart,
 			PhoneID:     repair.PhoneID,
@@ -173,13 +215,15 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		})
 	}
 
+	// 3.2 TIỀN CÔNG THỢ (Bỏ riêng thành 1 dòng dịch vụ)
 	if repair.RepairPrice != nil && *repair.RepairPrice > 0 {
 		items = append(items, model.CreateItemInput{
-			ItemType:    model.ItemTypeService,
-			PhoneID:     repair.PhoneID,
-			Description: "Công sửa chữa: " + deviceName,
-			Quantity:    1,
-			UnitPrice:   *repair.RepairPrice,
+			ItemType:       model.ItemTypeService,
+			PhoneID:        repair.PhoneID,
+			Description:    "Công sửa chữa: " + deviceName,
+			Quantity:       1,
+			UnitPrice:      *repair.RepairPrice,
+			WarrantyMonths: 0, // Dịch vụ thường không có hạn bảo hành cố định lưu trên DB
 		})
 	}
 
@@ -215,7 +259,8 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 	// 5. Cập nhật trạng thái Phiếu sửa thành COMPLETED
 	statusCompleted := "COMPLETED"
 	err = s.Repo.Update(id, model.UpdateRepairInput{
-		Status: &statusCompleted,
+		Status:    &statusCompleted,
+		InvoiceID: &invoiceID,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("đã tạo hoá đơn #%d nhưng lỗi cập nhật trạng thái phiếu sửa: %v", invoiceID, err)

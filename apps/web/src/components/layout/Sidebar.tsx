@@ -33,7 +33,7 @@ export default function Sidebar() {
         { icon: Smartphone, label: 'Bán máy', href: '/dashboard/sales' },
         { icon: Download, label: 'Nhập máy', href: '/dashboard/import' }, // Icon Download cho "Nhập"
         { icon: Wrench, label: 'Sửa chữa', href: '/dashboard/repairs' },
-        { icon: ShieldCheck, label: 'Bảo hành', href: '/dashboard/warranty' },
+        { icon: ShieldCheck, label: 'Bảo hành', href: '/dashboard/warranties' },
         { icon: FileText, label: 'Hoá đơn', href: '/dashboard/invoices' },
         { icon: BarChart3, label: 'Báo cáo', href: '/dashboard/reports' },
     ]

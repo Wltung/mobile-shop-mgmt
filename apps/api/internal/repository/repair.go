@@ -45,7 +45,8 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 			part_cost = COALESCE(?, part_cost),
 			repair_price = COALESCE(?, repair_price),
 			repair_type = COALESCE(?, repair_type),
-			status = COALESCE(?, status),             -- Thêm dòng này
+			status = COALESCE(?, status),
+			invoice_id = COALESCE(?, invoice_id),
 			updated_at = NOW()
 		WHERE id = ?
 	`
@@ -56,6 +57,7 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 		input.RepairPrice,
 		input.RepairType,
 		input.Status,
+		input.InvoiceID,
 		id,
 	)
 	return err

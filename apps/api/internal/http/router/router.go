@@ -18,6 +18,7 @@ func NewRouter(
 	phoneHandler *handler.PhoneHandler,
 	invoiceHandler *handler.InvoiceHandler,
 	repairHandler *handler.RepairHandler,
+	warrantyHandler *handler.WarrantyHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -84,6 +85,14 @@ func NewRouter(
 				repairs.GET("/:id", repairHandler.GetRepair)
 				repairs.PATCH("/:id", repairHandler.UpdateRepair)
 				repairs.POST("/:id/complete", repairHandler.CompleteRepair)
+			}
+			warranties := protected.Group("/warranties")
+			{
+				warranties.GET("", warrantyHandler.GetAll)
+				warranties.POST("", warrantyHandler.Create)
+				warranties.GET("/:id", warrantyHandler.GetByID)
+				warranties.GET("/search", warrantyHandler.SearchEligible)
+				warranties.PATCH("/:id", warrantyHandler.Update)
 			}
 		}
 	}
