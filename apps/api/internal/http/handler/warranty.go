@@ -41,7 +41,8 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	items, total, err := h.Service.GetWarranties(filter)
+	// Nhận thêm stats
+	items, total, stats, err := h.Service.GetWarranties(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -57,6 +58,7 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 		"meta": map[string]interface{}{
 			"page": filter.Page, "limit": filter.Limit, "total": total, "total_pages": totalPages,
 		},
+		"stats": stats, // BỔ SUNG TRẢ VỀ CHO FRONTEND
 	})
 }
 

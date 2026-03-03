@@ -8,6 +8,7 @@ interface DetailCardProps {
     className?: string
     action?: ReactNode
     iconClassName?: string
+    bodyClassName?: string
 }
 
 export default function DetailCard({
@@ -17,6 +18,7 @@ export default function DetailCard({
     className,
     action,
     iconClassName = 'bg-slate-100 text-slate-600',
+    bodyClassName = 'justify-center',
 }: DetailCardProps) {
     return (
         <div
@@ -37,7 +39,7 @@ export default function DetailCard({
             </div>
 
             {/* Card Body */}
-            <div className="flex flex-1 flex-col justify-center space-y-6 p-6 text-sm">
+            <div className={`flex flex-1 flex-col space-y-6 p-6 text-sm ${bodyClassName}`}>
                 {children}
             </div>
         </div>

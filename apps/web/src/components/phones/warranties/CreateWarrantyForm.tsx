@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Search, ShieldCheck, Info, AlertCircle } from 'lucide-react'
+import { Loader2, Search, ShieldCheck, Info, AlertCircle, AlertTriangle, FileText } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +24,7 @@ interface Props {
 
 export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
-    const [isDeviceExpired, setIsDeviceExpired] = useState(false) // State lưu trạng thái hết hạn
+    const [isDeviceExpired, setIsDeviceExpired] = useState(false)
     const { toast } = useToast()
 
     const form = useForm<CreateWarrantyValues>({
@@ -37,17 +37,14 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
     const handleSelectDevice = (item: any, isExpired: boolean, formattedDate: string) => {
         setIsDeviceExpired(isExpired)
 
-        // 1. GÁN CÁC TRƯỜNG DÙNG CHUNG (Luôn lấy nếu có)
         form.setValue('invoice_id', item.invoice_id || undefined)
         form.setValue('phone_id', item.phone_id || undefined)
         form.setValue('customer_phone', item.customer_phone || '')
         form.setValue('warranty_expiry', formattedDate)
         
-        // Map ngày tháng (Format sang ISO để Golang parse được thành time.Time)
         form.setValue('start_date', item.base_date ? new Date(item.base_date).toISOString() : undefined)
         form.setValue('end_date', item.warranty_expiry ? new Date(item.warranty_expiry).toISOString() : undefined)
 
-        // 2. GÁN CÁC TRƯỜNG HIỂN THỊ THEO LOẠI
         if (watchType === 'SALE') {
             form.setValue('device_name', item.device_name || item.model_name || '')
             form.setValue('imei', item.calculated_imei || item.imei || '')
@@ -59,17 +56,26 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
         }
 
         if (isExpired) {
-            toast({
-                title: 'Lưu ý dịch vụ',
-                description: 'Máy đã hết hạn bảo hành. Nếu nhận sửa sẽ tính phí dịch vụ.',
-                variant: 'destructive',
-            })
+            toast({ title: 'Lưu ý', description: 'Máy đã hết hạn bảo hành.', variant: 'destructive' })
         }
     }
 
     const onSubmit: SubmitHandler<CreateWarrantyValues> = async (values) => {
+        if (isDeviceExpired) {
+            toast({ 
+                variant: 'destructive', 
+                title: 'Từ chối tiếp nhận', 
+                description: 'Thiết bị đã hết hạn bảo hành. Vui lòng tạo phiếu Sửa chữa dịch vụ thay vì phiếu Bảo hành.' 
+            })
+            return // Dừng luôn, không cho chạy tiếp
+        }
+
         setIsLoading(true)
         try {
+            // GỘP CHUỖI ĐỂ LƯU VÀO DATABASE
+            const finalDescription = `[Tình trạng máy khi nhận]\n${values.receive_status || 'Không ghi chú'}\n\n[Lỗi khách thông báo]\n${values.customer_fault_note}`
+            const finalTechnicalNote = `[Ghi chú đặc biệt]\n${values.special_note || 'Không có'}\n\n[Điều kiện bảo hành]\n${values.warranty_condition || 'Theo quy định chuẩn'}`
+
             const payload = {
                 type: values.type,
                 customer_name: values.customer_name,
@@ -78,8 +84,8 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                 invoice_id: values.invoice_id,
                 device_name: values.device_name,
                 imei: values.imei,
-                description: values.description,
-                technical_note: values.technical_note,
+                description: finalDescription,
+                technical_note: finalTechnicalNote,
                 start_date: values.start_date,
                 end_date: values.end_date,
             }
@@ -101,23 +107,24 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full bg-white">
-                <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+                <div className="max-h-[75vh] flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
                         {/* --- CỘT TRÁI --- */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 text-blue-600 font-bold text-base mb-2">
+                        <div className="flex flex-col h-full">
+                            <div className="flex items-center gap-3 text-blue-600 font-bold text-base mb-6">
                                 <div className="bg-blue-50 p-1.5 rounded-lg"><Search className="h-5 w-5" /></div>
                                 <h3>Thông tin bảo hành</h3>
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 mb-6">
                                 <label className={labelClass}>Tìm kiếm máy / IMEI</label>
                                 <WarrantyItemSearchSelect type={watchType} onSelect={handleSelectDevice} />
                             </div>
 
-                            <div className="p-5 rounded-xl border border-slate-100 bg-slate-50/70 space-y-4">
-                                <div className="flex items-center gap-2 text-slate-500 font-bold text-[11px] uppercase tracking-wider mb-2">
+                            {/* FLEX-1 ĐỂ KÉO DÀI BẰNG CỘT PHẢI */}
+                            <div className="flex-1 p-5 rounded-xl border border-slate-100 bg-slate-50/70 flex flex-col gap-5">
+                                <div className="flex items-center gap-2 text-slate-500 font-bold text-[11px] uppercase tracking-wider mb-1">
                                     <Info className="h-4 w-4" /> THÔNG TIN MÁY & KHÁCH HÀNG
                                 </div>
                                 <FormField control={form.control} name="customer_name" render={({ field }) => (
@@ -144,70 +151,106 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                         </div>
 
                         {/* --- CỘT PHẢI --- */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 text-amber-600 font-bold text-base mb-2">
-                                <div className="bg-amber-50 p-1.5 rounded-lg"><ShieldCheck className="h-5 w-5" /></div>
-                                <h3>Chi tiết bảo hành</h3>
+                        <div className="flex flex-col gap-8">
+                            
+                            {/* BLOCK CHI TIẾT BẢO HÀNH */}
+                            <div>
+                                <div className="flex items-center gap-3 text-amber-600 font-bold text-base mb-6">
+                                    <div className="bg-amber-50 p-1.5 rounded-lg"><ShieldCheck className="h-5 w-5" /></div>
+                                    <h3>Chi tiết bảo hành</h3>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="type" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Loại bảo hành</FormLabel>
+                                            <Select onValueChange={(val) => {
+                                                field.onChange(val)
+                                                form.setValue('device_name', '')
+                                                form.setValue('customer_name', '')
+                                                form.setValue('imei', '')
+                                                form.setValue('warranty_expiry', '')
+                                                setIsDeviceExpired(false)
+                                            }} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="SALE">Bán máy</SelectItem>
+                                                    <SelectItem value="REPAIR">Sửa chữa</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+
+                                    <FormField control={form.control} name="warranty_expiry" render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <FormLabel className="text-sm font-semibold text-slate-800 m-0">Hạn bảo hành</FormLabel>
+                                                {isDeviceExpired && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-600">
+                                                        <AlertCircle className="h-3 w-3" /> Đã hết hạn
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <FormControl>
+                                                <Input {...field} type="date" className={`${inputClass} ${isDeviceExpired ? 'border-red-300 text-red-600 font-semibold bg-red-50' : ''}`} disabled />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="type" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className={labelClass}>Loại bảo hành</FormLabel>
-                                        <Select onValueChange={(val) => {
-                                            field.onChange(val)
-                                            form.setValue('device_name', '')
-                                            form.setValue('customer_name', '')
-                                            form.setValue('imei', '')
-                                            form.setValue('warranty_expiry', '')
-                                            setIsDeviceExpired(false) // Reset trạng thái hết hạn
-                                        }} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="SALE">Bán máy</SelectItem>
-                                                <SelectItem value="REPAIR">Sửa chữa</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </FormItem>
-                                )} />
-
-                                <FormField control={form.control} name="warranty_expiry" render={({ field }) => (
-                                    <FormItem>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <FormLabel className="text-sm font-semibold text-slate-800 m-0">Hạn bảo hành</FormLabel>
-                                            {/* HIỂN THỊ CẢNH BÁO TRỰC TIẾP TRÊN FORM */}
-                                            {isDeviceExpired && (
-                                                <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-600">
-                                                    <AlertCircle className="h-3 w-3" /> Đã hết hạn
-                                                </span>
-                                            )}
-                                        </div>
-                                        <FormControl>
-                                            <Input {...field} type="date" className={`${inputClass} ${isDeviceExpired ? 'border-red-300 text-red-600 font-semibold bg-red-50' : ''}`} disabled />
-                                        </FormControl>
-                                    </FormItem>
-                                )} />
+                            {/* BLOCK THÔNG TIN LỖI */}
+                            <div>
+                                <div className="flex items-center gap-3 text-red-600 font-bold text-base mb-6">
+                                    <div className="bg-red-50 p-1.5 rounded-lg"><AlertTriangle className="h-5 w-5" /></div>
+                                    <h3>Thông tin tiếp nhận lỗi</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    <FormField control={form.control} name="receive_status" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Tình trạng máy khi nhận</FormLabel>
+                                            <FormControl>
+                                                <Textarea {...field} rows={2} placeholder="Mô tả tình trạng ngoại quan, trầy xước..." className="w-full rounded-lg border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-3 text-sm" />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="customer_fault_note" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Lỗi khách thông báo <span className="text-red-500">*</span></FormLabel>
+                                            <FormControl>
+                                                <Textarea {...field} rows={2} placeholder="Mô tả lỗi theo lời khách..." className="w-full rounded-lg border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-3 text-sm" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                </div>
                             </div>
-
-                            <FormField control={form.control} name="description" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className={labelClass}>Mô tả tình trạng / Lỗi</FormLabel>
-                                    <FormControl>
-                                        <Textarea {...field} rows={5} placeholder="Mô tả chi tiết tình trạng máy khi tiếp nhận..." className="w-full rounded-xl border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-4" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
                         </div>
                     </div>
 
-                    <div className="space-y-6 pt-4 border-t border-slate-100">
-                        <FormField control={form.control} name="technical_note" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className={labelClass}>Ghi chú thêm</FormLabel>
-                                <FormControl><Input {...field} placeholder="Ghi chú nội bộ (nếu có)..." className={inputClass} /></FormControl>
-                            </FormItem>
-                        )} />
+                    {/* --- ROW 2: GHI CHÚ VÀ ĐIỀU KIỆN --- */}
+                    <div className="pt-6 border-t border-slate-100">
+                        <div className="flex items-center gap-3 text-emerald-600 font-bold text-base mb-6">
+                            <div className="bg-emerald-50 p-1.5 rounded-lg"><FileText className="h-5 w-5" /></div>
+                            <h3>Ghi chú & Điều kiện</h3>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <FormField control={form.control} name="special_note" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className={labelClass}>Ghi chú đặc biệt</FormLabel>
+                                    <FormControl>
+                                        <Textarea {...field} rows={3} placeholder="Ghi chú nội bộ (nếu có)..." className="w-full rounded-lg border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-3 text-sm" />
+                                    </FormControl>
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="warranty_condition" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className={labelClass}>Điều kiện bảo hành</FormLabel>
+                                    <FormControl>
+                                        <Textarea {...field} rows={3} placeholder="Các điều kiện loại trừ, lưu ý..." className="w-full rounded-lg border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-3 text-sm" />
+                                    </FormControl>
+                                </FormItem>
+                            )} />
+                        </div>
                         
                         <FormField control={form.control} name="create_receipt" render={({ field }) => (
                             <FormItem className="flex items-center gap-3 m-0 space-y-0">

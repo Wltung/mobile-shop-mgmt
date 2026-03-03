@@ -15,8 +15,10 @@ export const createWarrantySchema = z.object({
     imei: z.string().optional(),
     
     // Form nhập liệu
-    description: z.string().min(1, 'Vui lòng nhập tình trạng / lỗi báo bảo hành'),
-    technical_note: z.string().optional(), // Ghi chú thêm (nội bộ)
+    receive_status: z.string().optional(), // Tình trạng máy khi nhận
+    customer_fault_note: z.string().min(1, 'Vui lòng nhập lỗi khách báo'), // Lỗi khách báo
+    special_note: z.string().optional(), // Ghi chú đặc biệt
+    warranty_condition: z.string().optional(), // Điều kiện bảo hành
     
     // Hiển thị hạn bảo hành (không gửi lên BE Create, chỉ để xem)
     warranty_expiry: z.string().optional(),
@@ -34,8 +36,10 @@ export const defaultCreateWarrantyValues: CreateWarrantyValues = {
     customer_phone: '',
     device_name: '',
     imei: '',
-    description: '',
-    technical_note: '',
+    receive_status: '',
+    customer_fault_note: '',
+    special_note: '',
+    warranty_condition: '',
     warranty_expiry: '',
     create_receipt: true,
 }

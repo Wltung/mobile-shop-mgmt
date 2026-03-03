@@ -74,7 +74,7 @@ export default function WarrantyItemSearchSelect({ type, onSelect, error }: Prop
         if (type === 'SALE') {
             setSearchTerm(`${calculatedDeviceName} - IMEI: ${calculatedImei || 'Không có'}`)
         } else {
-            setSearchTerm(`${calculatedDeviceName} - HĐ #${item.invoice_id}`)
+            setSearchTerm(`${calculatedDeviceName} - ${item.invoice_code || '#HD-' + item.invoice_id}`)
         }
         closeSearchResults()
     }
@@ -156,7 +156,7 @@ export default function WarrantyItemSearchSelect({ type, onSelect, error }: Prop
                                         </span>
                                         {type === 'REPAIR' && (
                                             <span className="font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">
-                                                #HD-{item.invoice_id}
+                                                {item.invoice_code || `#HD-${item.invoice_id}`}
                                             </span>
                                         )}
                                     </div>
