@@ -62,7 +62,12 @@ export default function RepairDetailPage() {
     // Tính toán chi phí
     const repairPrice = repair.repair_price ? Number(repair.repair_price) : 0
     const totalPartCost = parsedData.parts.reduce((sum, p) => sum + Number(p.price), 0)
-    const totalCost = totalPartCost + repairPrice
+    
+    const discountAmount = Number((parsedData as any).discount) || 0
+    const hasLaborWarranty = (parsedData as any).hasLaborWarranty || false
+    
+    // Tổng = Linh kiện + Công - Giảm giá
+    const totalCost = totalPartCost + repairPrice - discountAmount
 
     const isLocked = repair.status === 'COMPLETED'
 
@@ -225,22 +230,28 @@ export default function RepairDetailPage() {
                                         </div>
                                     ))}
 
+                                    {/* TIỀN CÔNG THỢ (HIỂN THỊ ĐỘNG BẢO HÀNH) */}
                                     <div className="flex justify-between items-start py-3.5 whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50/50 p-4 mb-3">
                                         <div className="flex flex-col">
                                             <span className="text-slate-800 font-semibold">Tiền công thợ</span>
-                                            <span className="text-[13px] text-slate-400 mt-0.5">Bảo hành dịch vụ 7 ngày</span>
+                                            <span className="text-[13px] text-slate-400 mt-0.5">
+                                                {hasLaborWarranty ? 'Bảo hành dịch vụ 7 ngày' : 'Không bảo hành'}
+                                            </span>
                                         </div>
                                         <span className="font-bold text-slate-900">{formatCurrency(repairPrice)}</span>
                                     </div>
 
-                                    <div className="flex justify-between items-start py-3.5 opacity-50 whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50/50 p-4 mb-3">
-                                        <div className="flex flex-col">
-                                            <span className="text-slate-500 font-medium">Giảm giá</span>
+                                    {discountAmount > 0 && (
+                                        <div className="flex justify-between items-start py-3.5 whitespace-pre-wrap rounded-lg border border-emerald-100/60 bg-emerald-50/40 p-4 mb-3">
+                                            <div className="flex flex-col">
+                                                <span className="text-emerald-700 font-medium">Giảm giá</span>
+                                            </div>
+                                            <span className="font-bold text-emerald-600">- {formatCurrency(discountAmount)}</span>
                                         </div>
-                                        <span className="font-bold text-slate-500">- 0 ₫</span>
-                                    </div>
+                                    )}
                                 </div>
 
+                                {/* TỔNG CỘNG ĐÃ ĐƯỢC TRỪ ĐI GIẢM GIÁ TỰ ĐỘNG */}
                                 <div className="mt-4 pt-2 flex justify-between items-center">
                                     <span className="text-[15px] font-bold text-slate-800">Tổng cộng</span>
                                     <span className="text-2xl font-black text-blue-600">{formatCurrency(totalCost)}</span>

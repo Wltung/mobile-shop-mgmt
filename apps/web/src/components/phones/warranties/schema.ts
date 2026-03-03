@@ -30,6 +30,19 @@ export const createWarrantySchema = z.object({
 
 export type CreateWarrantyValues = z.infer<typeof createWarrantySchema>
 
+export const editWarrantySchema = z.object({
+    status: z.enum(['RECEIVED', 'PROCESSING', 'DONE', 'CANCELLED']),
+    cost: z.string().optional(), // FE dùng string để nhập liệu dễ dàng
+    
+    // 4 trường bóc tách từ chuỗi
+    receive_status: z.string().optional(), 
+    customer_fault_note: z.string().min(1, 'Vui lòng nhập lỗi khách báo'), 
+    special_note: z.string().optional(), 
+    warranty_condition: z.string().optional(),
+})
+
+export type EditWarrantyValues = z.infer<typeof editWarrantySchema>
+
 export const defaultCreateWarrantyValues: CreateWarrantyValues = {
     type: 'SALE',
     customer_name: '',

@@ -23,6 +23,7 @@ import PageHeader from '@/components/common/detail/PageHeader'
 import PageLoading from '@/components/common/PageLoading'
 import { useWarrantyDetail } from '@/hooks/warranty/useWarrantyDetail'
 import WarrantyStatusBadge from '@/components/common/badges/WarrantyStatusBadge'
+import EditWarrantyModal from '@/components/phones/warranties/EditWarrantyModal'
 
 
 // --- LOCAL COMPONENT: InfoBlock ---
@@ -94,7 +95,7 @@ const parseTechnicalNote = (note?: string) => {
 
 export default function WarrantyDetailPage() {
     const { id } = useParams()
-    const { warranty, isLoading, daysRemaining, isExpired } = useWarrantyDetail(Number(id))
+    const { warranty, isLoading, daysRemaining, isExpired, refresh } = useWarrantyDetail(Number(id))
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
     if (isLoading) return <PageLoading title="Chi tiết tiếp nhận bảo hành" />
@@ -102,9 +103,35 @@ export default function WarrantyDetailPage() {
 
     const isSale = warranty.type === 'SALE'
 
+    // Khoá phiếu nếu trạng thái là Đã trả khách (DONE) hoặc Đã huỷ (CANCELLED)
+    const isLocked = warranty.status === 'DONE' || warranty.status === 'CANCELLED'
+
     // Áp dụng bóc tách dữ liệu
     const { receiveStatus, customerFaultNote } = parseDescription(warranty.description)
     const { specialNote, warrantyCondition } = parseTechnicalNote(warranty.technical_note)
+
+    // --- LOGIC RENDER TRẠNG THÁI DƯỚI CÙNG ---
+    let currentStatusUI = (
+        <div className="flex items-center gap-2 text-blue-600 font-bold">
+            <Wrench className="h-5 w-5" />
+            Đang được bảo hành
+        </div>
+    )
+    if (warranty.status === 'DONE') {
+        currentStatusUI = (
+            <div className="flex items-center gap-2 text-emerald-600 font-bold">
+                <CheckCircle2 className="h-5 w-5" />
+                Đã hoàn tất
+            </div>
+        )
+    } else if (warranty.status === 'CANCELLED') {
+        currentStatusUI = (
+            <div className="flex items-center gap-2 text-red-600 font-bold">
+                <AlertCircle className="h-5 w-5" />
+                Đã huỷ bảo hành
+            </div>
+        )
+    }
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
@@ -148,8 +175,10 @@ export default function WarrantyDetailPage() {
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setIsEditModalOpen(true)}
-                                    className="gap-2 border-slate-300 bg-white shadow-sm text-slate-700 hover:border-primary hover:text-primary font-semibold"
+                                    onClick={() => !isLocked && setIsEditModalOpen(true)}
+                                    disabled={isLocked}
+                                    title={isLocked ? 'Phiếu đã đóng (Hoàn thành / Huỷ) nên không thể chỉnh sửa' : 'Sửa thông tin phiếu'}
+                                    className="gap-2 border-slate-300 bg-white shadow-sm text-slate-700 hover:border-blue-600 hover:text-blue-600 font-semibold disabled:opacity-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:hover:border-slate-200"
                                 >
                                     <Edit className="h-4 w-4" />
                                     <span>Sửa thông tin</span>
@@ -229,11 +258,8 @@ export default function WarrantyDetailPage() {
                                         />
                                     </div>
                                     <div className="pt-4 mt-auto border-t border-slate-100 border-dashed">
-                                        <span className="block mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Trạng thái hiện tại</span>
-                                        <div className="flex items-center gap-2 text-emerald-600 font-bold">
-                                            <CheckCircle2 className="h-5 w-5" />
-                                            Đang được bảo hành
-                                        </div>
+                                        <span className="block mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Trạng thái hiện tại</span>
+                                        {currentStatusUI}
                                     </div>
                                 </div>
                             </DetailCard>
@@ -246,25 +272,25 @@ export default function WarrantyDetailPage() {
                             <div className="lg:col-span-2">
                                 <DetailCard title="Thông tin tiếp nhận lỗi" icon={<AlertCircle className="h-5 w-5 text-red-600" />} iconClassName="bg-red-50 text-red-600 h-full" bodyClassName="justify-start">
                                     <div className="flex flex-col gap-5">
-                                        <InfoBlock 
-                                            label="Tình trạng máy khi nhận" 
-                                            value={receiveStatus} 
-                                            valueClassName="text-[14px] text-slate-800 leading-relaxed font-medium mt-1 whitespace-pre-wrap"
-                                        />
+                                        {/* ĐỔI CHỖ 1: LỖI KHÁCH THÔNG BÁO LÊN TRÊN */}
                                         <div className="flex flex-col">
                                             <span className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Lỗi khách thông báo</span>
                                             <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 text-[14px] text-red-900 font-medium leading-relaxed whitespace-pre-wrap min-h-[80px]">
                                                 {customerFaultNote}
                                             </div>
                                         </div>
+
+                                        {/* ĐỔI CHỖ 2: TÌNH TRẠNG MÁY XUỐNG DƯỚI */}
+                                        <InfoBlock 
+                                            label="Tình trạng máy khi nhận" 
+                                            value={receiveStatus} 
+                                            valueClassName="text-[14px] text-slate-800 leading-relaxed font-medium mt-1 whitespace-pre-wrap"
+                                        />
                                         
                                         {/* THÊM CHI PHÍ PHÁT SINH THEO MOCKUP */}
-                                        <div className="border-t border-slate-100 pt-4 mt-1">
-                                            <InfoBlock 
-                                                label="Chi phí phát sinh" 
-                                                value={formatCurrency(warranty.cost)} 
-                                                valueClassName="text-[15px] font-bold text-slate-900 mt-1"
-                                            />
+                                        <div className="border-t border-slate-100 pt-5 mt-2 flex justify-between items-center">
+                                            <span className="text-[12px] font-bold uppercase tracking-wider text-slate-500">Chi phí phát sinh</span>
+                                            <span className="text-lg font-black text-slate-900">{formatCurrency(warranty.cost)}</span>
                                         </div>
                                     </div>
                                 </DetailCard>
@@ -273,22 +299,24 @@ export default function WarrantyDetailPage() {
                             {/* CARD 5: GHI CHÚ & ĐIỀU KIỆN (Chiếm 3/5) */}
                             <div className="lg:col-span-2">
                                 <DetailCard title="Ghi chú & Điều kiện" icon={<FileText className="h-5 w-5 text-amber-600" />} iconClassName="bg-amber-50 text-amber-600 h-full" bodyClassName='justify-start'>
-                                    <div className="flex flex-col gap-5 mt-2">
+                                    <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-5 flex flex-col gap-6">
+                                        
                                         {/* Block Ghi chú đặc biệt */}
-                                        <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-5">
-                                            <h4 className="font-bold text-amber-900 mb-2 text-sm">Ghi chú đặc biệt:</h4>
-                                            <p className="text-sm text-amber-800 leading-relaxed whitespace-pre-wrap">
+                                        <div>
+                                            <h4 className="font-bold text-amber-900 mb-2 text-[14px]">Ghi chú đặc biệt:</h4>
+                                            <div className="text-[14px] text-amber-800 leading-relaxed whitespace-pre-wrap">
                                                 {specialNote}
-                                            </p>
+                                            </div>
                                         </div>
 
                                         {/* Block Điều kiện tĩnh / động do nhân viên nhập */}
-                                        <div className="p-2">
-                                            <h4 className="font-bold text-slate-800 mb-3 text-sm">Điều kiện bảo hành:</h4>
-                                            <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                        <div>
+                                            <h4 className="font-bold text-amber-900 mb-2 text-[14px]">Điều kiện bảo hành:</h4>
+                                            <div className="text-[14px] text-amber-800 leading-relaxed whitespace-pre-wrap">
                                                 {warrantyCondition}
                                             </div>
                                         </div>
+                                        
                                     </div>
                                 </DetailCard>
                             </div>
@@ -297,6 +325,13 @@ export default function WarrantyDetailPage() {
                     </div>
                 </div>
             </div>
+
+            <EditWarrantyModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSuccess={refresh}
+                warranty={warranty}
+            />
         </div>
     )
 }

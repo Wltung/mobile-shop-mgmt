@@ -160,6 +160,9 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 	var items []model.CreateItemInput
 	hasParsedParts := false
 
+	var discountAmount int64 = 0
+	hasLaborWarranty := false
+
 	if repair.Description != nil {
 		// Cắt nội dung thành từng dòng để xử lý trong 1 vòng lặp duy nhất
 		lines := strings.Split(*repair.Description, "\n")
@@ -217,13 +220,29 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 
 	// 3.2 TIỀN CÔNG THỢ (Bỏ riêng thành 1 dòng dịch vụ)
 	if repair.RepairPrice != nil && *repair.RepairPrice > 0 {
+		laborDesc := "Công sửa chữa: " + deviceName
+		if hasLaborWarranty {
+			laborDesc += " (Bảo hành 7 ngày)"
+		}
+
 		items = append(items, model.CreateItemInput{
 			ItemType:       model.ItemTypeService,
 			PhoneID:        repair.PhoneID,
-			Description:    "Công sửa chữa: " + deviceName,
+			Description:    laborDesc,
 			Quantity:       1,
 			UnitPrice:      *repair.RepairPrice,
-			WarrantyMonths: 0, // Dịch vụ thường không có hạn bảo hành cố định lưu trên DB
+			WarrantyMonths: 0,
+		})
+	}
+
+	if discountAmount > 0 {
+		items = append(items, model.CreateItemInput{
+			ItemType:       model.ItemTypeService,
+			PhoneID:        repair.PhoneID,
+			Description:    "Giảm giá dịch vụ",
+			Quantity:       1,
+			UnitPrice:      -discountAmount, // Dùng số âm để trừ vào tổng hoá đơn
+			WarrantyMonths: 0,
 		})
 	}
 

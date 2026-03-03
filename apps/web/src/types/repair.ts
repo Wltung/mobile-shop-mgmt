@@ -65,4 +65,6 @@ export interface ParsedRepairData {
     technicalNote: string
     deviceName: string
     parts: RepairPart[]
+    discount: string
+    hasLaborWarranty: boolean
 }

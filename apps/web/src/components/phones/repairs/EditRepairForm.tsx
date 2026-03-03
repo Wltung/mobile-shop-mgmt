@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Repair } from '@/types/repair'
 import { formatCurrency } from '@/lib/utils'
 import { buildRepairDescription, parseRepairDescription, parseViVNDateToInput } from '@/lib/repairParser'
+import { Switch } from '@/components/ui/switch'
 
 interface Props {
     repair: Repair
@@ -49,6 +50,8 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
             technical_note: parsedData.technicalNote,
             parts: parsedData.parts.map(p => ({ name: p.name, price: String(p.price), warranty: String(p.warranty) })),
             repair_price: repair.repair_price?.toString() || '0',
+            discount: (parsedData as any).discount?.toString() || '0',
+            has_labor_warranty: (parsedData as any).hasLaborWarranty || false,
         },
     })
 
@@ -68,6 +71,8 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
             technical_note: parsedData.technicalNote,
             parts: parsedData.parts.map(p => ({ name: p.name, price: String(p.price), warranty: String(p.warranty) })),
             repair_price: repair.repair_price?.toString() || '0',
+            discount: (parsedData as any).discount?.toString() || '0',
+            has_labor_warranty: (parsedData as any).hasLaborWarranty || false,
         })
     }, [repair, parsedData, form])
 
@@ -75,8 +80,9 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
 
     const watchParts = form.watch('parts') || []
     const watchLabor = form.watch('repair_price')
+    const watchDiscount = form.watch('discount')
     const totalPartCost = watchParts.reduce((sum, p) => sum + (Number(p.price) || 0), 0)
-    const totalCost = totalPartCost + (Number(watchLabor) || 0)
+    const totalCost = totalPartCost + (Number(watchLabor) || 0) - (Number(watchDiscount) || 0)
 
     const isLocked = repair.status === 'COMPLETED'
 
@@ -92,7 +98,9 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                 accessories: values.accessories,
                 appointmentDate: values.appointment_date,
                 technicalNote: values.technical_note,
-                parts: values.parts
+                parts: values.parts,
+                discount: values.discount,
+                hasLaborWarranty: values.has_labor_warranty,
             })
 
             const payload = {
@@ -242,14 +250,55 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                 <div className="mt-auto pt-4">
                                     <hr className="border-dashed border-slate-200 my-6" />
                                     <div className="space-y-4">
+                                        {/* 1. TIỀN CÔNG THỢ + SWITCH BẢO HÀNH */}
                                         <FormField control={form.control} name="repair_price" render={({ field }) => (
                                             <FormItem className="flex items-center justify-between space-y-0">
-                                                <FormLabel className="text-sm font-semibold text-slate-700">Tiền công thợ</FormLabel>
-                                                <FormControl><div className="relative w-48"><Input type="number" {...field} className={`${inputClass} text-right pr-3 font-bold`} /><span className="absolute right-3 top-3 text-sm font-bold text-slate-400">₫</span></div></FormControl>
+                                                <div className="flex items-center gap-4">
+                                                    <FormLabel className="text-sm font-semibold text-slate-700">Tiền công thợ</FormLabel>
+                                                    <FormField control={form.control} name="has_labor_warranty" render={({ field: wField }) => (
+                                                        <FormItem className="flex items-center gap-2 space-y-0">
+                                                            <FormControl>
+                                                                <Switch 
+                                                                    checked={wField.value} 
+                                                                    onCheckedChange={wField.onChange} 
+                                                                    className="data-[state=checked]:bg-blue-600 scale-75 origin-left m-0" 
+                                                                />
+                                                            </FormControl>
+                                                            <FormLabel className="text-[13px] text-slate-500 font-normal m-0 cursor-pointer">
+                                                                Bảo hành 7 ngày
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    )} />
+                                                </div>
+                                                <FormControl>
+                                                    <div className="relative w-40">
+                                                        <Input type="number" {...field} className={`${inputClass} text-right pr-6 font-bold`} />
+                                                        <span className="absolute right-3 top-3 text-sm font-bold text-slate-400">₫</span>
+                                                    </div>
+                                                </FormControl>
                                             </FormItem>
                                         )} />
+                                        {/* 2. GIẢM GIÁ */}
+                                        <FormField control={form.control} name="discount" render={({ field }) => (
+                                            <FormItem className="flex items-center justify-between space-y-0">
+                                                <FormLabel className="text-sm font-semibold text-slate-700">Giảm giá</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative w-40">
+                                                        <Input 
+                                                            type="number" 
+                                                            {...field} 
+                                                            className={`${inputClass} text-right pr-6 font-bold text-emerald-600 border-emerald-200 focus:border-emerald-500 bg-emerald-50/30`} 
+                                                        />
+                                                        <span className="absolute right-3 top-3 text-sm font-bold text-emerald-500">₫</span>
+                                                    </div>
+                                                </FormControl>
+                                            </FormItem>
+                                        )} />
+
+                                        {/* 3. TỔNG CỘNG */}
                                         <div className="flex justify-between items-end pt-4 mt-2 border-t border-slate-100">
-                                            <span className="text-[15px] font-bold text-slate-800">Tổng cộng</span><span className="text-2xl font-black text-blue-600">{formatCurrency(totalCost)}</span>
+                                            <span className="text-[15px] font-bold text-slate-800">Tổng cộng</span>
+                                            <span className="text-2xl font-black text-blue-600">{formatCurrency(totalCost)}</span>
                                         </div>
                                     </div>
                                 </div>

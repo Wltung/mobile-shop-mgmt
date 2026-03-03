@@ -11,6 +11,8 @@ export const parseRepairDescription = (
     let imei = '', color = '', accessories = '', appointmentDate = '', technicalNote = ''
     let deviceName = dbDeviceName || ''
     const parts: RepairPart[] = []
+    let discount = '0'
+    let hasLaborWarranty = false
 
     if (description) {
         const lines = description.split('\n')
@@ -23,6 +25,8 @@ export const parseRepairDescription = (
             else if (tLine.startsWith('- Kèm theo: ')) accessories = tLine.replace('- Kèm theo: ', '').trim()
             else if (tLine.startsWith('- Hẹn trả: ')) appointmentDate = tLine.replace('- Hẹn trả: ', '').trim()
             else if (tLine.startsWith('- Kỹ thuật: ')) technicalNote = tLine.replace('- Kỹ thuật: ', '').trim()
+            else if (tLine.startsWith('- Giảm giá: ')) discount = tLine.replace('- Giảm giá: ', '').trim()
+            else if (tLine.startsWith('- Bảo hành tiền công: ')) hasLaborWarranty = tLine.replace('- Bảo hành tiền công: ', '').trim() === 'true'
             else if (tLine.startsWith('- Linh kiện: ')) {
                 const partsArr = tLine.replace('- Linh kiện: ', '').split('|').map((s) => s.trim())
                 parts.push({
@@ -61,6 +65,8 @@ export const parseRepairDescription = (
         technicalNote,
         deviceName: deviceName || 'Không xác định', // Default
         parts,
+        discount,          // Trả về discount
+        hasLaborWarranty
     }
 }
 
@@ -75,6 +81,8 @@ export const buildRepairDescription = (params: {
     appointmentDate?: string // Định dạng Date HTML
     technicalNote?: string
     parts?: { name: string; price: string | number; warranty: string | number }[]
+    discount?: string | number
+    hasLaborWarranty?: boolean
 }): string => {
     let finalDesc = params.mainError
 
@@ -96,6 +104,12 @@ export const buildRepairDescription = (params: {
         params.parts.forEach((p) => {
             finalDesc += `\n- Linh kiện: ${p.name} | ${p.price || 0} | ${p.warranty || 0}`
         })
+    }
+    if (params.discount && Number(params.discount) > 0) {
+        finalDesc += `\n- Giảm giá: ${params.discount}`
+    }
+    if (params.hasLaborWarranty !== undefined) {
+        finalDesc += `\n- Bảo hành tiền công: ${params.hasLaborWarranty}`
     }
 
     return finalDesc

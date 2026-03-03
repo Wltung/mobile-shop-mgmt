@@ -43,6 +43,13 @@ export const repairBaseSchema = z.object({
         }),
 
     appointment_date: z.string().optional(),
+    discount: z
+        .string()
+        .optional()
+        .refine((val) => !val || !isNaN(Number(val)), {
+            message: 'Giảm giá phải là số',
+        }),
+    has_labor_warranty: z.boolean(),
 })
 
 // --- SCHEMA TẠO MỚI (Thêm switch In phiếu) ---
@@ -87,4 +94,6 @@ export const defaultCreateRepairValues: CreateRepairValues = {
     appointment_date: '',
     create_receipt: true, // Mặc định bật theo UI
     is_warranty: false,
+    discount: '0',
+    has_labor_warranty: false,
 }
