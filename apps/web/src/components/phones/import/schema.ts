@@ -1,9 +1,4 @@
 import * as z from 'zod'
-import { Phone } from '@/types/phone'
-
-interface Props {
-    phone: Phone
-}
 
 export const phoneBaseSchema = z.object({
     // --- THÔNG TIN CƠ BẢN ---

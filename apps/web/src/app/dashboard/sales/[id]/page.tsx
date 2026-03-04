@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import {
     Printer,
     Edit,
@@ -15,17 +15,12 @@ import {
     UnlockKeyhole,
 } from 'lucide-react'
 
-// Services & Types
-import { invoiceService } from '@/services/invoice.service'
-import { Invoice } from '@/types/invoice'
-
 // Components UI & Utils
 import { Button } from '@/components/ui/button'
 import DashboardHeader from '@/components/dashboard/DashboardHeader'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb'
 import DetailCard from '@/components/common/detail/DetailCard'
 import PageHeader from '@/components/common/detail/PageHeader'
-import { useToast } from '@/hooks/use-toast'
 import InvoiceStatusBadge from '@/components/common/badges/InvoiceStatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useInvoiceDetail } from '@/hooks/invoice/useInvoiceDetail'

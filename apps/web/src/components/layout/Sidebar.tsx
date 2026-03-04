@@ -7,7 +7,6 @@ import {
     FileText,
     Settings,
     LogOut,
-    Store,
     Smartphone,
     Download,
     Wrench,

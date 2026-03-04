@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
     Plus,
     Search,
@@ -8,8 +8,6 @@ import {
     Trash2,
     ShoppingCart,
     DollarSign,
-    Calendar,
-    FileText,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 

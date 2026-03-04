@@ -6,7 +6,7 @@ import {
     ChevronRight,
     Search,
 } from 'lucide-react'
-import { PaginationMeta, Phone } from '@/types/phone'
+import { Phone } from '@/types/phone'
 import { PhoneFilterParams } from '@/types/phone'
 
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { PaginationMeta } from '@/types/common'
 
 interface PhoneTableProps {
     phones: Phone[]

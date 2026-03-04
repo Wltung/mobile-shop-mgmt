@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState } from 'react'
 import { useForm, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Check, Search } from 'lucide-react'
-import { debounce } from 'lodash'
+import { Loader2, Check } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +26,6 @@ import {
 import { Switch } from '@/components/ui/switch'
 
 import { salePhoneSchema, SaleFormValues, defaultSaleValues } from './schema'
-import { phoneService } from '@/services/phone.service'
 import { invoiceService } from '@/services/invoice.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
