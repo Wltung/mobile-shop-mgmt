@@ -37,6 +37,7 @@ type Invoice struct {
 	CustomerPhone    *string       `db:"customer_phone" json:"customer_phone,omitempty"`
 	CustomerIDNumber *string       `db:"customer_id_number" json:"customer_id_number,omitempty"`
 	Items            []InvoiceItem `json:"items,omitempty"` // Để load chi tiết
+	RepairID         *int          `db:"repair_id" json:"repair_id,omitempty"`
 }
 
 type InvoiceItem struct {
@@ -91,4 +92,21 @@ type UpdateInvoiceInput struct {
 	PhoneID         *int   `json:"phone_id"`
 	ActualSalePrice string `json:"actual_sale_price"` // FE gửi string, cần convert
 	Warranty        string `json:"warranty"`
+}
+
+// Struct dùng để map query params từ request GET
+type InvoiceFilter struct {
+	Page      int    `form:"page"`
+	Limit     int    `form:"limit"`
+	Keyword   string `form:"keyword"`
+	Type      string `form:"type"`
+	Status    string `form:"status"`
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+}
+
+// Struct dùng để trả về thống kê
+type InvoiceStats struct {
+	TotalRevenue int64 `json:"totalRevenue"`
+	TotalCount   int   `json:"totalCount"`
 }

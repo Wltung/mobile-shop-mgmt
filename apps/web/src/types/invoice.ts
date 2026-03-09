@@ -1,8 +1,10 @@
 // apps/web/src/types/invoice.ts
 
+import { PaginationMeta } from "./common"
+
 export type InvoiceType = 'IMPORT' | 'SALE' | 'REPAIR'
 export type InvoiceStatus = 'DRAFT' | 'PAID' | 'CANCELLED'
-export type ItemType = 'PHONE' | 'PART' | 'SERVICE'
+export type ItemType = 'PHONE' | 'PART' | 'SERVICE' | 'TIỀN CÔNG'
 
 // Dữ liệu chi tiết 1 dòng trong hóa đơn
 export interface InvoiceItem {
@@ -72,4 +74,24 @@ export interface Invoice {
     customer_phone?: string
     customer_id_number?: string
     creator_name?: string
+    repair_id?: number
+}
+
+export interface InvoiceFilterParams {
+    page?: number
+    limit?: number
+    keyword?: string
+    type?: InvoiceType | 'ALL'
+    status?: InvoiceStatus | 'ALL'
+    start_date?: string
+    end_date?: string
+}
+
+export interface InvoiceListResponse {
+    data: Invoice[]
+    meta: PaginationMeta
+    stats?: {
+        totalRevenue: number
+        totalCount: number
+    }
 }

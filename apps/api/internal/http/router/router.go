@@ -74,6 +74,7 @@ func NewRouter(
 			{
 				invoices.POST("", invoiceHandler.CreateInvoice)
 				invoices.GET("/:id", invoiceHandler.GetInvoice)
+				invoices.GET("", invoiceHandler.GetInvoices)
 				invoices.PATCH("/:id/status", invoiceHandler.UpdateInvoiceStatus)
 				invoices.PATCH("/:id", invoiceHandler.UpdateInvoice)
 			}

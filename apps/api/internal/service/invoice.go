@@ -175,3 +175,28 @@ func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput, u
 	// 2. GỌI REPO UPDATE HOÁ ĐƠN
 	return s.Repo.Update(id, input, newCustomerID)
 }
+
+func (s *InvoiceService) GetInvoices(filter model.InvoiceFilter) ([]model.Invoice, int, model.InvoiceStats, error) {
+	// 1. Validate cơ bản
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
+
+	// 2. Gọi xuống Repo lấy dữ liệu danh sách
+	items, total, err := s.Repo.GetAll(filter)
+	if err != nil {
+		return nil, 0, model.InvoiceStats{}, err
+	}
+
+	// 3. Lấy thống kê trong ngày
+	count, revenue, _ := s.Repo.GetDailyStats()
+	stats := model.InvoiceStats{
+		TotalCount:   count,
+		TotalRevenue: revenue,
+	}
+
+	return items, total, stats, nil
+}

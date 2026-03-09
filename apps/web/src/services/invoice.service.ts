@@ -32,5 +32,10 @@ export const invoiceService = {
     update: async (id: number, data: any) => {
         const response = await http.patch(`/invoices/${id}`, data)
         return response.data
-    }
+    },
+    
+    getAll: async (params: any): Promise<any> => {
+        const response = await http.get('/invoices', { params })
+        return response.data
+    },
 }

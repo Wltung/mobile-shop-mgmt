@@ -119,3 +119,32 @@ func (h *InvoiceHandler) UpdateInvoice(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật hoá đơn thành công"})
 }
+
+func (h *InvoiceHandler) GetInvoices(c *gin.Context) {
+	var filter model.InvoiceFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(400, gin.H{"error": "Tham số không hợp lệ"})
+		return
+	}
+
+	items, total, stats, err := h.Service.GetInvoices(filter)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Tính toán metadata phân trang
+	totalPages := (total + filter.Limit - 1) / filter.Limit
+
+	c.JSON(200, gin.H{
+		"message": "Lấy danh sách hoá đơn thành công",
+		"data":    items,
+		"stats":   stats,
+		"meta": map[string]interface{}{
+			"page":        filter.Page,
+			"limit":       filter.Limit,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
+}

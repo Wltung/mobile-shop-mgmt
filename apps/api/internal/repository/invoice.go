@@ -91,11 +91,17 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	var invoice model.Invoice
 	// Lấy Header
 	query := `
-		SELECT i.*, u.full_name as creator_name, c.name as customer_name, 
-			c.phone as customer_phone, c.id_number as customer_id_number -- Lấy thêm phone/address khách nếu cần
+		SELECT 
+			i.*, 
+			u.full_name as creator_name, 
+			c.name as customer_name, 
+			c.phone as customer_phone, 
+			c.id_number as customer_id_number,
+			r.id as repair_id -- <-- BỔ SUNG LẤY REPAIR ID
 		FROM invoices i
 		LEFT JOIN users u ON i.created_by = u.id
 		LEFT JOIN customers c ON i.customer_id = c.id
+		LEFT JOIN repairs r ON r.invoice_id = i.id -- <-- BỔ SUNG JOIN BẢNG REPAIRS
 		WHERE i.id = ?
 	`
 	err := r.DB.Get(&invoice, query, id)
@@ -283,4 +289,80 @@ func (r *InvoiceRepo) GetCustomerIDByInvoiceID(invoiceID int) (int, error) {
 		return 0, err
 	}
 	return customerID, nil
+}
+
+// GetAll: Lấy danh sách hoá đơn (có phân trang và filter)
+func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, error) {
+	offset := (filter.Page - 1) * filter.Limit
+	var items []model.Invoice
+	var total int
+
+	// Base query
+	baseQuery := `
+		FROM invoices i
+		LEFT JOIN customers c ON i.customer_id = c.id
+		WHERE 1=1
+	`
+	var args []interface{}
+
+	// Xử lý Filters
+	if filter.Keyword != "" {
+		baseQuery += ` AND (i.invoice_code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)`
+		kw := "%" + filter.Keyword + "%"
+		args = append(args, kw, kw, kw)
+	}
+	if filter.Type != "" && filter.Type != "ALL" {
+		baseQuery += ` AND i.type = ?`
+		args = append(args, filter.Type)
+	}
+	if filter.Status != "" && filter.Status != "ALL" {
+		baseQuery += ` AND i.status = ?`
+		args = append(args, filter.Status)
+	}
+	if filter.StartDate != "" && filter.EndDate != "" {
+		baseQuery += ` AND DATE(i.created_at) >= ? AND DATE(i.created_at) <= ?`
+		args = append(args, filter.StartDate, filter.EndDate)
+	}
+
+	// 1. Đếm tổng số bản ghi (để phân trang)
+	countQuery := `SELECT COUNT(*) ` + baseQuery
+	if err := r.DB.Get(&total, countQuery, args...); err != nil {
+		return nil, 0, err
+	}
+
+	// 2. Lấy dữ liệu
+	selectQuery := `
+		SELECT 
+			i.*, 
+			COALESCE(c.name, 'Khách vãng lai') as customer_name,
+			c.phone as customer_phone
+	` + baseQuery + ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`
+
+	args = append(args, filter.Limit, offset)
+
+	if err := r.DB.Select(&items, selectQuery, args...); err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+// GetDailyStats: Lấy số liệu thống kê cho trang hoá đơn (Trong ngày)
+func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
+	var count int
+	var revenue int64
+
+	// Đếm tổng số lượng hoá đơn trong ngày hôm nay
+	err := r.DB.Get(&count, `SELECT COUNT(*) FROM invoices WHERE DATE(created_at) = CURDATE()`)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	// Tính tổng doanh thu của các hoá đơn ĐÃ THANH TOÁN trong ngày
+	err = r.DB.Get(&revenue, `SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE DATE(created_at) = CURDATE() AND status = 'PAID'`)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return count, revenue, nil
 }
