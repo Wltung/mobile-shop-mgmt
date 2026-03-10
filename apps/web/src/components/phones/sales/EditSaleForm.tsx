@@ -51,6 +51,10 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         appearance?: string
     } | null>(null)
 
+    const [originalPhonePrice, setOriginalPhonePrice] = useState<number>(
+        invoice.total_amount + (invoice.discount ?? 0)
+    )
+
     useEffect(() => {
         if (currentPhoneItem) {
             setSelectedPhoneDetails({
@@ -84,8 +88,12 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         form.setValue('phone_id', phone.id) 
         if (phone.sale_price) {
             form.setValue('actual_sale_price', String(phone.sale_price))
+            setOriginalPhonePrice(phone.sale_price)
         }
     }
+
+    const watchActualPrice = form.watch('actual_sale_price')
+    const discountAmount = originalPhonePrice && watchActualPrice ? originalPhonePrice - Number(watchActualPrice) : 0
 
     // Thêm formState để lấy isDirty
     const { formState: { isDirty } } = form
@@ -112,7 +120,8 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                 phone_id: values.phone_id && values.phone_id > 0 ? values.phone_id : undefined,
                 
                 // Giá bán: Convert sang string chuẩn, nếu rỗng -> undefined
-                actual_sale_price: values.actual_sale_price ? String(values.actual_sale_price) : undefined
+                actual_sale_price: values.actual_sale_price ? String(values.actual_sale_price) : undefined,
+                discount: discountAmount > 0 ? discountAmount : 0,
             }
 
             await invoiceService.update(invoice.id, payload)
@@ -216,46 +225,45 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                             disabled={isLocked}
                         />
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Màu sắc - Read only (Update theo máy chọn) */}
-                            <div className="space-y-1.5">
-                                <label className={labelClass}>Màu sắc</label>
-                                <Input 
-                                    readOnly 
-                                    // Lấy từ state selectedPhoneDetails
-                                    value={selectedPhoneDetails?.color || '---'} 
-                                    className={`${inputClass} bg-slate-100 text-slate-500`} 
-                                />
+                        <div className="flex flex-col gap-6">
+                            {/* HÀNG 1: Màu sắc - Giá bán niêm yết */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Màu sắc</label>
+                                    <Input readOnly value={selectedPhoneDetails?.color || '---'} className={`${inputClass} bg-slate-100 text-slate-500`} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Giá bán niêm yết</label>
+                                    <div className="h-11 flex items-center px-4 rounded-xl border border-slate-200 bg-slate-50/70 font-bold text-slate-600 shadow-sm">
+                                        {originalPhonePrice ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(originalPhonePrice) : '---'}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Bảo hành - Cho phép sửa */}
-                            <FormField
-                                control={form.control}
-                                name="warranty"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className={labelClass}>Thời gian bảo hành</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
-                                            <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="0">Không bảo hành</SelectItem>
-                                                <SelectItem value="3">3 tháng</SelectItem>
-                                                <SelectItem value="6">6 tháng</SelectItem>
-                                                <SelectItem value="12">12 tháng</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {/* Tình trạng - Read only (Update theo máy chọn) */}
-                            <div className="space-y-1.5">
-                                <label className={labelClass}>Tình trạng máy</label>
-                                <Input 
-                                    readOnly 
-                                    value={selectedPhoneDetails?.appearance || '---'} 
-                                    className={`${inputClass} bg-slate-100 text-slate-500`} 
+                            {/* HÀNG 2: Tình trạng - Bảo hành */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Tình trạng máy</label>
+                                    <Input readOnly value={selectedPhoneDetails?.appearance || '---'} className={`${inputClass} bg-slate-100 text-slate-500`} />
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="warranty"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Thời gian bảo hành</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
+                                                <FormControl><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="0">Không bảo hành</SelectItem>
+                                                    <SelectItem value="3">3 tháng</SelectItem>
+                                                    <SelectItem value="6">6 tháng</SelectItem>
+                                                    <SelectItem value="12">12 tháng</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
                             </div>
                         </div>
@@ -309,7 +317,8 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                 name="actual_sale_price"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className={labelClass}>Tổng giá bán</FormLabel>
+                                        {/* Đổi nhãn thành Giá bán thực tế */}
+                                        <FormLabel className={labelClass}>Giá bán thực tế</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Input {...field} className={`${inputClass} pr-10 font-bold text-primary`} disabled={isLocked} />
@@ -319,6 +328,14 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                             </div>
                                         </FormControl>
                                         <FormMessage />
+                                        
+                                        {/* BỔ SUNG HIỂN THỊ SỐ TIỀN GIẢM GIÁ CHỈ KHI ĐANG SỬA */}
+                                        {discountAmount > 0 && !isLocked && (
+                                            <div className="text-[12px] font-bold text-emerald-600 mt-2 flex items-center gap-1.5">
+                                                <span className="bg-emerald-100/60 px-2 py-0.5 rounded text-[11px] uppercase tracking-wider">Đã giảm</span>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discountAmount)}
+                                            </div>
+                                        )}
                                     </FormItem>
                                 )}
                             />

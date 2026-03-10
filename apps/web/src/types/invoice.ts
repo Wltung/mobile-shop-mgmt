@@ -62,6 +62,7 @@ export interface Invoice {
     payment_method?: string
     customer_id: number | null
     total_amount: number
+    discount?: number
     created_by: number
     created_at: string
     note?: string

@@ -47,6 +47,9 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
         defaultValues: defaultSaleValues,
     })
 
+    const watchActualPrice = form.watch('actual_sale_price')
+    const discountAmount = selectedPhonePrice && watchActualPrice ? selectedPhonePrice - Number(watchActualPrice) : 0
+
     // --- LOGIC TÌM KIẾM MÁY ---
     const handleSelectPhone = (phone: Phone) => {
         // 1. Cập nhật ID máy vào form
@@ -81,6 +84,7 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                 type: 'SALE',
                 status: finalStatus,
                 payment_method: values.payment_method,
+                discount: discountAmount > 0 ? discountAmount : 0,
 
                 // --- GỬI THÔNG TIN ĐỂ BE TỰ XỬ LÝ (KHÔNG CONFLICT) ---
                 customer_name: values.customer_name,
@@ -240,6 +244,12 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                                 </div>
                                             </FormControl>
                                             <FormMessage />
+                                            
+                                            {discountAmount > 0 && (
+                                                <div className="text-[11px] font-bold text-emerald-600 mt-1.5">
+                                                    ↓ Đã giảm: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discountAmount)}
+                                                </div>
+                                            )}
                                         </FormItem>
                                     )}
                                 />

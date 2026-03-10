@@ -30,11 +30,11 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	queryInv := `
 		INSERT INTO invoices (
             invoice_code, type, status, payment_method, 
-            customer_id, total_amount, created_by, note, created_at
+            customer_id, total_amount, discount, created_by, note, created_at
         )
 		VALUES (
             :invoice_code, :type, :status, :payment_method, 
-            :customer_id, :total_amount, :created_by, :note, :created_at
+            :customer_id, :total_amount, :discount, :created_by, :note, :created_at
         )
 	`
 	res, err := tx.NamedExec(queryInv, inv)
@@ -165,6 +165,7 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomer
 			status = COALESCE(?, status), 
 			note = COALESCE(?, note),
 			created_at = COALESCE(?, created_at),
+			discount = COALESCE(?, discount),
 			updated_at = NOW()
 	`
 
@@ -174,6 +175,7 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomer
 		input.Status,
 		input.Note,
 		input.CreatedAt,
+		input.Discount,
 	}
 
 	// Logic động: Nếu có newCustomerID -> thêm vào câu query

@@ -26,6 +26,7 @@ type Invoice struct {
 	CustomerID    *int       `db:"customer_id" json:"customer_id"`
 	PaymentMethod string     `db:"payment_method" json:"payment_method"`
 	TotalAmount   int64      `db:"total_amount" json:"total_amount"`
+	Discount      int64      `db:"discount" json:"discount"`
 	CreatedBy     int        `db:"created_by" json:"created_by"`
 	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
 	Note          string     `db:"note" json:"note"`
@@ -67,6 +68,7 @@ type CreateInvoiceInput struct {
 	CustomerPhone    string            `json:"customer_phone"`
 	CustomerIDNumber string            `json:"customer_id_number"`
 	Note             string            `json:"note"`
+	Discount         int64             `json:"discount"`
 	Items            []CreateItemInput `json:"items" binding:"required,min=1"`
 }
 
@@ -88,6 +90,7 @@ type UpdateInvoiceInput struct {
 	PaymentMethod *string `json:"payment_method"`
 	Note          *string `json:"note"`
 	CreatedAt     *string `json:"created_at"`
+	Discount      *int64  `json:"discount"`
 
 	PhoneID         *int   `json:"phone_id"`
 	ActualSalePrice string `json:"actual_sale_price"` // FE gửi string, cần convert

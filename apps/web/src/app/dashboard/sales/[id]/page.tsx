@@ -63,13 +63,18 @@ const { handleLockSale, isLocking } = useLockSale({
     onRequireUpdate: () => setIsEditModalOpen(true)
 })
 
-    if (isLoading) return <PageLoading title="Chi tiết hoá đơn" />
+    if (isLoading) return <PageLoading title="Chi tiết máy bán" />
     if (!invoice) return null
 
     // Lấy item điện thoại đầu tiên để hiển thị chi tiết
     const phoneItem = invoice.items?.find((i) => i.item_type === 'PHONE')
     const isDraft = invoice.status === 'DRAFT'
     const isPaid = invoice.status === 'PAID'
+    
+    // Kéo data thật từ BE đã làm ở bước trước
+    const discountAmount = invoice.discount ?? 0
+    // Giá gốc niêm yết = Giá khách thực trả (total_amount) + Tiền đã giảm
+    const originalPrice = invoice.total_amount + discountAmount
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
@@ -251,19 +256,52 @@ const { handleLockSale, isLocking } = useLockSale({
                                     />
                                     <InfoBlock
                                         label="Hình thức thanh toán"
-                                        // TODO: Cần update BE để trả về Payment Method chính xác. Tạm thời hardcode hoặc lấy từ Note nếu có logic parse.
-                                        value="Chuyển khoản / Tiền mặt"
+                                        value={
+                                            invoice.payment_method === 'CASH' ? 'Tiền mặt' :
+                                            invoice.payment_method === 'TRANSFER' ? 'Chuyển khoản' :
+                                            invoice.payment_method === 'CARD' ? 'Quẹt thẻ' : 
+                                            invoice.payment_method || '---'
+                                        }
                                     />
                                 </div>
 
-                                <div className="mt-auto border-t border-dashed border-slate-200 pt-4">
-                                    <InfoBlock
-                                        label="Tổng giá bán"
-                                        value={formatCurrency(
-                                            invoice.total_amount,
-                                        )}
-                                        valueClassName="text-2xl text-primary font-bold"
-                                    />
+                                {/* --- BẠN THÊM TOÀN BỘ KHỐI NÀY VÀO BÊN DƯỚI --- */}
+                                <div className="mt-auto border-t border-slate-100 pt-5 flex flex-col gap-3">
+                                    <div className="flex items-center justify-between text-[14px]">
+                                        <span className="font-medium text-slate-500">Giá máy</span>
+                                        <span className="font-bold text-slate-900">
+                                            {formatCurrency(originalPrice)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-[14px]">
+                                        <span className="font-medium text-slate-500">Giảm giá</span>
+                                        <span className="font-bold text-emerald-600">
+                                            - {formatCurrency(discountAmount)}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-2 flex items-end justify-between border-t border-dashed border-slate-200 pt-4">
+                                        <div className="flex flex-col gap-2">
+                                            <span className="text-[12px] font-bold uppercase tracking-wider text-slate-400">
+                                                Khách cần trả
+                                            </span>
+                                            {invoice.status === 'PAID' ? (
+                                                <div className="flex items-center gap-1.5 rounded bg-emerald-50 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-600">
+                                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                                    Đã thu tiền
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 rounded bg-amber-50 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-600">
+                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                    Chưa thu tiền
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[32px] font-black leading-none tracking-tight text-blue-600">
+                                            {formatCurrency(invoice.total_amount)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </DetailCard>

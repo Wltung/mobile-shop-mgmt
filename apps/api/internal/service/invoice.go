@@ -122,6 +122,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		PaymentMethod: input.PaymentMethod,
 		CustomerID:    finalCustomerID, // Sử dụng ID đã xử lý
 		TotalAmount:   totalAmount,
+		Discount:      input.Discount,
 		CreatedBy:     userID,
 		CreatedAt:     time.Now(),
 		Note:          input.Note,
