@@ -180,3 +180,15 @@ func (s *PhoneService) UpdatePhone(id int, input model.PhoneUpdateInput, userID 
 	// 3. Gọi Repo Dynamic Update
 	return s.Repo.UpdateDynamic(id, userID, input, newSourceID)
 }
+
+// UpdatePhoneStatus: Hàm nội bộ phục vụ cho các module khác gọi đến (Repair, Invoice...)
+func (s *PhoneService) UpdatePhoneStatus(phoneID int, status string) error {
+	// 1. Có thể đặt validation ở đây
+	validStatuses := map[string]bool{"IN_STOCK": true, "SOLD": true, "REPAIRING": true, "RETURNED": true}
+	if !validStatuses[status] {
+		return errors.New("trạng thái máy không hợp lệ")
+	}
+
+	// 2. Gọi Repo để update
+	return s.Repo.UpdateStatus(phoneID, status)
+}

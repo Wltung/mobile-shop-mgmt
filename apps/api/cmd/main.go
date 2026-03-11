@@ -32,7 +32,7 @@ func main() {
 	phoneService := service.NewPhoneService(phoneRepo, customerService)
 	authService := service.NewAuthService(userRepo, tokenManager)
 	invoiceService := service.NewInvoiceService(invoiceRepo, customerService)
-	repairService := service.NewRepairService(repairRepo, customerService, invoiceService)
+	repairService := service.NewRepairService(repairRepo, customerService, invoiceService, phoneService)
 	warrantyService := service.NewWarrantyService(warrantyRepo, customerService)
 
 	// Handler

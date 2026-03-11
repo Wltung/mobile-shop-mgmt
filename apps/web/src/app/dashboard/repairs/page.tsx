@@ -69,6 +69,7 @@ export default function RepairListPage() {
         {
             header: 'NGÀY NHẬN',
             accessorKey: 'created_at',
+            className: 'max-w-[85px]',
             cell: (item) => (
                 <span className="whitespace-nowrap font-medium text-slate-500">
                     {formatJustDate(item.created_at)}
@@ -85,6 +86,39 @@ export default function RepairListPage() {
             ),
         },
         {
+            header: 'PHÂN LOẠI',
+            accessorKey: 'repair_category',
+            className: 'text-center',
+            cell: (item) => {
+                // Map màu sắc cho từng loại phân loại
+                const styles: Record<string, string> = {
+                    CUSTOMER_DEVICE_REPAIR: 'bg-blue-50 text-blue-600 border border-blue-200',
+                    SHOP_DEVICE_REPAIR: 'bg-purple-50 text-purple-600 border border-purple-200',
+                    CUSTOMER_REPAIR_WARRANTY: 'bg-orange-50 text-orange-600 border border-orange-200',
+                    SHOP_SOLD_WARRANTY: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+                }
+                
+                // Map text hiển thị tiếng Việt
+                const labels: Record<string, string> = {
+                    CUSTOMER_DEVICE_REPAIR: 'Sửa máy khách',
+                    SHOP_DEVICE_REPAIR: 'Sửa máy kho',
+                    CUSTOMER_REPAIR_WARRANTY: 'BH sửa chữa',
+                    SHOP_SOLD_WARRANTY: 'BH máy bán',
+                }
+
+                // Nếu vì lý do nào đó data cũ bị rỗng, ta fallback về Sửa máy khách
+                const category = item.repair_category || 'CUSTOMER_DEVICE_REPAIR'
+
+                return (
+                    <div className="flex justify-center">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold ${styles[category] || styles.CUSTOMER_DEVICE_REPAIR}`}>
+                            {labels[category] || 'Sửa máy khách'}
+                        </span>
+                    </div>
+                )
+            },
+        },
+        {
             header: 'ĐỜI MÁY',
             accessorKey: 'device_name',
             cell: (item) => (
@@ -96,7 +130,6 @@ export default function RepairListPage() {
         {
             header: 'GIÁ SỬA',
             accessorKey: 'repair_price',
-            className: 'text-right', // Căn phải cho cột tiền tệ
             cell: (item) => {
                 // Tính tổng tiền linh kiện và tiền công
                 const partCost = item.part_cost || 0
@@ -104,7 +137,7 @@ export default function RepairListPage() {
                 const total = partCost + repairPrice
 
                 return (
-                    <span className="flex justify-end font-bold text-slate-700">
+                    <span className="flex font-bold text-slate-700">
                         {total > 0 ? formatCurrency(total) : '---'}
                     </span>
                 )

@@ -13,13 +13,15 @@ type RepairService struct {
 	Repo            *repository.RepairRepo
 	CustomerService *CustomerService // Dùng chung CustomerService để định danh
 	InvoiceService  *InvoiceService
+	PhoneService    *PhoneService
 }
 
-func NewRepairService(repo *repository.RepairRepo, custService *CustomerService, invService *InvoiceService) *RepairService {
+func NewRepairService(repo *repository.RepairRepo, custService *CustomerService, invService *InvoiceService, phoneService *PhoneService) *RepairService {
 	return &RepairService{
 		Repo:            repo,
 		CustomerService: custService,
 		InvoiceService:  invService,
+		PhoneService:    phoneService,
 	}
 }
 
@@ -61,7 +63,7 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 	repair := model.Repair{
 		PhoneID:        input.PhoneID,
 		CustomerID:     custIDPtr,
-		RepairType:     input.RepairType,
+		RepairCategory: input.RepairCategory,
 		Description:    descPtr,
 		PartCost:       input.PartCost,
 		RepairPrice:    input.RepairPrice,
@@ -69,7 +71,24 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 	}
 
 	// 4. LƯU VÀO DB
-	return s.Repo.Create(repair)
+	repairID, err := s.Repo.Create(repair)
+	if err != nil {
+		return 0, err
+	}
+
+	// ---------------------------------------------------------
+	// 5. LOGIC KHOÁ MÁY KHO: Đổi trạng thái thành REPAIRING
+	// ---------------------------------------------------------
+	if input.RepairCategory == "SHOP_DEVICE_REPAIR" && input.PhoneID != nil {
+		// Gọi chéo sang PhoneService để đổi trạng thái
+		errStatus := s.PhoneService.UpdatePhoneStatus(*input.PhoneID, "REPAIRING")
+		if errStatus != nil {
+			// In ra log lỗi nếu cần, nhưng không return err để không làm huỷ phiếu sửa chữa đã tạo
+			fmt.Printf("Lỗi khi khoá máy %d sang REPAIRING: %v\n", *input.PhoneID, errStatus)
+		}
+	}
+
+	return repairID, nil
 }
 
 // UpdateRepairTicket: Sửa thông tin phiếu nhận (VD: Báo giá lại, cập nhật lỗi)

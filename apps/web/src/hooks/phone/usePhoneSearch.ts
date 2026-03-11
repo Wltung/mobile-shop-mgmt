@@ -6,9 +6,10 @@ import { Phone } from '@/types/phone'
 
 interface UsePhoneSearchProps {
     status?: string
+    hasSalePrice?: boolean
 }
 
-export const usePhoneSearch = ({ status = 'IN_STOCK' }: UsePhoneSearchProps = {}) => {
+export const usePhoneSearch = ({ status = 'IN_STOCK', hasSalePrice = true }: UsePhoneSearchProps = {}) => {
     const [isSearching, setIsSearching] = useState(false)
     const [searchResults, setSearchResults] = useState<Phone[]>([])
     const [searchTerm, setSearchTerm] = useState('')
@@ -32,7 +33,7 @@ export const usePhoneSearch = ({ status = 'IN_STOCK' }: UsePhoneSearchProps = {}
                         status,
                         limit: 5,
                         page: 1,
-                        has_sale_price: true,
+                        has_sale_price: hasSalePrice,
                     })
                     setSearchResults(res.data ?? [])
                 } catch (error) {

@@ -11,9 +11,15 @@ export const repairBaseSchema = z.object({
         .min(10, 'Số điện thoại không hợp lệ'),
 
     // --- THÔNG TIN THIẾT BỊ ---
+    phone_id: z.number().optional(),
     device_name: z.string().min(1, 'Vui lòng nhập đời máy'),
     imei: z.string().optional(),
     color: z.string().optional(),
+
+    repair_category: z.enum([
+        'SHOP_DEVICE_REPAIR',
+        'CUSTOMER_DEVICE_REPAIR',
+    ]),
 
     // --- TÌNH TRẠNG TIẾP NHẬN ---
     description: z.string().min(1, 'Vui lòng nhập mô tả lỗi'),
@@ -54,8 +60,7 @@ export const repairBaseSchema = z.object({
 
 // --- SCHEMA TẠO MỚI (Thêm switch In phiếu) ---
 export const createRepairSchema = repairBaseSchema.extend({
-    create_receipt: z.boolean(),
-    is_warranty: z.boolean()
+    create_receipt: z.boolean()
 })
 
 // --- SCHEMA CẬP NHẬT (Thêm status cho form Edit sau này) ---
@@ -66,7 +71,6 @@ export const editRepairSchema = repairBaseSchema.extend({
         'WAITING_CUSTOMER',
         'COMPLETED',
     ]),
-    repair_type: z.enum(['NORMAL', 'WARRANTY']),
     technical_note: z.string().optional(),
     parts: z.array(z.object({
         name: z.string().min(1, 'Nhập tên'),
@@ -93,7 +97,7 @@ export const defaultCreateRepairValues: CreateRepairValues = {
     repair_price: '',
     appointment_date: '',
     create_receipt: true, // Mặc định bật theo UI
-    is_warranty: false,
+    repair_category: 'CUSTOMER_DEVICE_REPAIR',
     discount: '0',
     has_labor_warranty: false,
 }

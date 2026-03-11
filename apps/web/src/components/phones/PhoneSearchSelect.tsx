@@ -15,6 +15,7 @@ interface Props {
     initialValue?: string // Giá trị hiển thị ban đầu (VD: iPhone 14...)
     error?: string        // Hiển thị lỗi form (nếu có)
     disabled?: boolean
+    hasSalePrice?: boolean
 }
 
 export default function PhoneSearchSelect({ 
@@ -23,7 +24,8 @@ export default function PhoneSearchSelect({
     placeholder = "Nhập IMEI hoặc tên máy...",
     initialValue = "",
     error,
-    disabled = false
+    disabled = false,
+    hasSalePrice = true
 }: Props) {
     const {
         searchTerm,
@@ -34,7 +36,7 @@ export default function PhoneSearchSelect({
         onSearchChange,
         resetSearch,
         closeSearchResults
-    } = usePhoneSearch({ status: 'IN_STOCK' })
+    } = usePhoneSearch({ status: 'IN_STOCK', hasSalePrice })
 
     // Set giá trị ban đầu nếu có (dùng cho Edit form hoặc khi đã chọn)
     useEffect(() => {
@@ -99,7 +101,8 @@ export default function PhoneSearchSelect({
                                     {phone.imei}
                                 </span>
                                 <span className="font-bold text-primary">
-                                    {formatCurrency(phone.sale_price || 0)}
+                                    {/* NẾU CÓ GIÁ THÌ HIỂN THỊ, KHÔNG THÌ HIỂN THỊ '---' */}
+                                    {phone.sale_price ? formatCurrency(phone.sale_price) : '---'}
                                 </span>
                             </div>
                         </div>

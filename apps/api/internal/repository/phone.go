@@ -264,3 +264,10 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 	_, err := r.DB.Exec(query, args...)
 	return err
 }
+
+// UpdateStatus: Hàm phụ trợ để cập nhật trạng thái máy
+func (r *PhoneRepo) UpdateStatus(id int, status string) error {
+	query := `UPDATE phones SET status = ?, updated_at = NOW() WHERE id = ?`
+	_, err := r.DB.Exec(query, status, id)
+	return err
+}

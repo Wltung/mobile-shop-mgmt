@@ -29,7 +29,7 @@ import { invoiceService } from '@/services/invoice.service'
 import { useToast } from '@/hooks/use-toast'
 import { Invoice } from '@/types/invoice'
 import { Phone } from '@/types/phone'
-import PhoneSearchSelect from './PhoneSearchSelect'
+import PhoneSearchSelect from '../PhoneSearchSelect'
 import { formatDateTimeForInput } from '@/lib/utils'
 
 interface Props {

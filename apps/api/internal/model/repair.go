@@ -5,9 +5,9 @@ import "time"
 // Repair Entity map với Database
 type Repair struct {
 	ID             int        `db:"id" json:"id"`
-	PhoneID        *int       `db:"phone_id" json:"phone_id"`               // Có thể NULL nếu là máy khách ngoài mang tới
-	CustomerID     *int       `db:"customer_id" json:"customer_id"`         // ID khách hàng mang máy đến
-	RepairType     string     `db:"repair_type" json:"repair_type"`         // NORMAL hoặc WARRANTY
+	PhoneID        *int       `db:"phone_id" json:"phone_id"`       // Có thể NULL nếu là máy khách ngoài mang tới
+	CustomerID     *int       `db:"customer_id" json:"customer_id"` // ID khách hàng mang máy đến
+	RepairCategory string     `db:"repair_category" json:"repair_category"`
 	Description    *string    `db:"description" json:"description"`         // Tình trạng máy, lỗi...
 	PartCost       *int64     `db:"part_cost" json:"part_cost"`             // Tiền linh kiện dự kiến
 	RepairPrice    *int64     `db:"repair_price" json:"repair_price"`       // Tiền công + tổng báo giá dự kiến
@@ -31,10 +31,10 @@ type CreateRepairInput struct {
 	DevicePassword string `json:"device_password"` // Mật khẩu màn hình
 
 	// Chi tiết sửa chữa
-	RepairType  string `json:"repair_type" binding:"required,oneof=NORMAL WARRANTY"`
-	Description string `json:"description"` // Mô tả lỗi báo khách
-	PartCost    *int64 `json:"part_cost" binding:"omitempty,min=0"`
-	RepairPrice *int64 `json:"repair_price" binding:"omitempty,min=0"`
+	RepairCategory string `json:"repair_category" binding:"required,oneof=SHOP_DEVICE_REPAIR CUSTOMER_DEVICE_REPAIR"`
+	Description    string `json:"description"` // Mô tả lỗi báo khách
+	PartCost       *int64 `json:"part_cost" binding:"omitempty,min=0"`
+	RepairPrice    *int64 `json:"repair_price" binding:"omitempty,min=0"`
 }
 
 // Input để cập nhật Phiếu sửa chữa (Thêm chi phí thực tế, đổi tình trạng)
@@ -43,7 +43,7 @@ type UpdateRepairInput struct {
 	DevicePassword *string `json:"device_password"`
 	PartCost       *int64  `json:"part_cost" binding:"omitempty,min=0"`
 	RepairPrice    *int64  `json:"repair_price" binding:"omitempty,min=0"`
-	RepairType     *string `json:"repair_type" binding:"omitempty,oneof=NORMAL WARRANTY"`
+	RepairCategory *string `json:"repair_category" binding:"omitempty,oneof=SHOP_DEVICE_REPAIR CUSTOMER_DEVICE_REPAIR"`
 	Status         *string `json:"status" binding:"omitempty,oneof=PENDING REPAIRING WAITING_CUSTOMER COMPLETED DELIVERED"`
 	InvoiceID      *int    `json:"invoice_id"`
 }

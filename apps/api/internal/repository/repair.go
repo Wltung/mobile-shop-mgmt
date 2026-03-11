@@ -18,11 +18,11 @@ func NewRepairRepo(db *sqlx.DB) *RepairRepo {
 func (r *RepairRepo) Create(repair model.Repair) (int, error) {
 	query := `
 		INSERT INTO repairs (
-			phone_id, customer_id, repair_type, 
+			phone_id, customer_id, repair_category, 
 			description, part_cost, repair_price, 
 			device_password, created_at
 		) VALUES (
-			:phone_id, :customer_id, :repair_type, 
+			:phone_id, :customer_id, :repair_category, 
 			:description, :part_cost, :repair_price, 
 			:device_password, NOW()
 		)
@@ -44,7 +44,7 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 			device_password = COALESCE(?, device_password),
 			part_cost = COALESCE(?, part_cost),
 			repair_price = COALESCE(?, repair_price),
-			repair_type = COALESCE(?, repair_type),
+			repair_category = COALESCE(?, repair_category),
 			status = COALESCE(?, status),
 			invoice_id = COALESCE(?, invoice_id),
 			updated_at = NOW()
@@ -55,7 +55,7 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 		input.DevicePassword,
 		input.PartCost,
 		input.RepairPrice,
-		input.RepairType,
+		input.RepairCategory,
 		input.Status,
 		input.InvoiceID,
 		id,

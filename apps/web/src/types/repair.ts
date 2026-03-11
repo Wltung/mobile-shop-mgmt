@@ -2,14 +2,13 @@
 
 import { PaginationMeta } from "./common"
 
-export type RepairType = 'NORMAL' | 'WARRANTY'
 export type RepairStatus = 'PENDING' | 'REPAIRING' | 'WAITING_CUSTOMER' | 'COMPLETED' | 'DELIVERED'
 
 export interface Repair {
     id: number
     phone_id?: number | null
     customer_id?: number | null
-    repair_type: RepairType
+    repair_category: string
     description?: string
     part_cost?: number
     repair_price?: number

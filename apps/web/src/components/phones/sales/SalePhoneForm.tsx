@@ -29,7 +29,7 @@ import { salePhoneSchema, SaleFormValues, defaultSaleValues } from './schema'
 import { invoiceService } from '@/services/invoice.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
-import PhoneSearchSelect from './PhoneSearchSelect'
+import PhoneSearchSelect from '../PhoneSearchSelect'
 
 interface Props {
     onSuccess: () => void
