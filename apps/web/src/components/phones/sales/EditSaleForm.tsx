@@ -48,7 +48,9 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
     // State lưu thông tin máy đang được chọn (để update UI Màu/Tình trạng)
     const [selectedPhoneDetails, setSelectedPhoneDetails] = useState<{
         color?: string,
-        appearance?: string
+        appearance?: string,
+        ram?: string,
+        storage?: string
     } | null>(null)
 
     const [originalPhonePrice, setOriginalPhonePrice] = useState<number>(
@@ -59,7 +61,9 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         if (currentPhoneItem) {
             setSelectedPhoneDetails({
                 color: currentPhoneItem.phone_details?.color,
-                appearance: currentPhoneItem.phone_details?.appearance
+                appearance: currentPhoneItem.phone_details?.appearance,
+                ram: currentPhoneItem.phone_details?.ram,         
+                storage: currentPhoneItem.phone_details?.storage
             })
         }
     }, [currentPhoneItem])
@@ -74,6 +78,7 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
             payment_method: invoice.payment_method || 'CASH',
             payment_status: invoice.status === 'PAID' ? 'PAID' : 'DRAFT',
             note: invoice.note || '',
+            phone_id: currentPhoneItem?.phone_id || 0,
             actual_sale_price: String(invoice.total_amount || 0),
             warranty: String(invoice.items?.[0]?.warranty_months || '6'),
         },
@@ -83,9 +88,11 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
     const handleSelectPhone = (phone: Phone) => {
         setSelectedPhoneDetails({
             color: phone.details?.color,
-            appearance: phone.details?.appearance
+            appearance: phone.details?.appearance,
+            ram: phone.details?.ram,  
+            storage: phone.details?.storage
         })
-        form.setValue('phone_id', phone.id) 
+        form.setValue('phone_id', phone.id, { shouldDirty: true, shouldValidate: true })
         if (phone.sale_price) {
             form.setValue('actual_sale_price', String(phone.sale_price))
             setOriginalPhonePrice(phone.sale_price)
@@ -176,7 +183,7 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className={labelClass}>Họ tên khách hàng</FormLabel>
-                                        <FormControl><Input {...field} className={inputClass} disabled={isLocked} /></FormControl>
+                                        <FormControl><Input {...field} className={inputClass} disabled={isLocked} placeholder='Nguyễn...' /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -187,7 +194,7 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className={labelClass}>Số điện thoại</FormLabel>
-                                        <FormControl><Input {...field} className={inputClass} disabled={isLocked} /></FormControl>
+                                        <FormControl><Input {...field} className={inputClass} disabled={isLocked} placeholder='09xxxxxxx' /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -243,8 +250,12 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                             {/* HÀNG 2: Tình trạng - Bảo hành */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5">
-                                    <label className={labelClass}>Tình trạng máy</label>
-                                    <Input readOnly value={selectedPhoneDetails?.appearance || '---'} className={`${inputClass} bg-slate-100 text-slate-500`} />
+                                    <label className={labelClass}>
+                                        RAM / Dung lượng
+                                    </label>
+                                    <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+                                        {selectedPhoneDetails?.ram || '---'} / {selectedPhoneDetails?.storage || '---'}
+                                    </div>
                                 </div>
                                 <FormField
                                     control={form.control}

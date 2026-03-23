@@ -7,7 +7,6 @@ export type RepairStatus = 'PENDING' | 'REPAIRING' | 'WAITING_CUSTOMER' | 'COMPL
 export interface Repair {
     id: number
     phone_id?: number | null
-    customer_id?: number | null
     repair_category: string
     description?: string
     part_cost?: number

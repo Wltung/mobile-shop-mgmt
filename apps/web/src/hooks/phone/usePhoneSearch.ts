@@ -1,4 +1,4 @@
-// src/hooks/usePhoneSearch.ts
+// src/hooks/phone/usePhoneSearch.ts
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { debounce } from 'lodash'
 import { phoneService } from '@/services/phone.service'
@@ -7,14 +7,18 @@ import { Phone } from '@/types/phone'
 interface UsePhoneSearchProps {
     status?: string
     hasSalePrice?: boolean
+    invoiceStatus?: string // <-- Thêm Props
 }
 
-export const usePhoneSearch = ({ status = 'IN_STOCK', hasSalePrice = true }: UsePhoneSearchProps = {}) => {
+export const usePhoneSearch = ({ 
+    status = 'IN_STOCK', 
+    hasSalePrice = true, 
+    invoiceStatus = 'PAID' // <-- Mặc định chỉ tìm máy Đã chốt
+}: UsePhoneSearchProps = {}) => {
     const [isSearching, setIsSearching] = useState(false)
     const [searchResults, setSearchResults] = useState<Phone[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     
-    // Ref giúp đóng dropdown khi click ra ngoài
     const containerRef = useRef<HTMLDivElement>(null)
 
     const handleSearch = useMemo(
@@ -34,6 +38,7 @@ export const usePhoneSearch = ({ status = 'IN_STOCK', hasSalePrice = true }: Use
                         limit: 5,
                         page: 1,
                         has_sale_price: hasSalePrice,
+                        invoice_status: invoiceStatus, // <-- Gửi xuống API
                     })
                     setSearchResults(res.data ?? [])
                 } catch (error) {
@@ -42,7 +47,7 @@ export const usePhoneSearch = ({ status = 'IN_STOCK', hasSalePrice = true }: Use
                     setIsSearching(false)
                 }
             }, 500),
-        [status],
+        [status, hasSalePrice, invoiceStatus],
     )
 
     const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +64,6 @@ export const usePhoneSearch = ({ status = 'IN_STOCK', hasSalePrice = true }: Use
         setSearchResults([])
     }
 
-    // Đóng dropdown khi click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (

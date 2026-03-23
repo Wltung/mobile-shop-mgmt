@@ -25,6 +25,7 @@ export interface Phone {
     invoice_code?: string
     invoice_id?: number
     source_id?: number
+    payment_method?: string
 }
 
 export interface CreatePhoneResponse {
@@ -47,4 +48,5 @@ export interface PhoneFilterParams {
     start_date?: string
     end_date?: string
     has_sale_price?: boolean
+    invoice_status?: string
 }

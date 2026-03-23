@@ -72,18 +72,14 @@ export default function ImportPage() {
             header: 'ĐỜI MÁY',
             accessorKey: 'model_name',
             cell: (item) => (
-                <span className="font-medium text-slate-900">
-                    {item.model_name}
-                </span>
-            ),
-        },
-        {
-            header: 'IMEI',
-            accessorKey: 'imei',
-            cell: (item) => (
-                <span className="font-mono font-bold text-slate-700">
-                    {item.imei}
-                </span>
+                <div className="flex flex-col">
+                    <span className="font-bold text-slate-900">
+                        {item.model_name}
+                    </span>
+                    <span className="font-mono text-xs text-slate-500">
+                        {item.imei}
+                    </span>
+                </div>
             ),
         },
         {
@@ -113,7 +109,7 @@ export default function ImportPage() {
             ),
         },
         {
-            header: 'TRẠNG THÁI',
+            header: 'TRẠNG THÁI MÁY',
             accessorKey: 'status',
             className: 'text-center',
             cell: (item) => {
@@ -133,6 +129,37 @@ export default function ImportPage() {
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[item.status]}`}
                         >
                             {labels[item.status] || item.status}
+                        </span>
+                    </div>
+                )
+            },
+        },
+        {
+            header: 'HOÁ ĐƠN',
+            accessorKey: 'invoice_status',
+            className: 'text-center',
+            cell: (item) => {
+                const status = item.invoice_status || 'DRAFT'
+                const config = {
+                    PAID: {
+                        label: 'Đã chốt',
+                        class: 'bg-blue-100 text-blue-700',
+                    },
+                    DRAFT: {
+                        label: 'Lưu nháp',
+                        class: 'bg-amber-100 text-amber-700',
+                    },
+                    CANCELLED: {
+                        label: 'Đã huỷ',
+                        class: 'bg-red-100 text-red-700',
+                    },
+                }
+                const current = config[status as keyof typeof config] || config.DRAFT
+
+                return (
+                    <div className="flex justify-center">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${current.class}`}>
+                            {current.label}
                         </span>
                     </div>
                 )

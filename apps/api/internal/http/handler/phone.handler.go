@@ -27,33 +27,6 @@ func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 		return
 	}
 
-	// --- LẤY USER ID TỪ CONTEXT (Do Middleware Auth gắn vào) ---
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	userID := int(userIDFloat.(float64)) // Ép kiểu về int
-
-	// Truyền userID vào Service
-	phoneID, sourceID, err := h.Service.ImportPhone(input, userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message":   "Nhập kho thành công",
-		"phone_id":  phoneID,
-		"source_id": sourceID, // Trả về ID khách để FE tạo hóa đơn
-	})
-}
-
-func (h *PhoneHandler) handleGetList(
-	c *gin.Context,
-	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, error),
-) {
-	// 1. Lấy UserID
 	userIDFloat, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -61,13 +34,33 @@ func (h *PhoneHandler) handleGetList(
 	}
 	userID := int(userIDFloat.(float64))
 
-	// 2. Bind Filter & Set Default
-	var filter model.PhoneFilter
-	if err := c.ShouldBindQuery(&filter); err != nil {
-		// Log lỗi nếu cần, nhưng vẫn tiếp tục với default
+	phoneID, err := h.Service.ImportPhone(input, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	// Đảm bảo pagination hợp lệ (nếu user không gửi hoặc gửi 0)
+	c.JSON(http.StatusCreated, gin.H{
+		"message":  "Nhập kho thành công",
+		"phone_id": phoneID,
+	})
+}
+
+func (h *PhoneHandler) handleGetList(
+	c *gin.Context,
+	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, error),
+) {
+	userIDFloat, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID := int(userIDFloat.(float64))
+
+	var filter model.PhoneFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+	}
+
 	if filter.Page <= 0 {
 		filter.Page = 1
 	}
@@ -75,20 +68,17 @@ func (h *PhoneHandler) handleGetList(
 		filter.Limit = 5
 	}
 
-	// 3. Gọi Service cụ thể (được truyền vào từ tham số)
 	phones, total, totalValue, err := serviceFunc(userID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
 	}
 
-	// 4. Tính toán phân trang
 	totalPages := 0
 	if filter.Limit > 0 {
 		totalPages = (total + filter.Limit - 1) / filter.Limit
 	}
 
-	// 5. Trả về kết quả
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Lấy dữ liệu thành công",
 		"data":    phones,
@@ -102,19 +92,15 @@ func (h *PhoneHandler) handleGetList(
 	})
 }
 
-// GET /api/phones (Quản lý nhập)
 func (h *PhoneHandler) GetImportPhones(c *gin.Context) {
 	h.handleGetList(c, h.Service.GetImportPhones)
 }
 
-// GET /api/phones/sales (Lịch sử bán)
 func (h *PhoneHandler) GetSalePhones(c *gin.Context) {
 	h.handleGetList(c, h.Service.GetSalePhones)
 }
 
-// GET /phones/:id
 func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
-	// 1. Lấy ID từ URL param
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -122,7 +108,6 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 		return
 	}
 
-	// 2. Lấy UserID từ Token (Middleware đã set)
 	userIDFloat, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
@@ -130,7 +115,6 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 	}
 	userID := int(userIDFloat.(float64))
 
-	// 3. Gọi Service
 	phone, err := h.Service.GetPhoneDetail(id, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -141,7 +125,6 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 		return
 	}
 
-	// 4. Trả về kết quả
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Thành công",
 		"data":    phone,
@@ -150,10 +133,9 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 
 func (h *PhoneHandler) UpdatePhone(c *gin.Context) {
 	idStr := c.Param("id")
-	id, _ := strconv.Atoi(idStr) // Bỏ qua check lỗi cơ bản cho gọn, thực tế nên check
+	id, _ := strconv.Atoi(idStr)
 
 	var input model.PhoneUpdateInput
-	// ShouldBindJSON sẽ map các field có trong JSON, field nào thiếu sẽ là nil
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

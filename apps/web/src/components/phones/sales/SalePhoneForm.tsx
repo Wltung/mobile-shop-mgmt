@@ -39,6 +39,7 @@ interface Props {
 export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const [selectedPhonePrice, setSelectedPhonePrice] = useState<number | null>(null)
+    const [selectedPhoneName, setSelectedPhoneName] = useState<string>('Điện thoại')
 
     const { toast } = useToast()
 
@@ -52,10 +53,9 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
 
     // --- LOGIC TÌM KIẾM MÁY ---
     const handleSelectPhone = (phone: Phone) => {
-        // 1. Cập nhật ID máy vào form
         form.setValue('phone_id', phone.id, { shouldValidate: true })
+        setSelectedPhoneName(phone.model_name)
 
-        // 2. Tự động điền giá bán nếu có
         if (phone.sale_price) {
             form.setValue('actual_sale_price', String(phone.sale_price))
             setSelectedPhonePrice(phone.sale_price)
@@ -68,35 +68,30 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     const onSubmit: SubmitHandler<SaleFormValues> = async (values) => {
         setIsLoading(true)
         try {
-            // LOGIC TRẠNG THÁI HOÁ ĐƠN:
-            // 1. create_invoice = FALSE (Tắt nút tạo) -> Status = DRAFT
-            // 2. create_invoice = TRUE nhưng payment_status = DRAFT -> Status = DRAFT
-            // 3. Chỉ khi create_invoice = TRUE và payment_status = PAID -> Status = PAID
             const finalStatus =
                 values.create_invoice && values.payment_status === 'PAID'
                     ? 'PAID'
                     : 'DRAFT'
 
-            const customerInfoNote = `\n--- THÔNG TIN KHÁCH HÀNG ---\nTên: ${values.customer_name}\nSĐT: ${values.customer_phone}\nHTTT: ${values.payment_method}`
+            // Format lại Note tránh bị undefined
+            const customerInfoNote = `\n--- THÔNG TIN KHÁCH HÀNG ---\nTên: ${values.customer_name || 'Khách lẻ'}\nSĐT: ${values.customer_phone || '---'}\nCCCD: ${values.customer_id_number || '---'}\nHTTT: ${values.payment_method}`
 
-            // Payload gửi lên API
             const payload = {
                 type: 'SALE',
                 status: finalStatus,
                 payment_method: values.payment_method,
                 discount: discountAmount > 0 ? discountAmount : 0,
 
-                // --- GỬI THÔNG TIN ĐỂ BE TỰ XỬ LÝ (KHÔNG CONFLICT) ---
                 customer_name: values.customer_name,
                 customer_phone: values.customer_phone,
-                // customer_id: null, // Để null để kích hoạt logic tìm/tạo bên BE
+                customer_id_number: values.customer_id_number, // Truyền CCCD xuống BE
 
                 note: (values.note || '') + customerInfoNote,
                 items: [
                     {
                         item_type: 'PHONE',
                         phone_id: values.phone_id,
-                        description: 'Điện thoại',
+                        description: selectedPhoneName,
                         quantity: 1,
                         unit_price: Number(values.actual_sale_price),
                         warranty_months: Number(values.warranty),
@@ -139,21 +134,19 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                         <h4 className="mb-4 border-b border-slate-100 pb-2 text-xs font-bold uppercase tracking-wider text-primary">
                             Thông tin khách hàng
                         </h4>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {/* CHIA 3 CỘT VÀ BỎ DẤU SAO BẮT BUỘC */}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <FormField
                                 control={form.control}
                                 name="customer_name"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className={labelClass}>
-                                            Họ tên khách hàng{' '}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
+                                            Họ tên
                                         </FormLabel>
                                         <FormControl>
                                             <Input
-                                                placeholder="Nhập tên khách hàng"
+                                                placeholder="Khách lẻ"
                                                 {...field}
                                                 className={inputClass}
                                             />
@@ -168,14 +161,30 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className={labelClass}>
-                                            Số điện thoại{' '}
-                                            <span className="text-red-500">
-                                                *
-                                            </span>
+                                            Số điện thoại
                                         </FormLabel>
                                         <FormControl>
                                             <Input
                                                 placeholder="09xxxxxx"
+                                                {...field}
+                                                className={inputClass}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="customer_id_number"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={labelClass}>
+                                            Số CCCD
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="12 số CCCD..."
                                                 {...field}
                                                 className={inputClass}
                                             />
@@ -193,7 +202,6 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                             Thông tin máy bán
                         </h4>
                         <div className="space-y-4">
-                            {/* --- THAY THẾ TOÀN BỘ LOGIC SEARCH CŨ BẰNG COMPONENT NÀY --- */}
                             <FormField
                                 control={form.control}
                                 name="phone_id"
@@ -206,7 +214,6 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                                 error={fieldState.error?.message}
                                             />
                                         </FormControl>
-                                        {/* Không cần FormMessage ở đây vì component đã handle hiển thị error */}
                                     </FormItem>
                                 )}
                             />
@@ -272,17 +279,10 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="0">
-                                                        Không bảo hành
-                                                    </SelectItem>
-                                                    <SelectItem value="3">
-                                                        3 tháng</SelectItem>
-                                                    <SelectItem value="6">
-                                                        6 tháng
-                                                    </SelectItem>
-                                                    <SelectItem value="12">
-                                                        12 tháng
-                                                    </SelectItem>
+                                                    <SelectItem value="0">Không bảo hành</SelectItem>
+                                                    <SelectItem value="3">3 tháng</SelectItem>
+                                                    <SelectItem value="6">6 tháng</SelectItem>
+                                                    <SelectItem value="12">12 tháng</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </FormItem>
@@ -311,22 +311,14 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                             defaultValue={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger
-                                                    className={inputClass}
-                                                >
+                                                <SelectTrigger className={inputClass}>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="CASH">
-                                                    Tiền mặt
-                                                </SelectItem>
-                                                <SelectItem value="TRANSFER">
-                                                    Chuyển khoản
-                                                </SelectItem>
-                                                <SelectItem value="CARD">
-                                                    Quẹt thẻ
-                                                </SelectItem>
+                                                <SelectItem value="CASH">Tiền mặt</SelectItem>
+                                                <SelectItem value="TRANSFER">Chuyển khoản</SelectItem>
+                                                <SelectItem value="CARD">Quẹt thẻ</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </FormItem>
@@ -345,19 +337,13 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                             defaultValue={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger
-                                                    className={inputClass}
-                                                >
+                                                <SelectTrigger className={inputClass}>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="PAID">
-                                                    Đã thanh toán
-                                                </SelectItem>
-                                                <SelectItem value="DRAFT">
-                                                    Chờ thanh toán
-                                                </SelectItem>
+                                                <SelectItem value="PAID">Đã thanh toán</SelectItem>
+                                                <SelectItem value="DRAFT">Chờ thanh toán</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </FormItem>
@@ -387,9 +373,8 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                     </section>
                 </div>
 
-                {/* FOOTER: Chứa Create Invoice Toggle và Buttons */}
+                {/* FOOTER */}
                 <div className="flex items-center justify-between rounded-b-xl border-t border-slate-200 bg-slate-50 px-6 py-4">
-                    {/* 1. TẠO HOÁ ĐƠN */}
                     <FormField
                         control={form.control}
                         name="create_invoice"
@@ -408,7 +393,6 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                         )}
                     />
 
-                    {/* 2. BUTTONS */}
                     <div className="flex items-center gap-3">
                         <Button
                             type="button"

@@ -4,14 +4,18 @@ import "time"
 
 // Repair Entity map với Database
 type Repair struct {
-	ID             int        `db:"id" json:"id"`
-	PhoneID        *int       `db:"phone_id" json:"phone_id"`       // Có thể NULL nếu là máy khách ngoài mang tới
-	CustomerID     *int       `db:"customer_id" json:"customer_id"` // ID khách hàng mang máy đến
+	ID      int  `db:"id" json:"id"`
+	PhoneID *int `db:"phone_id" json:"phone_id"`
+
+	// Thay thế CustomerID bằng các trường Text
+	CustomerName  *string `db:"customer_name" json:"customer_name"`
+	CustomerPhone *string `db:"customer_phone" json:"customer_phone"`
+
 	RepairCategory string     `db:"repair_category" json:"repair_category"`
-	Description    *string    `db:"description" json:"description"`         // Tình trạng máy, lỗi...
-	PartCost       *int64     `db:"part_cost" json:"part_cost"`             // Tiền linh kiện dự kiến
-	RepairPrice    *int64     `db:"repair_price" json:"repair_price"`       // Tiền công + tổng báo giá dự kiến
-	DevicePassword *string    `db:"device_password" json:"device_password"` // Mật khẩu máy
+	Description    *string    `db:"description" json:"description"`
+	PartCost       *int64     `db:"part_cost" json:"part_cost"`
+	RepairPrice    *int64     `db:"repair_price" json:"repair_price"`
+	DevicePassword *string    `db:"device_password" json:"device_password"`
 	Status         string     `db:"status" json:"status"`
 	InvoiceID      *int       `db:"invoice_id" json:"invoice_id"`
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
@@ -20,24 +24,21 @@ type Repair struct {
 
 // Input để tạo Phiếu sửa chữa mới
 type CreateRepairInput struct {
-	// Thông tin khách hàng (Bắt buộc phải có Tên để liên hệ trả máy)
 	CustomerName     string `json:"customer_name" binding:"required"`
 	CustomerPhone    string `json:"customer_phone"`
 	CustomerIDNumber string `json:"customer_id_number"`
 
-	// Thông tin thiết bị
-	PhoneID        *int   `json:"phone_id"`        // Trỏ ID máy nếu máy từng mua ở cửa hàng
-	DeviceName     string `json:"device_name"`     // Tên máy (nếu PhoneID null - khách ngoài)
-	DevicePassword string `json:"device_password"` // Mật khẩu màn hình
+	PhoneID        *int   `json:"phone_id"`
+	DeviceName     string `json:"device_name"`
+	DevicePassword string `json:"device_password"`
 
-	// Chi tiết sửa chữa
 	RepairCategory string `json:"repair_category" binding:"required,oneof=SHOP_DEVICE_REPAIR CUSTOMER_DEVICE_REPAIR"`
-	Description    string `json:"description"` // Mô tả lỗi báo khách
+	Description    string `json:"description"`
 	PartCost       *int64 `json:"part_cost" binding:"omitempty,min=0"`
 	RepairPrice    *int64 `json:"repair_price" binding:"omitempty,min=0"`
 }
 
-// Input để cập nhật Phiếu sửa chữa (Thêm chi phí thực tế, đổi tình trạng)
+// Input để cập nhật Phiếu sửa chữa
 type UpdateRepairInput struct {
 	Description    *string `json:"description"`
 	DevicePassword *string `json:"device_password"`
@@ -48,7 +49,6 @@ type UpdateRepairInput struct {
 	InvoiceID      *int    `json:"invoice_id"`
 }
 
-// Thêm struct gom nhóm tham số Filter (Giống PhoneFilter)
 type RepairFilter struct {
 	Page      int    `form:"page"`
 	Limit     int    `form:"limit"`
@@ -58,13 +58,10 @@ type RepairFilter struct {
 	EndDate   string `form:"end_date"`
 }
 
-// Thêm struct mở rộng dùng riêng cho danh sách (chứa các trường JOIN)
 type RepairListItem struct {
-	Repair // Nhúng toàn bộ field của Repair
+	Repair // Nhúng toàn bộ field của Repair (bao gồm cả CustomerName, CustomerPhone)
 
-	CustomerName  *string `db:"customer_name" json:"customer_name"`
-	CustomerPhone *string `db:"customer_phone" json:"customer_phone"`
-	PhoneModel    *string `db:"phone_model" json:"-"` // Giấu đi, FE không cần
+	PhoneModel *string `db:"phone_model" json:"-"` // Giấu đi, FE không cần
 
 	// Field tự tính toán trong Service
 	DeviceName string `json:"device_name"`

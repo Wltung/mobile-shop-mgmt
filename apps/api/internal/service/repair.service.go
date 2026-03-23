@@ -10,46 +10,27 @@ import (
 )
 
 type RepairService struct {
-	Repo            *repository.RepairRepo
-	CustomerService *CustomerService // Dùng chung CustomerService để định danh
-	InvoiceService  *InvoiceService
-	PhoneService    *PhoneService
+	Repo           *repository.RepairRepo
+	InvoiceService *InvoiceService
+	PhoneService   *PhoneService
 }
 
-func NewRepairService(repo *repository.RepairRepo, custService *CustomerService, invService *InvoiceService, phoneService *PhoneService) *RepairService {
+func NewRepairService(repo *repository.RepairRepo, invService *InvoiceService, phoneService *PhoneService) *RepairService {
 	return &RepairService{
-		Repo:            repo,
-		CustomerService: custService,
-		InvoiceService:  invService,
-		PhoneService:    phoneService,
+		Repo:           repo,
+		InvoiceService: invService,
+		PhoneService:   phoneService,
 	}
 }
 
 // CreateRepairTicket: Tạo phiếu nhận máy
 func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID int) (int, error) {
-	// 1. XỬ LÝ ĐỊNH DANH KHÁCH HÀNG (Qua CustomerService)
-	custInput := model.CustomerIdentityInput{
-		Name:     input.CustomerName,
-		Phone:    input.CustomerPhone,
-		IDNumber: input.CustomerIDNumber,
-	}
-
-	// Gọi CustomerService với context "REPAIR"
-	// Khách đem máy tới sửa bắt buộc phải có thông tin để còn gọi ra nhận máy
-	custIDPtr, err := s.CustomerService.HandleCustomerForInvoice("REPAIR", custInput, userID)
-	if err != nil {
-		return 0, err
-	}
-
-	// 2. CHUẨN BỊ MÔ TẢ (Xử lý máy vãng lai)
+	// 1. CHUẨN BỊ MÔ TẢ (Xử lý máy vãng lai)
 	description := input.Description
-	// Nếu máy là khách mang từ ngoài vào (PhoneID = nil) mà có nhập DeviceName
-	// Ta sẽ nối DeviceName vào Description để thợ biết đang sửa máy gì.
 	if input.PhoneID == nil && input.DeviceName != "" {
 		description = "[Máy ngoài: " + input.DeviceName + "] " + description
 	}
 
-	// Helper chuyển string rỗng sang nil pointer cho DB
 	var descPtr *string
 	if description != "" {
 		descPtr = &description
@@ -59,10 +40,20 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 		passPtr = &input.DevicePassword
 	}
 
-	// 3. MAP VÀO MODEL REPAIR
+	var cName *string
+	if input.CustomerName != "" {
+		cName = &input.CustomerName
+	}
+	var cPhone *string
+	if input.CustomerPhone != "" {
+		cPhone = &input.CustomerPhone
+	}
+
+	// 2. MAP VÀO MODEL REPAIR
 	repair := model.Repair{
 		PhoneID:        input.PhoneID,
-		CustomerID:     custIDPtr,
+		CustomerName:   cName,
+		CustomerPhone:  cPhone,
 		RepairCategory: input.RepairCategory,
 		Description:    descPtr,
 		PartCost:       input.PartCost,
@@ -70,20 +61,16 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 		DevicePassword: passPtr,
 	}
 
-	// 4. LƯU VÀO DB
+	// 3. LƯU VÀO DB
 	repairID, err := s.Repo.Create(repair)
 	if err != nil {
 		return 0, err
 	}
 
-	// ---------------------------------------------------------
-	// 5. LOGIC KHOÁ MÁY KHO: Đổi trạng thái thành REPAIRING
-	// ---------------------------------------------------------
+	// 4. LOGIC KHOÁ MÁY KHO: Đổi trạng thái thành REPAIRING
 	if input.RepairCategory == "SHOP_DEVICE_REPAIR" && input.PhoneID != nil {
-		// Gọi chéo sang PhoneService để đổi trạng thái
 		errStatus := s.PhoneService.UpdatePhoneStatus(*input.PhoneID, "REPAIRING")
 		if errStatus != nil {
-			// In ra log lỗi nếu cần, nhưng không return err để không làm huỷ phiếu sửa chữa đã tạo
 			fmt.Printf("Lỗi khi khoá máy %d sang REPAIRING: %v\n", *input.PhoneID, errStatus)
 		}
 	}
@@ -91,9 +78,7 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 	return repairID, nil
 }
 
-// UpdateRepairTicket: Sửa thông tin phiếu nhận (VD: Báo giá lại, cập nhật lỗi)
 func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput) error {
-	// 1. Kiểm tra tồn tại
 	existingRepair, err := s.Repo.GetByID(id)
 	if err != nil {
 		return err
@@ -101,18 +86,14 @@ func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput
 	if existingRepair == nil {
 		return errors.New("phiếu sửa chữa không tìm thấy")
 	}
-	// Ở bước này chỉ update giá/lỗi, KHÔNG sửa thông tin khách (thông tin khách sẽ sửa ở tab Khách hàng nếu cần)
 	return s.Repo.Update(id, input)
 }
 
-// Lấy chi tiết phiếu sửa chữa
 func (s *RepairService) GetRepairDetail(id int) (*model.RepairListItem, error) {
 	return s.Repo.GetByID(id)
 }
 
-// GetRepairs: Lấy danh sách và format dữ liệu trả về cho Frontend
 func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairListItem, int, map[string]int, error) {
-	// 1. Validate cơ bản
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -120,21 +101,17 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 		filter.Limit = 10
 	}
 
-	// 2. Gọi xuống Repo lấy dữ liệu thô
 	items, total, err := s.Repo.GetAll(filter)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	// 3. Xử lý logic hiển thị Tên máy (DeviceName)
 	for i := range items {
 		items[i].DeviceName = "---"
 
 		if items[i].PhoneModel != nil {
-			// Máy của quán
 			items[i].DeviceName = *items[i].PhoneModel
 		} else if items[i].Description != nil {
-			// Bóc tách tên máy từ chuỗi ghi chú (Máy vãng lai)
 			desc := *items[i].Description
 			if strings.HasPrefix(desc, "[Máy ngoài: ") {
 				endIdx := strings.Index(desc, "]")
@@ -145,7 +122,6 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 		}
 	}
 
-	// 4. Lấy thống kê
 	repairingCount, completedCount, _ := s.Repo.GetStats()
 	stats := map[string]int{
 		"repairingCount":      repairingCount,
@@ -155,9 +131,7 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 	return items, total, stats, nil
 }
 
-// Xử lý Hoàn thành phiếu sửa & Xuất hoá đơn
 func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
-	// 1. Lấy thông tin phiếu sửa
 	repair, err := s.Repo.GetByID(id)
 	if err != nil {
 		return 0, err
@@ -170,7 +144,6 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		return *repair.InvoiceID, nil
 	}
 
-	// 2 & 3. Gộp chung logic duyệt Description để bóc tách Tên thiết bị và Linh kiện
 	deviceName := "Thiết bị sửa chữa"
 	if repair.PhoneModel != nil {
 		deviceName = *repair.PhoneModel
@@ -178,32 +151,26 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 
 	var items []model.CreateItemInput
 	hasParsedParts := false
-
 	var discountAmount int64 = 0
 	hasLaborWarranty := false
 
 	if repair.Description != nil {
-		// Cắt nội dung thành từng dòng để xử lý trong 1 vòng lặp duy nhất
 		lines := strings.Split(*repair.Description, "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 
-			// 2.1 Bóc tách Tên thiết bị (Nếu là máy ngoài)
 			if repair.PhoneModel == nil && strings.HasPrefix(line, "[Máy ngoài: ") {
 				endIdx := strings.Index(line, "]")
 				if endIdx > -1 {
-					// Dùng TrimPrefix thay vì cắt index cứng [14:endIdx] sẽ an toàn hơn với Unicode
 					nameStr := strings.TrimPrefix(line[:endIdx], "[Máy ngoài: ")
 					deviceName = strings.TrimSpace(nameStr)
 				}
 			}
 
-			// 2.2 Bóc tách Linh kiện
 			if strings.HasPrefix(line, "- Linh kiện: ") {
 				content := strings.TrimPrefix(line, "- Linh kiện: ")
 				parts := strings.Split(content, "|")
 
-				// Cấu trúc: Tên | Giá | Bảo Hành
 				if len(parts) >= 3 {
 					name := strings.TrimSpace(parts[0])
 					priceStr := strings.TrimSpace(parts[1])
@@ -226,7 +193,6 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		}
 	}
 
-	// 3.1 DỰ PHÒNG: Nếu không bóc tách được linh kiện nào (do phiếu cũ), dùng tạm Tổng tiền linh kiện
 	if !hasParsedParts && repair.PartCost != nil && *repair.PartCost > 0 {
 		items = append(items, model.CreateItemInput{
 			ItemType:    model.ItemTypePart,
@@ -237,7 +203,6 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		})
 	}
 
-	// 3.2 TIỀN CÔNG THỢ (Bỏ riêng thành 1 dòng dịch vụ)
 	if repair.RepairPrice != nil && *repair.RepairPrice > 0 {
 		laborDesc := "Công sửa chữa: " + deviceName
 		if hasLaborWarranty {
@@ -260,7 +225,7 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 			PhoneID:        repair.PhoneID,
 			Description:    "Giảm giá dịch vụ",
 			Quantity:       1,
-			UnitPrice:      -discountAmount, // Dùng số âm để trừ vào tổng hoá đơn
+			UnitPrice:      -discountAmount,
 			WarrantyMonths: 0,
 		})
 	}
@@ -269,7 +234,6 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		return 0, errors.New("phiếu sửa chữa chưa có chi phí (Linh kiện/Tiền công) nên không thể xuất hoá đơn")
 	}
 
-	// 4. Gọi InvoiceService tạo Hoá đơn
 	cName := "Khách vãng lai"
 	if repair.CustomerName != nil {
 		cName = *repair.CustomerName
@@ -294,7 +258,6 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		return 0, fmt.Errorf("lỗi khi tạo hoá đơn: %v", err)
 	}
 
-	// 5. Cập nhật trạng thái Phiếu sửa thành COMPLETED
 	statusCompleted := "COMPLETED"
 	err = s.Repo.Update(id, model.UpdateRepairInput{
 		Status:    &statusCompleted,

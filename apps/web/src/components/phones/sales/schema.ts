@@ -3,11 +3,14 @@ import * as z from 'zod'
 
 export const salePhoneBase = z.object({
     // --- KHÁCH HÀNG ---
-    customer_name: z.string().min(1, 'Vui lòng nhập tên khách hàng'),
+    customer_name: z.string().optional(),
     customer_phone: z
         .string()
-        .min(1, 'Vui lòng nhập số điện thoại')
-        .regex(/(84|0[3|5|7|8|9])+([0-9]{8})\b/g, 'Số điện thoại không hợp lệ'),
+        .optional()
+        .refine((val) => !val || /(84|0[3|5|7|8|9])+([0-9]{8})\b/g.test(val), {
+            message: 'Số điện thoại không hợp lệ',
+        }),
+    customer_id_number: z.string().optional(),
 
     // --- MÁY BÁN ---
     phone_id: z.number().optional(),
@@ -47,6 +50,7 @@ export type EditSaleFormValues = z.infer<typeof editSaleSchema>
 export const defaultSaleValues: SaleFormValues = {
     customer_name: '',
     customer_phone: '',
+    customer_id_number: '',
     phone_id: 0,
     actual_sale_price: '',
     warranty: '6', // Mặc định 6 tháng

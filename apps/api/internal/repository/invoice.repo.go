@@ -2,7 +2,6 @@ package repository
 
 import (
 	"api/internal/model"
-	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -16,25 +15,24 @@ func NewInvoiceRepo(db *sqlx.DB) *InvoiceRepo {
 	return &InvoiceRepo{DB: db}
 }
 
-// CreateInvoice xử lý transaction tạo hóa đơn và item
 func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int, error) {
-	// 1. Bắt đầu Transaction
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return 0, err
 	}
-	// Defer rollback nếu có lỗi xảy ra
 	defer tx.Rollback()
 
-	// 2. Insert Invoice Header
+	// Insert Invoice Header (Lưu trực tiếp Text Khách hàng)
 	queryInv := `
 		INSERT INTO invoices (
             invoice_code, type, status, payment_method, 
-            customer_id, total_amount, discount, created_by, note, created_at
+            customer_name, customer_phone, customer_id_number, 
+            total_amount, discount, created_by, note, created_at
         )
 		VALUES (
             :invoice_code, :type, :status, :payment_method, 
-            :customer_id, :total_amount, :discount, :created_by, :note, :created_at
+            :customer_name, :customer_phone, :customer_id_number, 
+            :total_amount, :discount, :created_by, :note, :created_at
         )
 	`
 	res, err := tx.NamedExec(queryInv, inv)
@@ -43,17 +41,12 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	}
 	invoiceID, _ := res.LastInsertId()
 
-	// 3. Insert Invoice Items & Update Phone Status
 	queryItem := `
 		INSERT INTO invoice_items (invoice_id, item_type, phone_id, description, quantity, unit_price, amount, warranty_months, warranty_expiry)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	// Query update trạng thái máy (nếu bán)
-	queryPhoneSold := `UPDATE phones SET status = 'SOLD', sale_price = ?, sale_date = ? WHERE id = ?`
-
 	for _, item := range items {
-		// Tính ngày hết hạn bảo hành
 		var warrantyExpiry *time.Time
 		if item.WarrantyMonths > 0 {
 			t := inv.CreatedAt.AddDate(0, item.WarrantyMonths, 0)
@@ -68,17 +61,8 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 		if err != nil {
 			return 0, err
 		}
-
-		// LOGIC QUAN TRỌNG: Nếu là đơn BÁN và item là PHONE -> Cập nhật trạng thái máy
-		if inv.Type == model.InvoiceTypeSale && item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-			_, err := tx.Exec(queryPhoneSold, item.UnitPrice, inv.CreatedAt, *item.PhoneID)
-			if err != nil {
-				return 0, fmt.Errorf("không thể cập nhật trạng thái máy ID %d: %v", *item.PhoneID, err)
-			}
-		}
 	}
 
-	// 4. Commit Transaction
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
@@ -86,22 +70,17 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	return int(invoiceID), nil
 }
 
-// GetByID lấy chi tiết hóa đơn kèm items
 func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	var invoice model.Invoice
-	// Lấy Header
+	// Xoá JOIN customers, vì các cột customer_name,... đã nằm ngay trên bảng invoices
 	query := `
 		SELECT 
 			i.*, 
 			u.full_name as creator_name, 
-			c.name as customer_name, 
-			c.phone as customer_phone, 
-			c.id_number as customer_id_number,
-			r.id as repair_id -- <-- BỔ SUNG LẤY REPAIR ID
+			r.id as repair_id
 		FROM invoices i
 		LEFT JOIN users u ON i.created_by = u.id
-		LEFT JOIN customers c ON i.customer_id = c.id
-		LEFT JOIN repairs r ON r.invoice_id = i.id -- <-- BỔ SUNG JOIN BẢNG REPAIRS
+		LEFT JOIN repairs r ON r.invoice_id = i.id
 		WHERE i.id = ?
 	`
 	err := r.DB.Get(&invoice, query, id)
@@ -109,7 +88,6 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 		return nil, err
 	}
 
-	// Lấy Items
 	var items []model.InvoiceItem
 	queryItems := `
 		SELECT 
@@ -129,15 +107,9 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	return &invoice, nil
 }
 
-// Hàm đếm số hóa đơn trong ngày của một loại cụ thể (để tính sequence)
 func (r *InvoiceRepo) GetCountTodayByType(invType string) (int, error) {
 	var count int
-	// Đếm những hóa đơn có created_at trong ngày hôm nay VÀ cùng loại
-	query := `
-		SELECT COUNT(*) FROM invoices 
-		WHERE type = ? 
-		AND DATE(created_at) = DATE(NOW())
-	`
+	query := `SELECT COUNT(*) FROM invoices WHERE type = ? AND DATE(created_at) = DATE(NOW())`
 	err := r.DB.Get(&count, query, invType)
 	return count, err
 }
@@ -148,17 +120,14 @@ func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
 	return err
 }
 
-func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomerID *int) error {
+func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// ---------------------------------------------------------
-	// 1. UPDATE INVOICE HEADER
-	// ---------------------------------------------------------
-	// Sử dụng logic COALESCE(?, col): Nếu tham số là NULL, giữ nguyên giá trị cột cũ
+	// Update cả thông tin khách hàng nếu FE gửi lên
 	queryInv := `
 		UPDATE invoices 
 		SET payment_method = COALESCE(?, payment_method),
@@ -166,94 +135,45 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomer
 			note = COALESCE(?, note),
 			created_at = COALESCE(?, created_at),
 			discount = COALESCE(?, discount),
+			customer_name = COALESCE(?, customer_name),
+			customer_phone = COALESCE(?, customer_phone),
+			customer_id_number = COALESCE(?, customer_id_number),
 			updated_at = NOW()
+		WHERE id = ?
 	`
 
-	// Tạo slice chứa các tham số theo đúng thứ tự của dấu ?
 	args := []interface{}{
 		input.PaymentMethod,
 		input.Status,
 		input.Note,
 		input.CreatedAt,
 		input.Discount,
+		input.CustomerName,
+		input.CustomerPhone,
+		input.CustomerIDNumber,
+		id,
 	}
 
-	// Logic động: Nếu có newCustomerID -> thêm vào câu query
-	if newCustomerID != nil {
-		queryInv += `, customer_id = ?`
-		args = append(args, *newCustomerID)
-	}
-
-	// Thêm điều kiện WHERE
-	queryInv += ` WHERE id = ?`
-	args = append(args, id)
-
-	// Sử dụng Exec (thay vì NamedExec) vì chúng ta đã dùng ?
 	if _, err := tx.Exec(queryInv, args...); err != nil {
 		return err
 	}
 
-	// ---------------------------------------------------------
-	// 2. XỬ LÝ MÁY & NGÀY BÁN (PHONES TABLE)
-	// ---------------------------------------------------------
+	// Cập nhật thông tin vào bảng invoice_items
 	var currentItem struct {
 		ID      int `db:"id"`
 		PhoneID int `db:"phone_id"`
 	}
-	// Lấy Item loại PHONE
 	err = tx.Get(&currentItem, "SELECT id, phone_id FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1", id)
 
 	if err == nil {
-		targetPhoneID := currentItem.PhoneID
-		isPhoneSwapped := false
-
-		// A. Logic Đổi Máy (Nếu có gửi PhoneID và khác máy cũ)
 		if input.PhoneID != nil && *input.PhoneID != currentItem.PhoneID {
 			newPhoneID := *input.PhoneID
-
-			// 1. Trả máy cũ về kho (Revert)
-			_, err = tx.Exec("UPDATE phones SET status = 'IN_STOCK', sale_price = NULL, sale_date = NULL WHERE id = ?", currentItem.PhoneID)
-			if err != nil {
-				return err
-			}
-
-			// 2. Cập nhật Invoice Item trỏ sang máy mới
 			_, err = tx.Exec("UPDATE invoice_items SET phone_id = ?, description = (SELECT model_name FROM phones WHERE id = ?) WHERE id = ?", newPhoneID, newPhoneID, currentItem.ID)
 			if err != nil {
 				return err
 			}
-
-			targetPhoneID = newPhoneID
-			isPhoneSwapped = true
 		}
 
-		// B. Cập nhật thông tin máy đích (Target Phone)
-		updatePhoneQuery := `UPDATE phones SET status = 'SOLD', updated_at = NOW()`
-		var phoneArgs []interface{}
-
-		// - Update Giá bán (nếu có input)
-		if input.ActualSalePrice != "" {
-			updatePhoneQuery += `, sale_price = ?`
-			phoneArgs = append(phoneArgs, input.ActualSalePrice)
-		}
-
-		// - Update Ngày bán
-		// Ưu tiên ngày từ input.CreatedAt (SaleDate). Nếu không có nhưng là Đổi máy -> dùng NOW()
-		if input.CreatedAt != nil {
-			updatePhoneQuery += `, sale_date = ?`
-			phoneArgs = append(phoneArgs, *input.CreatedAt)
-		} else if isPhoneSwapped {
-			updatePhoneQuery += `, sale_date = NOW()`
-		}
-
-		updatePhoneQuery += ` WHERE id = ?`
-		phoneArgs = append(phoneArgs, targetPhoneID)
-
-		if _, err := tx.Exec(updatePhoneQuery, phoneArgs...); err != nil {
-			return err
-		}
-
-		// C. Cập nhật giá và bảo hành trong Invoice Items
 		updateItemQuery := `UPDATE invoice_items SET updated_at = NOW()`
 		var itemArgs []interface{}
 
@@ -273,7 +193,6 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomer
 			return err
 		}
 
-		// D. Cập nhật Tổng tiền hoá đơn
 		if input.ActualSalePrice != "" {
 			if _, err := tx.Exec("UPDATE invoices SET total_amount = ? WHERE id = ?", input.ActualSalePrice, id); err != nil {
 				return err
@@ -283,33 +202,18 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, newCustomer
 
 	return tx.Commit()
 }
-func (r *InvoiceRepo) GetCustomerIDByInvoiceID(invoiceID int) (int, error) {
-	var customerID int
-	// Sử dụng Get (safe) hoặc QueryRow
-	err := r.DB.Get(&customerID, "SELECT customer_id FROM invoices WHERE id = ?", invoiceID)
-	if err != nil {
-		return 0, err
-	}
-	return customerID, nil
-}
 
-// GetAll: Lấy danh sách hoá đơn (có phân trang và filter)
 func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, error) {
 	offset := (filter.Page - 1) * filter.Limit
 	var items []model.Invoice
 	var total int
 
-	// Base query
-	baseQuery := `
-		FROM invoices i
-		LEFT JOIN customers c ON i.customer_id = c.id
-		WHERE 1=1
-	`
+	// Không cần JOIN bảng customers nữa
+	baseQuery := `FROM invoices i WHERE 1=1`
 	var args []interface{}
 
-	// Xử lý Filters
 	if filter.Keyword != "" {
-		baseQuery += ` AND (i.invoice_code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)`
+		baseQuery += ` AND (i.invoice_code LIKE ? OR i.customer_name LIKE ? OR i.customer_phone LIKE ?)`
 		kw := "%" + filter.Keyword + "%"
 		args = append(args, kw, kw, kw)
 	}
@@ -326,20 +230,12 @@ func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, 
 		args = append(args, filter.StartDate, filter.EndDate)
 	}
 
-	// 1. Đếm tổng số bản ghi (để phân trang)
 	countQuery := `SELECT COUNT(*) ` + baseQuery
 	if err := r.DB.Get(&total, countQuery, args...); err != nil {
 		return nil, 0, err
 	}
 
-	// 2. Lấy dữ liệu
-	selectQuery := `
-		SELECT 
-			i.*, 
-			COALESCE(c.name, 'Khách vãng lai') as customer_name,
-			c.phone as customer_phone
-	` + baseQuery + ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`
-
+	selectQuery := `SELECT i.* ` + baseQuery + ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`
 	args = append(args, filter.Limit, offset)
 
 	if err := r.DB.Select(&items, selectQuery, args...); err != nil {
@@ -349,18 +245,15 @@ func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, 
 	return items, total, nil
 }
 
-// GetDailyStats: Lấy số liệu thống kê cho trang hoá đơn (Trong ngày)
 func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
 	var count int
 	var revenue int64
 
-	// Đếm tổng số lượng hoá đơn trong ngày hôm nay
 	err := r.DB.Get(&count, `SELECT COUNT(*) FROM invoices WHERE DATE(created_at) = CURDATE()`)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	// Tính tổng doanh thu của các hoá đơn ĐÃ THANH TOÁN trong ngày
 	err = r.DB.Get(&revenue, `SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE DATE(created_at) = CURDATE() AND status = 'PAID'`)
 	if err != nil {
 		return 0, 0, err

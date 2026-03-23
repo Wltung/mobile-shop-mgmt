@@ -41,7 +41,6 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	// Nhận thêm stats
 	items, total, stats, err := h.Service.GetWarranties(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -58,7 +57,7 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 		"meta": map[string]interface{}{
 			"page": filter.Page, "limit": filter.Limit, "total": total, "total_pages": totalPages,
 		},
-		"stats": stats, // BỔ SUNG TRẢ VỀ CHO FRONTEND
+		"stats": stats,
 	})
 }
 
@@ -87,22 +86,19 @@ func (h *WarrantyHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật thành công"})
 }
 
-func (h *WarrantyHandler) SearchEligible(c *gin.Context) {
+func (h *WarrantyHandler) Search(c *gin.Context) {
 	keyword := c.Query("keyword")
 	invType := c.Query("type")
 
 	if invType == "" {
-		invType = "SALE"
-	}
-
-	items, err := h.Service.SearchEligibleItems(keyword, invType)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu tham số type"})
 		return
 	}
 
-	if items == nil {
-		items = []model.WarrantySearchItem{}
+	items, err := h.Service.SearchWarranty(keyword, invType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": items})

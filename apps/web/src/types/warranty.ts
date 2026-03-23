@@ -6,7 +6,6 @@ export interface Warranty {
     id: number
     warranty_code?: string
     type: 'SALE' | 'REPAIR'
-    customer_id?: number
     phone_id?: number
     invoice_id?: number
     device_name: string

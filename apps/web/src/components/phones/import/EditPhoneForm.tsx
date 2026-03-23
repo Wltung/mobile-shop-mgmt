@@ -29,6 +29,7 @@ import { phoneService } from '@/services/phone.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
 import { formatDateForInput } from '@/lib/utils'
+import { invoiceService } from '@/services/invoice.service'
 
 interface Props {
     phone: Phone
@@ -50,13 +51,15 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
         purchase_date: formatDateForInput(
             phone.purchase_date || phone.created_at,
         ),
-        sale_price: String(phone.sale_price),
+        sale_price: phone.sale_price ? String(phone.sale_price) : '',
 
+        payment_method: phone.payment_method || 'CASH',
         seller_name: phone.seller_name || '',
         seller_phone: phone.seller_phone || '',
         seller_id: phone.seller_id || '',
-
+        
         color: phone.details?.color || '',
+        ram: phone.details?.ram || '',
         storage: phone.details?.storage || '',
         battery: phone.details?.battery ? String(phone.details.battery) : '',
         appearance: phone.details?.appearance || '',
@@ -91,12 +94,13 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 status: values.status,
                 note: values.note,
                 purchase_date: values.purchase_date,
-                sale_price: Number(values.sale_price),
+                sale_price: values.sale_price ? Number(values.sale_price) : undefined,
                 seller_name: values.seller_name,
                 seller_phone: values.seller_phone,
                 seller_id: values.seller_id,
                 details: {
                     color: values.color,
+                    ram: values.ram,
                     storage: values.storage,
                     battery: values.battery,
                     appearance: values.appearance,
@@ -105,6 +109,38 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
             }
 
             await phoneService.update(phone.id, payload)
+
+            // 2. UPDATE BẢNG INVOICES (Đồng bộ khách, thanh toán & TỔNG TIỀN)
+            if (phone.invoice_id) {
+                const originalPayment = phone.payment_method || 'CASH'
+                const originalName = phone.seller_name || ''
+                const originalPhone = phone.seller_phone || ''
+                const originalId = phone.seller_id || ''
+                const originalPurchasePrice = Number(phone.purchase_price)
+                
+                const currentPurchasePrice = Number(values.purchase_price)
+
+                // Kiểm tra xem có trường nào thuộc về Hoá đơn bị đổi không
+                const isInvoiceChanged = 
+                    values.payment_method !== originalPayment ||
+                    (values.seller_name || '') !== originalName ||
+                    (values.seller_phone || '') !== originalPhone ||
+                    (values.seller_id || '') !== originalId ||
+                    currentPurchasePrice !== originalPurchasePrice
+
+                if (isInvoiceChanged) {
+                    await invoiceService.update(phone.invoice_id, {
+                        payment_method: values.payment_method,
+                        customer_name: values.seller_name,
+                        customer_phone: values.seller_phone,
+                        customer_id_number: values.seller_id,
+                        // Mượn field actual_sale_price để BE đè lại total_amount và unit_price
+                        actual_sale_price: currentPurchasePrice !== originalPurchasePrice 
+                                            ? String(currentPurchasePrice) 
+                                            : undefined
+                    })
+                }
+            }
 
             toast({
                 title: 'Thành công',
@@ -295,6 +331,27 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                     />
                                     <FormField
                                         control={form.control}
+                                        name="ram"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className={labelClass}>RAM</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className={inputClass}>
+                                                            <SelectValue placeholder="Chọn" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {['2GB', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB', '24GB'].map((s) => (
+                                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
                                         name="storage"
                                         render={({ field }) => (
                                             <FormItem>
@@ -463,6 +520,27 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                                                         </span>
                                                     </div>
                                                 </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="payment_method"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className={labelClass}>Thanh toán</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
+                                                    <FormControl>
+                                                        <SelectTrigger className={`${inputClass} ${isLocked ? disabledClass : ''}`}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="CASH">Tiền mặt</SelectItem>
+                                                        <SelectItem value="TRANSFER">Chuyển khoản</SelectItem>
+                                                        <SelectItem value="CARD">Quẹt thẻ</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </FormItem>
                                         )}
                                     />

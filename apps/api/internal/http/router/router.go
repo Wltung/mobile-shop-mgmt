@@ -92,7 +92,7 @@ func NewRouter(
 				warranties.GET("", warrantyHandler.GetAll)
 				warranties.POST("", warrantyHandler.Create)
 				warranties.GET("/:id", warrantyHandler.GetByID)
-				warranties.GET("/search", warrantyHandler.SearchEligible)
+				warranties.GET("/search", warrantyHandler.Search)
 				warranties.PATCH("/:id", warrantyHandler.Update)
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"api/internal/model"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -18,14 +19,13 @@ func NewPhoneRepo(db *sqlx.DB) *PhoneRepo {
 
 func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	query := `
-		INSERT INTO phones (imei, model_name, details, status, purchase_price, sale_price, purchase_date, note, import_by, source_id)
-		VALUES (:imei, :model_name, :details, :status, :purchase_price, :sale_price, :purchase_date, :note, :import_by, :source_id)
+		INSERT INTO phones (imei, model_name, details, status, purchase_price, sale_price, purchase_date, note, import_by, seller_name, seller_phone, seller_id_number)
+		VALUES (:imei, :model_name, :details, :status, :purchase_price, :sale_price, :purchase_date, :note, :import_by, :seller_name, :seller_phone, :seller_id_number)
 	`
 	res, err := r.DB.NamedExec(query, p)
 	if err != nil {
 		return 0, err
 	}
-
 	id, err := res.LastInsertId()
 	return int(id), err
 }
@@ -37,41 +37,25 @@ func (r *PhoneRepo) GetByIMEI(imei string, userID int) (*model.Phone, error) {
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	return &phone, nil
+	return &phone, err
 }
 
-// Hàm nội bộ: Chạy Count, Sum và Select dựa trên baseQuery đã build
-func (r *PhoneRepo) fetchList(
-	baseQuery string,
-	args []interface{},
-	sumCol string, // Cột để tính tổng (VD: p.purchase_price)
-	selectClause string, // Câu lệnh SELECT các trường cụ thể
-	orderBy string, // Câu lệnh ORDER BY
-	limit, offset int,
-) ([]model.Phone, int, float64, error) {
+func (r *PhoneRepo) fetchList(baseQuery string, args []interface{}, sumCol string, selectClause string, orderBy string, limit, offset int) ([]model.Phone, int, float64, error) {
 	var phones []model.Phone
 	var totalCount int
 	var totalValue float64
 
-	// 1. Query Đếm
 	countQuery := "SELECT COUNT(*) " + baseQuery
 	if err := r.DB.Get(&totalCount, countQuery, args...); err != nil {
 		return nil, 0, 0, err
 	}
 
-	// 2. Query Tổng tiền
 	sumQuery := "SELECT COALESCE(SUM(" + sumCol + "), 0) " + baseQuery
 	if err := r.DB.Get(&totalValue, sumQuery, args...); err != nil {
 		return nil, 0, 0, err
 	}
 
-	// 3. Query Lấy dữ liệu (Phân trang)
 	fullQuery := selectClause + " " + baseQuery + " ORDER BY " + orderBy + " LIMIT ? OFFSET ?"
-
-	// Append limit/offset vào args để chạy query cuối
 	queryArgs := append(args, limit, offset)
 
 	if err := r.DB.Select(&phones, fullQuery, queryArgs...); err != nil {
@@ -81,21 +65,25 @@ func (r *PhoneRepo) fetchList(
 	return phones, totalCount, totalValue, nil
 }
 
-// 1. HAM CHO QUẢN LÝ NHẬP (Kho hàng tổng hợp)
 func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
-	// --- A. Build Query ---
+	// 1. Thêm LEFT JOIN tới invoice_items và invoices (Chỉ lấy hoá đơn IMPORT)
 	baseQuery := `
 		FROM phones p 
 		LEFT JOIN users u ON p.import_by = u.id 
-		LEFT JOIN customers c ON p.source_id = c.id
+		LEFT JOIN (
+			SELECT ii.phone_id, i.status, i.id, i.invoice_code, i.payment_method
+			FROM invoice_items ii
+			JOIN invoices i ON ii.invoice_id = i.id
+			WHERE ii.item_type = 'PHONE' AND i.type = 'IMPORT'
+		) inv ON p.id = inv.phone_id
 		WHERE p.import_by = ?
 	`
 	args := []interface{}{userID}
 
 	if filter.Keyword != "" {
-		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ?)"
+		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR p.seller_name LIKE ? OR p.seller_phone LIKE ?)"
 		likeStr := "%" + filter.Keyword + "%"
-		args = append(args, likeStr, likeStr)
+		args = append(args, likeStr, likeStr, likeStr, likeStr)
 	}
 	if filter.Status != "" && filter.Status != "ALL" {
 		baseQuery += " AND p.status = ?"
@@ -108,57 +96,53 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 	if filter.HasSalePrice {
 		baseQuery += " AND p.sale_price > 0"
 	}
+	if filter.InvoiceStatus != "" && filter.InvoiceStatus != "ALL" {
+		baseQuery += " AND inv.status = ?"
+		args = append(args, filter.InvoiceStatus)
+	}
 
-	// --- B. Config & Execute ---
+	// 2. Select thêm inv.status
 	selectClause := `
-		SELECT p.*, 
-		u.full_name as importer_name,
-		c.name as seller_name, 
-		c.phone as seller_phone
-	`
-	// Sắp xếp ưu tiên ngày nhập
+        SELECT p.*, 
+        u.full_name as importer_name,
+        inv.status as invoice_status,
+        inv.id as invoice_id,
+        inv.invoice_code as invoice_code
+    `
+
 	orderBy := "p.purchase_date DESC, p.created_at DESC"
 	offset := (filter.Page - 1) * filter.Limit
 
-	// Gọi hàm chung
 	return r.fetchList(baseQuery, args, "p.purchase_price", selectClause, orderBy, filter.Limit, offset)
 }
 
-// 2. HAM CHO LỊCH SỬ BÁN HÀNG (Chỉ lấy máy đã bán)
 func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
-	// --- A. Build Query ---
 	baseQuery := `
 		FROM phones p 
-        -- [SỬA] Dùng JOIN (Inner Join) để chỉ lấy item thuộc hoá đơn Bán
-        -- Item của hoá đơn Nhập sẽ bị loại bỏ tại đây vì inv.type != 'SALE'
         JOIN invoice_items ii ON p.id = ii.phone_id
         JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
-        
-        LEFT JOIN customers c_buy ON inv.customer_id = c_buy.id
+        -- ĐÃ XOÁ LEFT JOIN CUSTOMERS, DÙNG TRỰC TIẾP inv.customer_name
         WHERE p.import_by = ? AND p.status = 'SOLD'
 	`
 	args := []interface{}{userID}
 
 	if filter.Keyword != "" {
-		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR c_buy.name LIKE ?)"
+		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR inv.customer_name LIKE ?)"
 		likeStr := "%" + filter.Keyword + "%"
 		args = append(args, likeStr, likeStr, likeStr)
 	}
-	// Filter Status
 	if filter.Status != "" && filter.Status != "ALL" {
 		baseQuery += " AND inv.status = ?"
 		args = append(args, filter.Status)
 	}
-	// Filter theo ngày bán
 	if filter.StartDate != "" && filter.EndDate != "" {
 		baseQuery += " AND DATE(p.sale_date) BETWEEN ? AND ?"
 		args = append(args, filter.StartDate, filter.EndDate)
 	}
 
-	// --- B. Config & Execute ---
 	selectClause := `
 		SELECT p.*, 
-		c_buy.name as buyer_name, 
+		inv.customer_name as buyer_name, 
 		inv.status as invoice_status,
 		inv.id as invoice_id,
 		inv.invoice_code as invoice_code
@@ -166,53 +150,37 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
 	orderBy := "p.sale_date DESC, inv.created_at DESC"
 	offset := (filter.Page - 1) * filter.Limit
 
-	// Gọi hàm chung (Lưu ý tính tổng theo sale_price)
 	return r.fetchList(baseQuery, args, "p.sale_price", selectClause, orderBy, filter.Limit, offset)
 }
 
-// GetByID: Lấy chi tiết máy theo ID và UserID (để bảo mật data)
 func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 	var phone model.Phone
-
-	// SQL Query: JOIN để lấy tên người nhập (users) và thông tin khách bán (customers)
 	query := `
 		SELECT 
 			p.*, 
 			COALESCE(u.full_name, 'Unknown') as importer_name,
-			c.name as seller_name,
-			c.phone as seller_phone,
-			c.id_number as seller_id,
-			inv.invoice_code as invoice_code,  -- Lấy thêm cột này
+			inv.invoice_code as invoice_code,
 			inv.id as invoice_id,
-			inv.status as invoice_status
+			inv.status as invoice_status,
+			inv.payment_method as payment_method
 		FROM phones p
 		LEFT JOIN users u ON p.import_by = u.id
-		LEFT JOIN customers c ON p.source_id = c.id
-		
-		-- JOIN tìm hoá đơn nhập
 		LEFT JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		LEFT JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'IMPORT'
-
 		WHERE p.id = ? AND p.import_by = ?
 		LIMIT 1
 	`
-
-	// Dùng r.DB.Get của sqlx để map thẳng vào struct Phone
 	err := r.DB.Get(&phone, query, id, userID)
 	if err != nil {
-		return nil, err // Trả về lỗi (ví dụ: sql.ErrNoRows nếu không tìm thấy)
+		return nil, err
 	}
-
 	return &phone, nil
 }
 
-// UpdateDynamic: Chỉ update các trường có giá trị (không nil)
-func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInput, newSourceID *int) error {
-	// 1. Xây dựng câu query động
+func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInput) error {
 	setClauses := []string{}
 	args := []interface{}{}
 
-	// Luôn update thời gian sửa
 	setClauses = append(setClauses, "updated_at = NOW()")
 
 	if input.IMEI != nil {
@@ -241,19 +209,22 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 	}
 	if input.Details != nil {
 		setClauses = append(setClauses, "details = ?")
-		args = append(args, *input.Details) // sqlx tự handle JSONMap Value()
+		args = append(args, *input.Details)
 	}
 
-	// Nếu logic service xác định có thay đổi SourceID (người bán)
-	// newSourceID là pointer int, nếu service truyền vào nil nghĩa là không đổi source
-	// Nhưng ở đây ta cần cẩn thận: Service sẽ quyết định passed vào value nào.
-	// Tạm thời quy ước: Nếu Service tính toán ra SourceID mới, nó sẽ truyền vào.
-	if newSourceID != nil {
-		setClauses = append(setClauses, "source_id = ?")
-		args = append(args, *newSourceID)
+	if input.SellerName != nil {
+		setClauses = append(setClauses, "seller_name = ?")
+		args = append(args, *input.SellerName)
+	}
+	if input.SellerPhone != nil {
+		setClauses = append(setClauses, "seller_phone = ?")
+		args = append(args, *input.SellerPhone)
+	}
+	if input.SellerID != nil {
+		setClauses = append(setClauses, "seller_id_number = ?")
+		args = append(args, *input.SellerID)
 	}
 
-	// Nếu không có gì để update thì return luôn
 	if len(setClauses) == 0 {
 		return nil
 	}
@@ -265,9 +236,20 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 	return err
 }
 
-// UpdateStatus: Hàm phụ trợ để cập nhật trạng thái máy
 func (r *PhoneRepo) UpdateStatus(id int, status string) error {
 	query := `UPDATE phones SET status = ?, updated_at = NOW() WHERE id = ?`
 	_, err := r.DB.Exec(query, status, id)
+	return err
+}
+
+func (r *PhoneRepo) MarkAsSold(id int, salePrice int64, saleDate time.Time) error {
+	query := `UPDATE phones SET status = 'SOLD', sale_price = ?, sale_date = ?, updated_at = NOW() WHERE id = ?`
+	_, err := r.DB.Exec(query, salePrice, saleDate, id)
+	return err
+}
+
+func (r *PhoneRepo) RevertToInStock(id int) error {
+	query := `UPDATE phones SET status = 'IN_STOCK', sale_date = NULL, updated_at = NOW() WHERE id = ?`
+	_, err := r.DB.Exec(query, id)
 	return err
 }

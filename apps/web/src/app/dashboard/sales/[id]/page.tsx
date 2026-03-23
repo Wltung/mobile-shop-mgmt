@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link' // THÊM IMPORT NÀY
 import {
     Printer,
     Edit,
@@ -50,24 +51,31 @@ const InfoBlock = ({
 
 export default function SaleDetailPage() {
     const { id } = useParams()
-// 1. Hook lấy dữ liệu
-const { invoice, isLoading, refresh } = useInvoiceDetail(Number(id))
+    // 1. Hook lấy dữ liệu
+    const { invoice, isLoading, refresh } = useInvoiceDetail(Number(id))
     
-// UI State
-const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    // UI State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-// 2. Hook Chốt đơn (Logic tách biệt)
-const { handleLockSale, isLocking } = useLockSale({
-    invoice,
-    onSuccess: refresh,
-    onRequireUpdate: () => setIsEditModalOpen(true)
-})
+    // 2. Hook Chốt đơn (Logic tách biệt)
+    const { handleLockSale, isLocking } = useLockSale({
+        invoice,
+        onSuccess: refresh,
+        onRequireUpdate: () => setIsEditModalOpen(true)
+    })
 
     if (isLoading) return <PageLoading title="Chi tiết máy bán" />
     if (!invoice) return null
 
     // Lấy item điện thoại đầu tiên để hiển thị chi tiết
     const phoneItem = invoice.items?.find((i) => i.item_type === 'PHONE')
+    let details: any = {}
+    if (phoneItem?.phone_details) {
+        details = typeof phoneItem.phone_details === 'string' 
+            ? JSON.parse(phoneItem.phone_details) 
+            : phoneItem.phone_details
+    }
+
     const isDraft = invoice.status === 'DRAFT'
     const isPaid = invoice.status === 'PAID'
     
@@ -96,12 +104,20 @@ const { handleLockSale, isLocking } = useLockSale({
                         title={invoice.customer_name || 'Khách lẻ'}
                         status={<InvoiceStatusBadge status={invoice.status} />}
                         subtitle={
-                            <>
-                                Mã hoá đơn:{' '}
-                                <span className="font-mono font-semibold text-slate-700">
-                                    #{invoice.invoice_code || '---'}
-                                </span>
-                            </>
+                            <div className="mt-1.5 flex items-center text-[15px] text-slate-500">
+                                <span className="mr-1.5">Mã hoá đơn:</span>
+                                {invoice.invoice_code || invoice.id ? (
+                                    <Link
+                                        href={`/dashboard/invoices/${invoice.id}`}
+                                        className="rounded-md border border-slate-200 bg-white px-2.5 py-0.5 font-mono font-semibold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:text-blue-600"
+                                        title="Xem hoá đơn gốc"
+                                    >
+                                        #{invoice.invoice_code || invoice.id}
+                                    </Link>
+                                ) : (
+                                    <span className="font-mono font-semibold text-slate-700">---</span>
+                                )}
+                            </div>
                         }
                         actions={
                             <>
@@ -169,9 +185,11 @@ const { handleLockSale, isLocking } = useLockSale({
                                     value={invoice.customer_phone}
                                     valueClassName="text-base text-slate-900 font-medium tracking-wide"
                                 />
+                                {/* ĐÃ SỬA: Đổi Địa chỉ thành CCCD */}
                                 <InfoBlock
-                                    label="Địa chỉ"
-                                    value="---" // Backend chưa có field này, để placeholder
+                                    label="Số CCCD"
+                                    value={invoice.customer_id_number}
+                                    valueClassName="text-base text-slate-900 font-medium font-mono tracking-wide"
                                 />
                             </div>
                         </DetailCard>
@@ -203,9 +221,7 @@ const { handleLockSale, isLocking } = useLockSale({
                                         />
                                         <InfoBlock
                                             label="Màu sắc"
-                                            value={
-                                                phoneItem.phone_details?.color
-                                            }
+                                            value={details?.color}
                                         />
                                     </div>
 
@@ -224,12 +240,10 @@ const { handleLockSale, isLocking } = useLockSale({
                                                 </div>
                                             }
                                         />
+                                        {/* ĐÃ SỬA: Đổi Ngoại quan thành RAM/ROM */}
                                         <InfoBlock
-                                            label="Tình trạng máy"
-                                            value={
-                                                phoneItem.phone_details
-                                                    ?.appearance
-                                            }
+                                            label="RAM / Dung lượng"
+                                            value={`${details?.ram || '---'} / ${details?.storage || '---'}`}
                                         />
                                     </div>
                                 </div>
@@ -265,7 +279,6 @@ const { handleLockSale, isLocking } = useLockSale({
                                     />
                                 </div>
 
-                                {/* --- BẠN THÊM TOÀN BỘ KHỐI NÀY VÀO BÊN DƯỚI --- */}
                                 <div className="mt-auto border-t border-slate-100 pt-5 flex flex-col gap-3">
                                     <div className="flex items-center justify-between text-[14px]">
                                         <span className="font-medium text-slate-500">Giá máy</span>
@@ -334,7 +347,6 @@ const { handleLockSale, isLocking } = useLockSale({
                     isOpen={isEditModalOpen}
                     onClose={() => setIsEditModalOpen(false)}
                     onSuccess={() => {
-                        // Refresh data (bạn có thể dùng refresh() từ hook useInvoiceDetail nếu đã viết, hoặc reload page)
                         window.location.reload() 
                     }}
                     invoice={invoice}

@@ -22,18 +22,16 @@ func main() {
 	// Repository
 	userRepo := repository.NewUserRepo(dbConn)
 	phoneRepo := repository.NewPhoneRepo(dbConn)
-	customerRepo := repository.NewCustomerRepo(dbConn)
 	invoiceRepo := repository.NewInvoiceRepo(dbConn)
 	repairRepo := repository.NewRepairRepo(dbConn)
 	warrantyRepo := repository.NewWarrantyRepo(dbConn)
 
 	// Service
-	customerService := service.NewCustomerService(customerRepo)
-	phoneService := service.NewPhoneService(phoneRepo, customerService)
+	phoneService := service.NewPhoneService(phoneRepo)
 	authService := service.NewAuthService(userRepo, tokenManager)
-	invoiceService := service.NewInvoiceService(invoiceRepo, customerService)
-	repairService := service.NewRepairService(repairRepo, customerService, invoiceService, phoneService)
-	warrantyService := service.NewWarrantyService(warrantyRepo, customerService)
+	invoiceService := service.NewInvoiceService(invoiceRepo, phoneService)
+	repairService := service.NewRepairService(repairRepo, invoiceService, phoneService)
+	warrantyService := service.NewWarrantyService(warrantyRepo)
 
 	// Handler
 	authHandler := handler.NewAuthHandler(authService, cfg)
