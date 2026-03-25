@@ -4,6 +4,28 @@ import { PaginationMeta } from "./common"
 
 export type RepairStatus = 'PENDING' | 'REPAIRING' | 'WAITING_CUSTOMER' | 'COMPLETED' | 'DELIVERED'
 
+export interface RepairPart {
+    name: string
+    price: number
+    warranty: number
+}
+
+export interface RepairDescription {
+    device_name?: string
+    imei?: string
+    color?: string
+    fault?: string
+    accessories?: string
+    is_promised_return?: boolean
+    promised_return_date?: string
+    technical_note?: string
+    
+    // --- BỔ SUNG 3 TRƯỜNG NÀY ---
+    parts?: RepairPart[]
+    discount?: number
+    has_labor_warranty?: boolean
+}
+
 export interface Repair {
     id: number
     phone_id?: number | null
@@ -21,6 +43,8 @@ export interface Repair {
     customer_name?: string
     customer_phone?: string
     device_name?: string // Tên máy (Đời máy)
+
+    description_json?: RepairDescription
 }
 
 export interface RepairFilterParams {

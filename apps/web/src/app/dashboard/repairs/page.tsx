@@ -121,11 +121,36 @@ export default function RepairListPage() {
         {
             header: 'ĐỜI MÁY',
             accessorKey: 'device_name',
-            cell: (item) => (
-                <span className="font-semibold text-slate-700">
-                    {item.device_name || '---'}
-                </span>
-            ),
+            cell: (item) => {
+                // Ưu tiên lấy từ JSON (mới), nếu không có thì lấy thẳng device_name (cũ)
+                const deviceName = item.description_json?.device_name || item.device_name || '---'
+                return (
+                    <span className="font-semibold text-slate-700">
+                        {deviceName}
+                    </span>
+                )
+            },
+        },
+        {
+            header: 'MÔ TẢ LỖI',
+            className: 'max-w-[200px]',
+            cell: (item) => {
+                // Xử lý thông minh: 
+                // Nếu có object JSON -> Lấy fault trong JSON (dù rỗng cũng không lấy chuỗi gốc)
+                // Nếu không có object JSON (máy cũ) -> Lấy nguyên chuỗi description cũ
+                const faultText = item.description_json 
+                    ? (item.description_json.fault || '---') 
+                    : (item.description || '---')
+                    
+                return (
+                    <div 
+                        className="text-sm font-medium text-slate-600 line-clamp-2" 
+                        title={faultText}
+                    >
+                        {faultText}
+                    </div>
+                )
+            },
         },
         {
             header: 'GIÁ SỬA',

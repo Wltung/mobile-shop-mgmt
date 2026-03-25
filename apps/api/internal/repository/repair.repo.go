@@ -2,6 +2,7 @@ package repository
 
 import (
 	"api/internal/model"
+	"encoding/json"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -38,6 +39,8 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 	query := `
 		UPDATE repairs 
 		SET 
+			customer_name = COALESCE(?, customer_name),
+			customer_phone = COALESCE(?, customer_phone),
 			description = COALESCE(?, description),
 			device_password = COALESCE(?, device_password),
 			part_cost = COALESCE(?, part_cost),
@@ -49,6 +52,8 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 		WHERE id = ?
 	`
 	_, err := r.DB.Exec(query,
+		input.CustomerName,
+		input.CustomerPhone,
 		input.Description,
 		input.DevicePassword,
 		input.PartCost,
@@ -124,7 +129,8 @@ func (r *RepairRepo) GetStats() (int, int, error) {
 	var repairingCount int
 	var completedTodayCount int
 
-	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE status = 'REPAIRING'`)
+	// Đếm 3 trạng thái trong ngày hôm nay
+	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE status IN ('PENDING', 'REPAIRING', 'WAITING_CUSTOMER') AND DATE(created_at) = CURDATE()`)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -135,4 +141,27 @@ func (r *RepairRepo) GetStats() (int, int, error) {
 	}
 
 	return repairingCount, completedTodayCount, nil
+}
+
+// Hàm lấy Đời máy, IMEI, Màu sắc từ bảng phones
+func (r *RepairRepo) GetPhoneBasicInfo(phoneID int) (string, string, string, error) {
+	var p struct {
+		ModelName string  `db:"model_name"`
+		IMEI      string  `db:"imei"`
+		Details   *string `db:"details"`
+	}
+	err := r.DB.Get(&p, "SELECT model_name, imei, details FROM phones WHERE id = ?", phoneID)
+	if err != nil {
+		return "", "", "", err
+	}
+	var color string
+	if p.Details != nil {
+		var details map[string]interface{}
+		if err := json.Unmarshal([]byte(*p.Details), &details); err == nil {
+			if c, ok := details["color"].(string); ok {
+				color = c
+			}
+		}
+	}
+	return p.ModelName, p.IMEI, color, nil
 }
