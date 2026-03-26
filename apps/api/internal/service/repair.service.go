@@ -271,8 +271,11 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 
 	if repair.RepairPrice != nil && *repair.RepairPrice > 0 {
 		laborDesc := "Công sửa chữa: " + deviceName
+		warrantyDays := 0
+
 		if hasLaborWarranty {
 			laborDesc += " (Bảo hành 7 ngày)"
+			warrantyDays = 7
 		}
 		items = append(items, model.CreateItemInput{
 			ItemType:       model.ItemTypeService,
@@ -281,6 +284,7 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 			Quantity:       1,
 			UnitPrice:      *repair.RepairPrice,
 			WarrantyMonths: 0,
+			WarrantyDays:   warrantyDays,
 		})
 	}
 

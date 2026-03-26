@@ -52,6 +52,7 @@ type InvoiceItem struct {
 	UnitPrice      int64      `db:"unit_price" json:"unit_price"`
 	Amount         int64      `db:"amount" json:"amount"`
 	WarrantyMonths int        `db:"warranty_months" json:"warranty_months"`
+	WarrantyDays   int        `db:"-" json:"-"`
 	WarrantyExpiry *time.Time `db:"warranty_expiry" json:"warranty_expiry"`
 	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
 
@@ -79,6 +80,7 @@ type CreateItemInput struct {
 	Quantity       int    `json:"quantity" binding:"min=1"`
 	UnitPrice      int64  `json:"unit_price" binding:"min=0"`
 	WarrantyMonths int    `json:"warranty_months"`
+	WarrantyDays   int    `json:"warranty_days"`
 }
 
 type UpdateInvoiceInput struct {

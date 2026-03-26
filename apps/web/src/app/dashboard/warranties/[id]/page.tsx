@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 
 // Hooks & Types
-
 import { formatCurrency, formatJustDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
@@ -24,7 +23,6 @@ import PageLoading from '@/components/common/PageLoading'
 import { useWarrantyDetail } from '@/hooks/warranty/useWarrantyDetail'
 import WarrantyStatusBadge from '@/components/common/badges/WarrantyStatusBadge'
 import EditWarrantyModal from '@/components/phones/warranties/EditWarrantyModal'
-
 
 // --- LOCAL COMPONENT: InfoBlock ---
 const InfoBlock = ({
@@ -68,31 +66,6 @@ const InfoBlock = ({
     )
 }
 
-// --- HÀM BÓC TÁCH DỮ LIỆU ---
-const parseDescription = (desc?: string) => {
-    if (!desc) return { receiveStatus: 'Không có ghi chú.', customerFaultNote: 'Không có mô tả lỗi.' }
-    // Nếu là data cũ không có format tag
-    if (!desc.includes('[Tình trạng máy khi nhận]')) return { receiveStatus: '---', customerFaultNote: desc }
-
-    const parts = desc.split('\n\n[Lỗi khách thông báo]\n')
-    const receiveStatus = parts[0].replace('[Tình trạng máy khi nhận]\n', '').trim()
-    const customerFaultNote = parts[1] ? parts[1].trim() : 'Không có mô tả lỗi.'
-    
-    return { receiveStatus, customerFaultNote }
-}
-
-const parseTechnicalNote = (note?: string) => {
-    if (!note) return { specialNote: 'Không có', warrantyCondition: 'Theo quy định chuẩn' }
-    // Nếu là data cũ không có format tag
-    if (!note.includes('[Ghi chú đặc biệt]')) return { specialNote: note, warrantyCondition: 'Theo quy định chuẩn' }
-
-    const parts = note.split('\n\n[Điều kiện bảo hành]\n')
-    const specialNote = parts[0].replace('[Ghi chú đặc biệt]\n', '').trim()
-    const warrantyCondition = parts[1] ? parts[1].trim() : 'Theo quy định chuẩn'
-    
-    return { specialNote, warrantyCondition }
-}
-
 export default function WarrantyDetailPage() {
     const { id } = useParams()
     const { warranty, isLoading, daysRemaining, isExpired, refresh } = useWarrantyDetail(Number(id))
@@ -102,13 +75,35 @@ export default function WarrantyDetailPage() {
     if (!warranty) return null
 
     const isSale = warranty.type === 'SALE'
-
-    // Khoá phiếu nếu trạng thái là Đã trả khách (DONE) hoặc Đã huỷ (CANCELLED)
     const isLocked = warranty.status === 'DONE' || warranty.status === 'CANCELLED'
 
-    // Áp dụng bóc tách dữ liệu
-    const { receiveStatus, customerFaultNote } = parseDescription(warranty.description)
-    const { specialNote, warrantyCondition } = parseTechnicalNote(warranty.technical_note)
+    // --- TÍNH TOÁN NGÀY KÍCH HOẠT (DYNAMIC) ---
+    let activationDate = warranty.start_date ? warranty.start_date : null
+    
+    if (warranty.end_date) {
+        const end = new Date(warranty.end_date)
+        if (warranty.type === 'REPAIR') {
+            // Máy sửa (Thợ): Mặc định lùi 7 ngày
+            end.setDate(end.getDate() - 7)
+            activationDate = end.toISOString()
+        } else if (warranty.warranty_months) {
+            // Máy bán: Lùi theo đúng số tháng bảo hành của hoá đơn
+            end.setMonth(end.getMonth() - warranty.warranty_months)
+            activationDate = end.toISOString()
+        }
+    }
+    const displayStartDate = activationDate ? formatJustDate(activationDate) : '---'
+
+    // --- BÓC TÁCH DỮ LIỆU SẠCH 100% TỪ JSON ---
+    const descJson = warranty.description_json || {}
+    const techJson = warranty.technical_note_json || {}
+
+    const receiveStatus = descJson.condition || 'Không có ghi chú.'
+    const customerFaultNote = descJson.fault || 'Không có mô tả lỗi.'
+    const partName = descJson.part_name || ''
+
+    const specialNote = techJson.special_note || 'Không có'
+    const warrantyCondition = techJson.warranty_condition || 'Theo quy định chuẩn'
 
     // --- LOGIC RENDER TRẠNG THÁI DƯỚI CÙNG ---
     let currentStatusUI = (
@@ -167,7 +162,7 @@ export default function WarrantyDetailPage() {
                                     className="font-mono bg-white border border-slate-200 shadow-sm text-slate-700 px-2.5 py-0.5 rounded-md hover:text-blue-600 hover:border-blue-300 transition-all font-semibold"
                                     title="Xem hoá đơn gốc"
                                 >
-                                    {warranty.invoice_code || `#${warranty.invoice_id}`}
+                                    {warranty.invoice_code || `#HD-${warranty.invoice_id}`}
                                 </Link>
                             </div>
                         }
@@ -202,20 +197,21 @@ export default function WarrantyDetailPage() {
                             {/* CARD 1: KHÁCH HÀNG */}
                             <DetailCard title="Thông tin khách hàng" icon={<User className="h-5 w-5 text-blue-600" />} iconClassName="bg-blue-50 text-blue-600">
                                 <div className="flex flex-col gap-6 mt-2">
-                                    <InfoBlock label="Họ và tên" value={warranty.customer_name} />
+                                    <InfoBlock label="Họ và tên" value={warranty.customer_name || 'Khách vãng lai'} />
                                     <InfoBlock 
                                         label="Số điện thoại" 
                                         value={warranty.customer_phone} 
                                         allowCopy 
                                         copyValue={warranty.customer_phone || ''} 
                                     />
-                                    <InfoBlock label="CCCD" value="---" /> {/* DB chưa kéo lên, để mockup */}
+                                    {/* HIỂN THỊ CCCD ĐÃ KÉO TỪ DB */}
+                                    <InfoBlock label="CCCD / CMND" value={warranty.customer_id_number || '---'} /> 
                                 </div>
                             </DetailCard>
 
                             {/* CARD 2: THIẾT BỊ */}
                             <DetailCard title="Thông tin thiết bị" icon={<Smartphone className="h-5 w-5 text-purple-600" />} iconClassName="bg-purple-50 text-purple-600">
-                                <div className="flex flex-col gap-6 mt-2">
+                                <div className="flex flex-col gap-5 mt-2">
                                     <InfoBlock label="Đời máy" value={warranty.device_name} />
                                     <InfoBlock 
                                         label="IMEI" 
@@ -223,6 +219,15 @@ export default function WarrantyDetailPage() {
                                         allowCopy 
                                         copyValue={warranty.imei || ''}
                                     />
+                                    
+                                    {/* HIỂN THỊ THÊM LINH KIỆN NẾU LÀ PHIẾU SỬA CHỮA */}
+                                    {partName && (
+                                        <InfoBlock 
+                                            label="Linh kiện / Dịch vụ" 
+                                            value={<span className="text-blue-700 font-semibold">{partName}</span>} 
+                                        />
+                                    )}
+
                                     <InfoBlock 
                                         label="Loại bảo hành" 
                                         value={
@@ -239,10 +244,10 @@ export default function WarrantyDetailPage() {
                             <DetailCard title="Thời hạn & Trạng thái" icon={<Calendar className="h-5 w-5 text-orange-600" />} iconClassName="bg-orange-50 text-orange-600">
                                 <div className="flex flex-col gap-5 mt-2 h-full">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <InfoBlock label="Ngày kích hoạt" value={formatJustDate(warranty.start_date)} />
+                                    <InfoBlock label="Ngày kích hoạt" value={displayStartDate} />
                                         <InfoBlock 
                                             label="Ngày hết hạn" 
-                                            value={formatJustDate(warranty.end_date)} 
+                                            value={warranty.end_date ? formatJustDate(warranty.end_date) : '---'} 
                                             valueClassName={`text-[15px] font-bold ${isExpired ? 'text-red-600' : 'text-slate-900'}`}
                                         />
                                     </div>
@@ -272,7 +277,6 @@ export default function WarrantyDetailPage() {
                             <div className="lg:col-span-2">
                                 <DetailCard title="Thông tin tiếp nhận lỗi" icon={<AlertCircle className="h-5 w-5 text-red-600" />} iconClassName="bg-red-50 text-red-600 h-full" bodyClassName="justify-start">
                                     <div className="flex flex-col gap-5">
-                                        {/* ĐỔI CHỖ 1: LỖI KHÁCH THÔNG BÁO LÊN TRÊN */}
                                         <div className="flex flex-col">
                                             <span className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Lỗi khách thông báo</span>
                                             <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 text-[14px] text-red-900 font-medium leading-relaxed whitespace-pre-wrap min-h-[80px]">
@@ -280,14 +284,12 @@ export default function WarrantyDetailPage() {
                                             </div>
                                         </div>
 
-                                        {/* ĐỔI CHỖ 2: TÌNH TRẠNG MÁY XUỐNG DƯỚI */}
                                         <InfoBlock 
                                             label="Tình trạng máy khi nhận" 
                                             value={receiveStatus} 
                                             valueClassName="text-[14px] text-slate-800 leading-relaxed font-medium mt-1 whitespace-pre-wrap"
                                         />
                                         
-                                        {/* THÊM CHI PHÍ PHÁT SINH THEO MOCKUP */}
                                         <div className="border-t border-slate-100 pt-5 mt-2 flex justify-between items-center">
                                             <span className="text-[12px] font-bold uppercase tracking-wider text-slate-500">Chi phí phát sinh</span>
                                             <span className="text-lg font-black text-slate-900">{formatCurrency(warranty.cost)}</span>
@@ -301,7 +303,6 @@ export default function WarrantyDetailPage() {
                                 <DetailCard title="Ghi chú & Điều kiện" icon={<FileText className="h-5 w-5 text-amber-600" />} iconClassName="bg-amber-50 text-amber-600 h-full" bodyClassName='justify-start'>
                                     <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-5 flex flex-col gap-6">
                                         
-                                        {/* Block Ghi chú đặc biệt */}
                                         <div>
                                             <h4 className="font-bold text-amber-900 mb-2 text-[14px]">Ghi chú đặc biệt:</h4>
                                             <div className="text-[14px] text-amber-800 leading-relaxed whitespace-pre-wrap">
@@ -309,7 +310,6 @@ export default function WarrantyDetailPage() {
                                             </div>
                                         </div>
 
-                                        {/* Block Điều kiện tĩnh / động do nhân viên nhập */}
                                         <div>
                                             <h4 className="font-bold text-amber-900 mb-2 text-[14px]">Điều kiện bảo hành:</h4>
                                             <div className="text-[14px] text-amber-800 leading-relaxed whitespace-pre-wrap">

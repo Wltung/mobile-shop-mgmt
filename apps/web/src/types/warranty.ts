@@ -2,6 +2,17 @@
 
 export type WarrantyStatus = 'RECEIVED' | 'PROCESSING' | 'DONE' | 'CANCELLED'
 
+export interface WarrantyDescription {
+    condition?: string
+    fault?: string
+    part_name?: string
+}
+
+export interface WarrantyTechnicalNote {
+    special_note?: string
+    warranty_condition?: string
+}
+
 export interface Warranty {
     id: number
     warranty_code?: string
@@ -22,7 +33,13 @@ export interface Warranty {
     // Thuộc tính nối từ DB
     customer_name?: string
     customer_phone?: string
+    customer_id_number?: string // Bổ sung CCCD
+    warranty_months?: number
     invoice_code?: string
+
+    // Dữ liệu JSON parse từ Backend
+    description_json?: WarrantyDescription
+    technical_note_json?: WarrantyTechnicalNote
 }
 
 export interface WarrantyFilterParams {
@@ -42,5 +59,9 @@ export interface WarrantyListResponse {
         total: number
         total_pages: number
         total_value: number
+    }
+    stats?: {
+        receivedTodayCount: number
+        doneTodayCount: number
     }
 }

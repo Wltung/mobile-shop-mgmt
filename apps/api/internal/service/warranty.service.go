@@ -3,6 +3,7 @@ package service
 import (
 	"api/internal/model"
 	"api/internal/repository"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -16,11 +17,10 @@ func NewWarrantyService(repo *repository.WarrantyRepo) *WarrantyService {
 }
 
 func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID int) (int, error) {
-	// --- XÁC THỰC HẠN BẢO HÀNH ---
+	// 1. XÁC THỰC HẠN BẢO HÀNH
 	if input.EndDate == nil {
 		return 0, errors.New("thiết bị không có thông tin hạn bảo hành")
 	}
-
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	endDate := input.EndDate.In(now.Location())
@@ -30,36 +30,36 @@ func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID
 		return 0, errors.New("thiết bị đã hết hạn bảo hành, không thể tạo phiếu")
 	}
 
-	// --- MAP DATA ---
+	// 2. ĐÓNG GÓI 2 CHUỖI JSON
+	descObj := model.WarrantyDescription{
+		Condition: input.Condition,
+		Fault:     input.Fault,
+		PartName:  input.PartName,
+	}
+	descBytes, _ := json.Marshal(descObj)
+	descStr := string(descBytes)
+
+	techObj := model.WarrantyTechnicalNote{
+		SpecialNote:       input.SpecialNote,
+		WarrantyCondition: input.WarrantyCondition,
+	}
+	techBytes, _ := json.Marshal(techObj)
+	techStr := string(techBytes)
+
+	// 3. MAP DATA
 	var imeiPtr *string
 	if input.IMEI != "" {
 		imeiPtr = &input.IMEI
 	}
 
-	var techNotePtr *string
-	if input.TechnicalNote != "" {
-		techNotePtr = &input.TechnicalNote
-	}
-
-	var cName *string
-	if input.CustomerName != "" {
-		cName = &input.CustomerName
-	}
-
-	var cPhone *string
-	if input.CustomerPhone != "" {
-		cPhone = &input.CustomerPhone
-	}
-
 	warranty := model.Warranty{
-		CustomerName:  cName,
-		CustomerPhone: cPhone,
 		PhoneID:       input.PhoneID,
 		InvoiceID:     input.InvoiceID,
 		DeviceName:    &input.DeviceName,
 		IMEI:          imeiPtr,
-		Description:   &input.Description,
-		TechnicalNote: techNotePtr,
+		Description:   &descStr,
+		TechnicalNote: &techStr,
+		Cost:          input.Cost,
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 	}
@@ -80,15 +80,102 @@ func (s *WarrantyService) GetWarranties(filter model.WarrantyFilter) ([]model.Wa
 		return nil, 0, nil, err
 	}
 
+	// PARSE 2 CỤC JSON
+	for i := range items {
+		if items[i].Description != nil {
+			var descObj model.WarrantyDescription
+			if err := json.Unmarshal([]byte(*items[i].Description), &descObj); err == nil {
+				items[i].DescriptionJSON = &descObj
+			}
+		}
+		if items[i].TechnicalNote != nil {
+			var techObj model.WarrantyTechnicalNote
+			if err := json.Unmarshal([]byte(*items[i].TechnicalNote), &techObj); err == nil {
+				items[i].TechnicalNoteJSON = &techObj
+			}
+		}
+	}
+
 	stats, _ := s.Repo.GetStats()
 	return items, total, stats, nil
 }
 
 func (s *WarrantyService) GetWarrantyDetail(id int) (*model.WarrantyListItem, error) {
-	return s.Repo.GetByID(id)
+	item, err := s.Repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// PARSE 2 CỤC JSON
+	if item != nil {
+		if item.Description != nil {
+			var descObj model.WarrantyDescription
+			if err := json.Unmarshal([]byte(*item.Description), &descObj); err == nil {
+				item.DescriptionJSON = &descObj
+			}
+		}
+		if item.TechnicalNote != nil {
+			var techObj model.WarrantyTechnicalNote
+			if err := json.Unmarshal([]byte(*item.TechnicalNote), &techObj); err == nil {
+				item.TechnicalNoteJSON = &techObj
+			}
+		}
+	}
+
+	return item, nil
 }
 
 func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput) error {
+	existing, err := s.GetWarrantyDetail(id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("không tìm thấy phiếu bảo hành")
+	}
+
+	// 1. Cập nhật cục JSON Description
+	var descObj model.WarrantyDescription
+	if existing.Description != nil {
+		json.Unmarshal([]byte(*existing.Description), &descObj)
+	}
+	isDescUpdated := false
+	if input.Condition != nil {
+		descObj.Condition = *input.Condition
+		isDescUpdated = true
+	}
+	if input.Fault != nil {
+		descObj.Fault = *input.Fault
+		isDescUpdated = true
+	}
+
+	if isDescUpdated {
+		b, _ := json.Marshal(descObj)
+		str := string(b)
+		input.Description = &str // Gán vào input ẩn để gửi xuống Repo
+	}
+
+	// 2. Cập nhật cục JSON TechnicalNote
+	var techObj model.WarrantyTechnicalNote
+	if existing.TechnicalNote != nil {
+		json.Unmarshal([]byte(*existing.TechnicalNote), &techObj)
+	}
+	isTechUpdated := false
+	if input.SpecialNote != nil {
+		techObj.SpecialNote = *input.SpecialNote
+		isTechUpdated = true
+	}
+	if input.WarrantyCondition != nil {
+		techObj.WarrantyCondition = *input.WarrantyCondition
+		isTechUpdated = true
+	}
+
+	if isTechUpdated {
+		b, _ := json.Marshal(techObj)
+		str := string(b)
+		input.TechnicalNote = &str // Gán vào input ẩn để gửi xuống Repo
+	}
+
 	return s.Repo.Update(id, input)
 }
 

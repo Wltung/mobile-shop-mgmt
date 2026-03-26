@@ -86,7 +86,7 @@ export default function SaleDetailPage() {
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
-            <DashboardHeader title="Chi tiết hoá đơn" />
+            <DashboardHeader title="Chi tiết máy bán" />
 
             <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
@@ -95,7 +95,7 @@ export default function SaleDetailPage() {
                         items={[
                             { label: 'Trang chủ', href: '/dashboard' },
                             { label: 'Bán hàng', href: '/dashboard/sales' },
-                            { label: 'Chi tiết hoá đơn' },
+                            { label: 'Chi tiết máy bán' },
                         ]}
                     />
 

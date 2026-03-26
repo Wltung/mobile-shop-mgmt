@@ -2,6 +2,7 @@ package repository
 
 import (
 	"api/internal/model"
+	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -22,7 +23,7 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	}
 	defer tx.Rollback()
 
-	// Insert Invoice Header (Lưu trực tiếp Text Khách hàng)
+	// Insert Invoice Header
 	queryInv := `
 		INSERT INTO invoices (
             invoice_code, type, status, payment_method, 
@@ -48,9 +49,13 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 
 	for _, item := range items {
 		var warrantyExpiry *time.Time
-		if item.WarrantyMonths > 0 {
-			t := inv.CreatedAt.AddDate(0, item.WarrantyMonths, 0)
-			warrantyExpiry = &t
+
+		// ĐÃ FIX 1: Chỉ kích hoạt bảo hành (tính ngày) nếu hoá đơn ĐÃ THANH TOÁN
+		if inv.Status == model.InvoiceStatusPaid {
+			if item.WarrantyMonths > 0 || item.WarrantyDays > 0 {
+				t := inv.CreatedAt.AddDate(0, item.WarrantyMonths, item.WarrantyDays)
+				warrantyExpiry = &t
+			}
 		}
 
 		_, err = tx.Exec(queryItem,
@@ -115,9 +120,32 @@ func (r *InvoiceRepo) GetCountTodayByType(invType string) (int, error) {
 }
 
 func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	query := `UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?`
-	_, err := r.DB.Exec(query, status, id)
-	return err
+	_, err = tx.Exec(query, status, id)
+	if err != nil {
+		return err
+	}
+
+	// ĐÃ FIX 2: Nếu hoá đơn được chuyển sang PAID, KÍCH HOẠT BẢO HÀNH cho các linh kiện đang bị treo
+	if status == model.InvoiceStatusPaid {
+		queryActivate := `
+			UPDATE invoice_items 
+			SET warranty_expiry = DATE_ADD(NOW(), INTERVAL warranty_months MONTH) 
+			WHERE invoice_id = ? AND warranty_expiry IS NULL AND warranty_months > 0
+		`
+		_, err = tx.Exec(queryActivate, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
@@ -127,7 +155,14 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 	}
 	defer tx.Rollback()
 
-	// Update cả thông tin khách hàng nếu FE gửi lên
+	// 1. Lấy trạng thái và ngày tạo hiện tại của Hoá đơn để làm gốc tính toán
+	var currentInv struct {
+		Status    string    `db:"status"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	_ = tx.Get(&currentInv, "SELECT status, created_at FROM invoices WHERE id = ?", id)
+
+	// 2. Update Header
 	queryInv := `
 		UPDATE invoices 
 		SET payment_method = COALESCE(?, payment_method),
@@ -141,24 +176,27 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 			updated_at = NOW()
 		WHERE id = ?
 	`
-
 	args := []interface{}{
-		input.PaymentMethod,
-		input.Status,
-		input.Note,
-		input.CreatedAt,
-		input.Discount,
-		input.CustomerName,
-		input.CustomerPhone,
-		input.CustomerIDNumber,
-		id,
+		input.PaymentMethod, input.Status, input.Note, input.CreatedAt,
+		input.Discount, input.CustomerName, input.CustomerPhone, input.CustomerIDNumber, id,
 	}
-
 	if _, err := tx.Exec(queryInv, args...); err != nil {
 		return err
 	}
 
-	// Cập nhật thông tin vào bảng invoice_items
+	// ĐÃ FIX 3: Nếu Form Edit chuyển trạng thái sang PAID, KÍCH HOẠT BẢO HÀNH
+	if input.Status != nil && *input.Status == model.InvoiceStatusPaid {
+		queryActivate := `
+			UPDATE invoice_items 
+			SET warranty_expiry = DATE_ADD(NOW(), INTERVAL warranty_months MONTH) 
+			WHERE invoice_id = ? AND warranty_expiry IS NULL AND warranty_months > 0
+		`
+		if _, err := tx.Exec(queryActivate, id); err != nil {
+			return err
+		}
+	}
+
+	// 3. Cập nhật bảng invoice_items
 	var currentItem struct {
 		ID      int `db:"id"`
 		PhoneID int `db:"phone_id"`
@@ -181,9 +219,30 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 			updateItemQuery += `, unit_price = ?, amount = ?`
 			itemArgs = append(itemArgs, input.ActualSalePrice, input.ActualSalePrice)
 		}
+
+		// ĐÃ FIX 4: Nếu đổi Số tháng bảo hành -> Cập nhật luôn Ngày hết hạn
 		if input.Warranty != "" {
 			updateItemQuery += `, warranty_months = ?`
 			itemArgs = append(itemArgs, input.Warranty)
+
+			isPaid := currentInv.Status == model.InvoiceStatusPaid
+			if input.Status != nil && *input.Status == model.InvoiceStatusPaid {
+				isPaid = true
+			}
+
+			// Chỉ tính ngày hết hạn nếu hoá đơn đã PAID
+			if isPaid {
+				months, _ := strconv.Atoi(input.Warranty)
+				newExpiry := currentInv.CreatedAt.AddDate(0, months, 0)
+
+				// Nếu vừa mới chuyển từ DRAFT -> PAID trong lúc này, tính từ NOW()
+				if currentInv.Status == model.InvoiceStatusDraft && input.Status != nil && *input.Status == model.InvoiceStatusPaid {
+					newExpiry = time.Now().AddDate(0, months, 0)
+				}
+
+				updateItemQuery += `, warranty_expiry = ?`
+				itemArgs = append(itemArgs, newExpiry)
+			}
 		}
 
 		updateItemQuery += ` WHERE id = ?`

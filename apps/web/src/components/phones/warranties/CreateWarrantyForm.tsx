@@ -40,18 +40,19 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
         form.setValue('invoice_id', item.invoice_id || undefined)
         form.setValue('phone_id', item.phone_id || undefined)
         form.setValue('customer_phone', item.customer_phone || '')
-        form.setValue('warranty_expiry', formattedDate)
+        form.setValue('customer_id_number', item.customer_id_number || '')
         
+        form.setValue('warranty_expiry', formattedDate)
         form.setValue('start_date', item.base_date ? new Date(item.base_date).toISOString() : undefined)
         form.setValue('end_date', item.warranty_expiry ? new Date(item.warranty_expiry).toISOString() : undefined)
 
+        form.setValue('device_name', item.calculated_device_name || '')
+        form.setValue('imei', item.calculated_imei || '') 
+        form.setValue('part_name', item.part_name || '')
+        
         if (watchType === 'SALE') {
-            form.setValue('device_name', item.device_name || item.model_name || '')
-            form.setValue('imei', item.calculated_imei || item.imei || '')
             form.setValue('customer_name', item.customer_name || 'Khách mua máy (Theo HD)') 
         } else {
-            form.setValue('device_name', item.calculated_device_name || item.device_name || '')
-            form.setValue('imei', item.calculated_imei || item.imei || '') 
             form.setValue('customer_name', item.customer_name || 'Khách vãng lai')
         }
 
@@ -67,25 +68,26 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                 title: 'Từ chối tiếp nhận', 
                 description: 'Thiết bị đã hết hạn bảo hành. Vui lòng tạo phiếu Sửa chữa dịch vụ thay vì phiếu Bảo hành.' 
             })
-            return // Dừng luôn, không cho chạy tiếp
+            return 
         }
 
         setIsLoading(true)
         try {
-            // GỘP CHUỖI ĐỂ LƯU VÀO DATABASE
-            const finalDescription = `[Tình trạng máy khi nhận]\n${values.receive_status || 'Không ghi chú'}\n\n[Lỗi khách thông báo]\n${values.customer_fault_note}`
-            const finalTechnicalNote = `[Ghi chú đặc biệt]\n${values.special_note || 'Không có'}\n\n[Điều kiện bảo hành]\n${values.warranty_condition || 'Theo quy định chuẩn'}`
-
+            // GỬI PAYLOAD VỚI CÁC TRƯỜNG ĐỘC LẬP ĐỂ BE GÓI JSON
             const payload = {
                 type: values.type,
-                customer_name: values.customer_name,
-                customer_phone: values.customer_phone,
                 phone_id: values.phone_id,
                 invoice_id: values.invoice_id,
                 device_name: values.device_name,
                 imei: values.imei,
-                description: finalDescription,
-                technical_note: finalTechnicalNote,
+                part_name: values.part_name,
+                
+                condition: values.condition,
+                fault: values.fault,
+                cost: Number(values.cost) || 0,
+                special_note: values.special_note,
+                warranty_condition: values.warranty_condition,
+
                 start_date: values.start_date,
                 end_date: values.end_date,
             }
@@ -122,8 +124,7 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                 <WarrantyItemSearchSelect type={watchType} onSelect={handleSelectDevice} />
                             </div>
 
-                            {/* FLEX-1 ĐỂ KÉO DÀI BẰNG CỘT PHẢI */}
-                            <div className="flex-1 p-5 rounded-xl border border-slate-100 bg-slate-50/70 flex flex-col gap-5">
+                            <div className="flex-1 p-5 rounded-xl border border-slate-100 bg-slate-50/70 flex flex-col gap-4">
                                 <div className="flex items-center gap-2 text-slate-500 font-bold text-[11px] uppercase tracking-wider mb-1">
                                     <Info className="h-4 w-4" /> THÔNG TIN MÁY & KHÁCH HÀNG
                                 </div>
@@ -133,6 +134,22 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                         <FormControl><Input {...field} className="h-10 bg-white border-slate-200 shadow-sm" disabled placeholder="Tên khách hàng" /></FormControl>
                                     </FormItem>
                                 )} />
+                                {/* THÊM ROW CHỨA SĐT VÀ CCCD */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="customer_phone" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[13px] text-slate-500 font-medium">Số điện thoại</FormLabel>
+                                            <FormControl><Input {...field} className="h-10 bg-white border-slate-200 shadow-sm" disabled placeholder="SĐT" /></FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="customer_id_number" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[13px] text-slate-500 font-medium">CCCD / CMND</FormLabel>
+                                            <FormControl><Input {...field} className="h-10 bg-white border-slate-200 shadow-sm" disabled placeholder="CCCD" /></FormControl>
+                                        </FormItem>
+                                    )} />
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField control={form.control} name="device_name" render={({ field }) => (
                                         <FormItem>
@@ -147,12 +164,23 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                         </FormItem>
                                     )} />
                                 </div>
+
+                                {/* BOX LINH KIỆN NẰM DƯỚI IMEI */}
+                                {watchType === 'REPAIR' && (
+                                    <FormField control={form.control} name="part_name" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[13px] text-slate-500 font-medium">Linh kiện / Dịch vụ bảo hành</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} className="h-10 bg-blue-50/50 border-blue-100 text-blue-700 font-semibold shadow-sm" disabled placeholder="---" />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                )}
                             </div>
                         </div>
 
                         {/* --- CỘT PHẢI --- */}
                         <div className="flex flex-col gap-8">
-                            
                             {/* BLOCK CHI TIẾT BẢO HÀNH */}
                             <div>
                                 <div className="flex items-center gap-3 text-amber-600 font-bold text-base mb-6">
@@ -167,6 +195,8 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                                 field.onChange(val)
                                                 form.setValue('device_name', '')
                                                 form.setValue('customer_name', '')
+                                                form.setValue('customer_phone', '')
+                                                form.setValue('customer_id_number', '')
                                                 form.setValue('imei', '')
                                                 form.setValue('warranty_expiry', '')
                                                 setIsDeviceExpired(false)
@@ -205,7 +235,7 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                     <h3>Thông tin tiếp nhận lỗi</h3>
                                 </div>
                                 <div className="space-y-4">
-                                    <FormField control={form.control} name="receive_status" render={({ field }) => (
+                                    <FormField control={form.control} name="condition" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className={labelClass}>Tình trạng máy khi nhận</FormLabel>
                                             <FormControl>
@@ -213,13 +243,36 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                                             </FormControl>
                                         </FormItem>
                                     )} />
-                                    <FormField control={form.control} name="customer_fault_note" render={({ field }) => (
+                                    <FormField control={form.control} name="fault" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className={labelClass}>Lỗi khách thông báo <span className="text-red-500">*</span></FormLabel>
                                             <FormControl>
                                                 <Textarea {...field} rows={2} placeholder="Mô tả lỗi theo lời khách..." className="w-full rounded-lg border-slate-200 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none p-3 text-sm" />
                                             </FormControl>
                                             <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    {/* THÊM TRƯỜNG CHI PHÍ PHÁT SINH */}
+                                    <FormField control={form.control} name="cost" render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <FormLabel className="text-sm font-semibold text-slate-800 m-0">
+                                                    Chi phí phát sinh <span className="text-slate-400 font-normal">(nếu có)</span>
+                                                </FormLabel>
+                                            </div>
+                                            <FormControl>
+                                                {/* THÊM w-48 VÀO ĐÂY ĐỂ BÓP NGẮN Ô NHẬP LẠI */}
+                                                <div className="relative w-48"> 
+                                                    <Input 
+                                                        type="number" 
+                                                        {...field} 
+                                                        placeholder="0" 
+                                                        className={`${inputClass} pr-4 text-right font-bold text-blue-600`} 
+                                                    />
+                                                    <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">₫</span>
+                                                </div>
+                                            </FormControl>
+                                            <p className="text-[11px] text-slate-500 mt-1.5">Nhập phí dịch vụ hoặc linh kiện thay thế ngoài hạn mức bảo hành.</p>
                                         </FormItem>
                                     )} />
                                 </div>

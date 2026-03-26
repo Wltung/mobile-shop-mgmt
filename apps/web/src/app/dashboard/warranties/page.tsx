@@ -82,6 +82,22 @@ export default function WarrantyListPage() {
             ),
         },
         {
+            header: 'LỖI KHÁCH BÁO',
+            className: 'max-w-[200px]',
+            cell: (item) => {
+                // ĐÃ FIX: CHỈ LẤY TỪ description_json. Tuyệt đối không fallback sang description nữa.
+                const faultText = item.description_json?.fault || '---' 
+                return (
+                    <div 
+                        className="text-sm font-medium text-slate-600 line-clamp-2" 
+                        title={faultText}
+                    >
+                        {faultText}
+                    </div>
+                )
+            },
+        },
+        {
             header: 'LOẠI BẢO HÀNH',
             accessorKey: 'phone_id',
             cell: (item) => {

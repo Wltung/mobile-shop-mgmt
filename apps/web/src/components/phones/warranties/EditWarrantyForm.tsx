@@ -1,3 +1,4 @@
+// apps/web/src/components/phones/warranties/EditWarrantyForm.tsx
 'use client'
 
 import { useState, useMemo } from 'react'
@@ -23,46 +24,39 @@ interface Props {
     onCancel: () => void
 }
 
-// Hàm bóc tách dữ liệu (giống ở trang Chi tiết)
-const parseDescription = (desc?: string) => {
-    if (!desc) return { receiveStatus: '', customerFaultNote: '' }
-    if (!desc.includes('[Tình trạng máy khi nhận]')) return { receiveStatus: '', customerFaultNote: desc }
-    const parts = desc.split('\n\n[Lỗi khách thông báo]\n')
-    return {
-        receiveStatus: parts[0].replace('[Tình trạng máy khi nhận]\n', '').trim(),
-        customerFaultNote: parts[1] ? parts[1].trim() : ''
-    }
-}
-
-const parseTechnicalNote = (note?: string) => {
-    if (!note) return { specialNote: '', warrantyCondition: '' }
-    if (!note.includes('[Ghi chú đặc biệt]')) return { specialNote: note, warrantyCondition: '' }
-    const parts = note.split('\n\n[Điều kiện bảo hành]\n')
-    return {
-        specialNote: parts[0].replace('[Ghi chú đặc biệt]\n', '').trim(),
-        warrantyCondition: parts[1] ? parts[1].trim() : ''
-    }
-}
-
 export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    const parsedData = useMemo(() => {
-        const desc = parseDescription(warranty.description)
-        const tech = parseTechnicalNote(warranty.technical_note)
-        return { ...desc, ...tech }
-    }, [warranty])
+    // --- ĐÃ FIX: LẤY DATA SẠCH TỪ JSON ---
+    const descJson = warranty.description_json || {}
+    const techJson = warranty.technical_note_json || {}
+
+    // --- TÍNH TOÁN NGÀY KÍCH HOẠT DYNAMIC ---
+    const activationDate = useMemo(() => {
+        let dateStr = warranty.start_date ? warranty.start_date : null
+        if (warranty.end_date) {
+            const end = new Date(warranty.end_date)
+            if (warranty.type === 'REPAIR') {
+                end.setDate(end.getDate() - 7)
+                dateStr = end.toISOString()
+            } else if (warranty.warranty_months) {
+                end.setMonth(end.getMonth() - warranty.warranty_months)
+                dateStr = end.toISOString()
+            }
+        }
+        return dateStr
+    }, [warranty.start_date, warranty.end_date, warranty.type, warranty.warranty_months])
 
     const form = useForm<EditWarrantyValues>({
         resolver: zodResolver(editWarrantySchema),
         defaultValues: {
             status: warranty.status as any,
             cost: warranty.cost ? String(warranty.cost) : '0',
-            receive_status: parsedData.receiveStatus,
-            customer_fault_note: parsedData.customerFaultNote,
-            special_note: parsedData.specialNote,
-            warranty_condition: parsedData.warrantyCondition,
+            condition: descJson.condition || '',
+            fault: descJson.fault || '',
+            special_note: techJson.special_note || '',
+            warranty_condition: techJson.warranty_condition || '',
         },
     })
 
@@ -77,15 +71,14 @@ export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Prop
 
         setIsLoading(true)
         try {
-            // Đóng gói lại chuỗi trước khi gửi
-            const finalDescription = `[Tình trạng máy khi nhận]\n${values.receive_status || 'Không ghi chú'}\n\n[Lỗi khách thông báo]\n${values.customer_fault_note}`
-            const finalTechnicalNote = `[Ghi chú đặc biệt]\n${values.special_note || 'Không có'}\n\n[Điều kiện bảo hành]\n${values.warranty_condition || 'Theo quy định chuẩn'}`
-
+            // ĐÃ FIX: TRUYỀN THẲNG CÁC TRƯỜNG ĐỂ BE TỰ GÓI JSON
             const payload = {
                 status: values.status,
-                cost: Number(values.cost),
-                description: finalDescription,
-                technical_note: finalTechnicalNote,
+                cost: Number(values.cost) || 0,
+                condition: values.condition,
+                fault: values.fault,
+                special_note: values.special_note,
+                warranty_condition: values.warranty_condition,
             }
 
             await warrantyService.update(warranty.id, payload)
@@ -127,7 +120,6 @@ export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Prop
                             )} />
                             <div className="space-y-1.5">
                                 <label className={labelClass}>Ngày tiếp nhận <span className="text-red-500">*</span></label>
-                                {/* Khoá sửa ngày tiếp nhận theo yêu cầu */}
                                 <Input type="date" value={formatDateForInput(warranty.created_at)} disabled className={inputClass} />
                             </div>
                             <FormField control={form.control} name="cost" render={({ field }) => (
@@ -148,9 +140,9 @@ export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Prop
                     <div className="space-y-4">
                         <div className={`${headerClass} text-slate-500`}><User className="h-5 w-5" /> THÔNG TIN KHÁCH HÀNG (READ-ONLY)</div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                            <div className="space-y-1.5"><label className={labelClass}>Họ và tên</label><Input value={warranty.customer_name || '---'} disabled className={inputClass} /></div>
+                            <div className="space-y-1.5"><label className={labelClass}>Họ và tên</label><Input value={warranty.customer_name || 'Khách vãng lai'} disabled className={inputClass} /></div>
                             <div className="space-y-1.5"><label className={labelClass}>Số điện thoại</label><Input value={warranty.customer_phone || '---'} disabled className={inputClass} /></div>
-                            <div className="space-y-1.5"><label className={labelClass}>CCCD</label><Input value="---" disabled className={inputClass} /></div>
+                            <div className="space-y-1.5"><label className={labelClass}>CCCD / CMND</label><Input value={warranty.customer_id_number || '---'} disabled className={inputClass} /></div>
                         </div>
                     </div>
 
@@ -159,10 +151,23 @@ export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Prop
                         <div className={`${headerClass} text-slate-500`}><Smartphone className="h-5 w-5" /> THÔNG TIN THIẾT BỊ (READ-ONLY)</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-1.5"><label className={labelClass}>Đời máy</label><Input value={warranty.device_name || '---'} disabled className={inputClass} /></div>
-                            <div className="space-y-1.5"><label className={labelClass}>Loại bảo hành</label><Input value={warranty.type === 'SALE' ? 'Bán máy' : 'Sửa chữa'} disabled className={inputClass} /></div>
+                            
+                            {/* HIỂN THỊ LINH KIỆN NẾU CÓ */}
+                            {descJson.part_name ? (
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Linh kiện / Dịch vụ</label>
+                                    <Input value={descJson.part_name} disabled className={`${inputClass} bg-blue-50/50 text-blue-700 font-semibold border-blue-100`} />
+                                </div>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Loại bảo hành</label>
+                                    <Input value={warranty.type === 'SALE' ? 'Bán máy' : 'Sửa chữa'} disabled className={inputClass} />
+                                </div>
+                            )}
+
                             <div className="space-y-1.5"><label className={labelClass}>IMEI</label><Input value={warranty.imei || '---'} disabled className={`${inputClass} font-mono`} /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5"><label className={labelClass}>Ngày kích hoạt</label><Input type="date" value={formatDateForInput(warranty.start_date)} disabled className={inputClass} /></div>
+                                <div className="space-y-1.5"><label className={labelClass}>Ngày kích hoạt</label><Input type="date" value={activationDate ? formatDateForInput(activationDate) : ''} disabled className={inputClass} /></div>
                                 <div className="space-y-1.5"><label className={labelClass}>Ngày hết hạn</label><Input type="date" value={formatDateForInput(warranty.end_date)} disabled className={inputClass} /></div>
                             </div>
                         </div>
@@ -172,14 +177,14 @@ export default function EditWarrantyForm({ warranty, onSuccess, onCancel }: Prop
                     <div className="rounded-xl border border-red-100 bg-white p-5 shadow-sm space-y-4">
                         <div className={`${headerClass} text-red-600`}><AlertTriangle className="h-5 w-5" /> THÔNG TIN TIẾP NHẬN LỖI</div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <FormField control={form.control} name="customer_fault_note" render={({ field }) => (
+                            <FormField control={form.control} name="fault" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className={labelClass}>Lỗi khách thông báo <span className="text-red-500">*</span></FormLabel>
                                     <FormControl><Textarea {...field} rows={3} className="resize-none" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="receive_status" render={({ field }) => (
+                            <FormField control={form.control} name="condition" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className={labelClass}>Tình trạng máy khi nhận</FormLabel>
                                     <FormControl><Textarea {...field} rows={3} className="resize-none" /></FormControl>

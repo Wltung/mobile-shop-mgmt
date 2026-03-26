@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input'
 import { useWarrantySearch } from '@/hooks/warranty/useWarrantySearch'
 import { useEffect } from 'react'
 import { formatDate } from '@/lib/utils'
-import { parseRepairDescription } from '@/lib/repairParser'
 
 interface Props {
     type: 'SALE' | 'REPAIR'
@@ -23,58 +22,25 @@ export default function WarrantyItemSearchSelect({ type, onSelect, error }: Prop
         resetSearch()
     }, [type, resetSearch])
 
-    // --- HÀM BÓC TÁCH TÊN MÁY TỪ REPAIR DESCRIPTION ---
-    // --- HÀM BÓC TÁCH TÊN MÁY TỪ REPAIR DESCRIPTION ---
-    // --- HÀM BÓC TÁCH TÊN MÁY VÀ IMEI TỪ REPAIR DESCRIPTION ---
-    const getDeviceDetailsForRepair = (item: any) => {
-        const rawDesc = item.repair_description || ''
-        const dbDeviceName = item.repair_device_name || item.phone_model || item.model_name || ''
-
-        // Parse để lấy Tên máy và IMEI thực tế
-        const parsed = parseRepairDescription(rawDesc, dbDeviceName)
-        let name = parsed.deviceName
-        // Ưu tiên IMEI trong DB (nếu máy mua ở quán), nếu không có thì lấy IMEI bóc từ chuỗi mô tả (máy khách ngoài)
-        let imei = item.imei || parsed.imei || '' 
-
-        if (name === 'Không xác định' && item.device_name) {
-            if (item.device_name.startsWith('Linh kiện thay thế: ')) {
-                name = item.device_name.replace('Linh kiện thay thế: ', '').trim()
-            } else if (item.device_name.startsWith('Công sửa chữa: ')) {
-                name = item.device_name.replace('Công sửa chữa: ', '').trim()
-            }
-        }
-
-        return {
-            deviceName: name !== 'Không xác định' ? name : (item.device_name || 'Không xác định'),
-            imei: imei
-        }
-    }
-
     const handleSelect = (item: any) => {
         const expiryDate = item.warranty_expiry ? new Date(item.warranty_expiry) : new Date()
         const isExpired = expiryDate < new Date()
         const formattedDate = item.warranty_expiry ? item.warranty_expiry.split('T')[0] : ''
 
-        let calculatedDeviceName = item.device_name || item.model_name || ''
-        let calculatedImei = item.imei || ''
+        // DATA ĐÃ SẠCH TỪ BE, KHÔNG CẦN PARSE NỮA
+        const displayDeviceName = item.device_name || 'Không xác định'
+        const displayImei = item.imei || ''
 
-        if (type === 'REPAIR') {
-            const details = getDeviceDetailsForRepair(item)
-            calculatedDeviceName = details.deviceName
-            calculatedImei = details.imei // Lấy IMEI đã bóc tách
-        }
-
-        // Truyền thêm calculated_imei lên component cha
         onSelect({ 
             ...item, 
-            calculated_device_name: calculatedDeviceName,
-            calculated_imei: calculatedImei 
+            calculated_device_name: displayDeviceName,
+            calculated_imei: displayImei 
         }, isExpired, formattedDate)
         
         if (type === 'SALE') {
-            setSearchTerm(`${calculatedDeviceName} - IMEI: ${calculatedImei || 'Không có'}`)
+            setSearchTerm(`${displayDeviceName} - IMEI: ${displayImei || 'Không có'}`)
         } else {
-            setSearchTerm(`${calculatedDeviceName} - ${item.invoice_code || '#HD-' + item.invoice_id}`)
+            setSearchTerm(`${displayDeviceName} - ${item.invoice_code || '#HD-' + item.invoice_id}`)
         }
         closeSearchResults()
     }
@@ -106,25 +72,9 @@ export default function WarrantyItemSearchSelect({ type, onSelect, error }: Prop
                     {searchResults.map((item) => {
                         const expiryDate = item.warranty_expiry ? new Date(item.warranty_expiry) : new Date()
                         const isExpired = expiryDate < new Date()
-
-                        // Xử lý hiển thị Tên máy và IMEI trong danh sách Dropdown
-                        let displayDeviceName = item.device_name || item.model_name || 'Không xác định'
-                        let displayImei = item.imei || ''
-
-                        if (type === 'REPAIR') {
-                            const details = getDeviceDetailsForRepair(item)
-                            const parsedName = details.deviceName
-                            displayImei = details.imei // Show IMEI bóc tách ở dropdown
-
-                            const partName = item.device_name 
-                            if (parsedName !== 'Không xác định') {
-                                if (partName && partName !== parsedName && !partName.startsWith('Linh kiện thay thế:')) {
-                                    displayDeviceName = `${parsedName} (${partName})`
-                                } else {
-                                    displayDeviceName = parsedName
-                                }
-                            }
-                        }
+                        
+                        const displayDeviceName = item.device_name || 'Không xác định'
+                        const displayImei = item.imei || ''
 
                         return (
                             <div
@@ -148,23 +98,34 @@ export default function WarrantyItemSearchSelect({ type, onSelect, error }: Prop
                                     )}
                                 </div>
 
+                                {/* ĐÃ FIX: PHÂN BIỆT RÕ RÀNG LINH KIỆN VÀ DỊCH VỤ */}
+                                {type === 'REPAIR' && item.part_name && (
+                                    <p className="text-[13px] text-blue-600 font-medium mt-0.5 mb-2">
+                                        {item.item_type === 'SERVICE' ? 'Dịch vụ: ' : 'Linh kiện: '}
+                                        <span className="text-slate-700">{item.part_name}</span>
+                                    </p>
+                                )}
+
+                                {/* ĐÃ FIX: DỌN SẠCH 00:00 VÀ DỊCH MÃ HOÁ ĐƠN SANG PHẢI */}
                                 <div className="flex justify-between items-center text-xs text-slate-500">
-                                    <div className="flex items-center gap-2">
-                                        {/* Hiển thị displayImei thay vì item.imei */}
+                                    <div className="flex items-center gap-3">
                                         <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600">
                                             IMEI: {displayImei || '---'}
                                         </span>
-                                        {type === 'REPAIR' && (
-                                            <span className="font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">
-                                                {item.invoice_code || `#HD-${item.invoice_id}`}
+                                        <span>
+                                            Hạn BH: <span className={`font-semibold ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
+                                                {item.warranty_expiry 
+                                                    ? new Date(item.warranty_expiry).toLocaleDateString('vi-VN') 
+                                                    : '---'}
                                             </span>
-                                        )}
-                                    </div>
-                                    <span>
-                                        Hạn: <span className={`font-semibold ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
-                                            {item.warranty_expiry ? formatDate(item.warranty_expiry).split(' ')[0] : '---'}
                                         </span>
-                                    </span>
+                                    </div>
+                                    
+                                    {type === 'REPAIR' && (
+                                        <span className="font-mono bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100 font-bold">
+                                            {item.invoice_code || `#HD-${item.invoice_id}`}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         )

@@ -1,0 +1,1 @@
+ALTER TABLE warranties ADD COLUMN customer_id_number VARCHAR(50) AFTER customer_phone;

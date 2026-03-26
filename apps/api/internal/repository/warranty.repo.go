@@ -19,13 +19,11 @@ func NewWarrantyRepo(db *sqlx.DB) *WarrantyRepo {
 func (r *WarrantyRepo) Create(w model.Warranty) (int, error) {
 	query := `
 		INSERT INTO warranties (
-			customer_name, customer_phone, phone_id, invoice_id, 
-			device_name, imei, description, technical_note, 
+			phone_id, invoice_id, device_name, imei, description, technical_note, 
 			status, cost, start_date, end_date, created_at
 		) VALUES (
-			:customer_name, :customer_phone, :phone_id, :invoice_id, 
-			:device_name, :imei, :description, :technical_note, 
-			'RECEIVED', 0, :start_date, :end_date, NOW()
+			:phone_id, :invoice_id, :device_name, :imei, :description, :technical_note, 
+			'RECEIVED', :cost, :start_date, :end_date, NOW()
 		)
 	`
 	res, err := r.DB.NamedExec(query, w)
@@ -79,7 +77,10 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 		SELECT 
 			w.*, 
 			i.type,
-			i.invoice_code
+			i.invoice_code,
+			i.customer_name,         -- LẤY TỪ INVOICE
+			i.customer_phone,        -- LẤY TỪ INVOICE
+			i.customer_id_number     -- LẤY TỪ INVOICE
 	` + baseQuery + ` ORDER BY w.created_at DESC LIMIT ? OFFSET ?`
 
 	args = append(args, filter.Limit, offset)
@@ -96,7 +97,11 @@ func (r *WarrantyRepo) GetByID(id int) (*model.WarrantyListItem, error) {
 		SELECT 
 			w.*, 
 			i.type,
-			i.invoice_code
+			i.invoice_code,
+			i.customer_name,
+			i.customer_phone,
+			i.customer_id_number,
+			(SELECT MAX(warranty_months) FROM invoice_items WHERE invoice_id = w.invoice_id) as warranty_months -- BẮT THÊM SỐ THÁNG
 		FROM warranties w
 		LEFT JOIN invoices i ON w.invoice_id = i.id
 		WHERE w.id = ?
@@ -130,21 +135,26 @@ func (r *WarrantyRepo) Update(id int, input model.UpdateWarrantyInput) error {
 
 func (r *WarrantyRepo) SearchWarranty(keyword string, invType string) ([]model.WarrantySearchItem, error) {
 	var items []model.WarrantySearchItem
+
 	query := `
 		SELECT 
 			i.id as invoice_id,
 			i.invoice_code,
 			ii.phone_id,
-			COALESCE(p.model_name, ii.description) as device_name,
-			p.imei,
+			COALESCE(p.model_name, JSON_UNQUOTE(JSON_EXTRACT(r.description, '$.device_name')), ii.description) as device_name,
+			COALESCE(p.imei, JSON_UNQUOTE(JSON_EXTRACT(r.description, '$.imei'))) as imei,
 			i.customer_name,
 			i.customer_phone,
+			i.customer_id_number,
 			ii.warranty_expiry,
-			ii.warranty_months
+			ii.warranty_months,
+			ii.description as part_name,
+			ii.item_type as item_type
 		FROM invoice_items ii
 		JOIN invoices i ON ii.invoice_id = i.id
 		LEFT JOIN phones p ON ii.phone_id = p.id
-		WHERE ii.warranty_months > 0 
+		LEFT JOIN repairs r ON r.invoice_id = i.id
+		WHERE ii.warranty_expiry IS NOT NULL
 			AND i.type = ?
 			AND i.status = 'PAID'
 	`
@@ -152,12 +162,21 @@ func (r *WarrantyRepo) SearchWarranty(keyword string, invType string) ([]model.W
 	args = append(args, invType)
 
 	if keyword != "" {
-		query += ` AND (p.imei LIKE ? OR i.customer_phone LIKE ? OR i.customer_name LIKE ? OR p.model_name LIKE ? OR ii.description LIKE ? OR i.invoice_code LIKE ?)`
+		query += ` AND (
+			p.imei LIKE ? OR 
+			JSON_UNQUOTE(JSON_EXTRACT(r.description, '$.imei')) LIKE ? OR 
+			i.customer_phone LIKE ? OR 
+			i.customer_name LIKE ? OR 
+			p.model_name LIKE ? OR 
+			JSON_UNQUOTE(JSON_EXTRACT(r.description, '$.device_name')) LIKE ? OR 
+			ii.description LIKE ? OR 
+			i.invoice_code LIKE ?
+		)`
 		kw := "%" + keyword + "%"
-		args = append(args, kw, kw, kw, kw, kw, kw)
+		args = append(args, kw, kw, kw, kw, kw, kw, kw, kw)
 	}
 
-	query += ` ORDER BY i.created_at DESC LIMIT 10`
+	query += ` ORDER BY i.created_at DESC LIMIT 10` // ĐÃ XOÁ GROUP BY
 
 	err := r.DB.Select(&items, query, args...)
 	return items, err

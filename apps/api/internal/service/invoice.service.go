@@ -67,6 +67,7 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 			UnitPrice:      itemInput.UnitPrice,
 			Amount:         amount,
 			WarrantyMonths: itemInput.WarrantyMonths,
+			WarrantyDays:   itemInput.WarrantyDays,
 		})
 	}
 
