@@ -103,3 +103,19 @@ func (h *WarrantyHandler) Search(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
+
+// DELETE /api/warranties/:id
+func (h *WarrantyHandler) Delete(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	if err := h.Service.DeleteWarranty(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xoá phiếu bảo hành thành công"})
+}

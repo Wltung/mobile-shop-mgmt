@@ -182,3 +182,22 @@ func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput
 func (s *WarrantyService) SearchWarranty(keyword string, invType string) ([]model.WarrantySearchItem, error) {
 	return s.Repo.SearchWarranty(keyword, invType)
 }
+
+func (s *WarrantyService) DeleteWarranty(id int) error {
+	existing, err := s.GetWarrantyDetail(id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("không tìm thấy phiếu bảo hành")
+	}
+
+	// Phân luồng thông minh
+	if existing.Status == "RECEIVED" {
+		// Nháp, mới tạo -> Bay màu
+		return s.Repo.HardDelete(id)
+	}
+
+	// Đã xử lý / Đã xong -> Xoá mềm giấu đi
+	return s.Repo.SoftDelete(id)
+}

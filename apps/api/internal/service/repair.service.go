@@ -328,3 +328,34 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 
 	return invoiceID, nil
 }
+
+func (s *RepairService) DeleteRepairTicket(id int) error {
+	repair, err := s.GetRepairDetail(id)
+	if err != nil {
+		return err
+	}
+	if repair == nil {
+		return errors.New("không tìm thấy phiếu sửa chữa")
+	}
+
+	// NẾU ĐÃ XUẤT HOÁ ĐƠN: Chặn lại, bắt qua giao diện Hoá đơn để huỷ
+	if repair.InvoiceID != nil {
+		return errors.New("phiếu sửa chữa này đã được xuất hoá đơn. Vui lòng chuyển sang mục Hoá Đơn để thực hiện thao tác Huỷ.")
+	}
+
+	// NẾU LÀ MÁY KHO
+	if repair.RepairCategory == "SHOP_DEVICE_REPAIR" {
+		// Nếu đang sửa dở dang -> Trả lại kho
+		if repair.Status != "COMPLETED" && repair.PhoneID != nil {
+			s.PhoneService.UpdatePhoneStatus(*repair.PhoneID, "IN_STOCK")
+		}
+
+		// Nếu sửa xong rồi (đã chốt) -> Chỉ xoá mềm để giữ lịch sử sửa chữa
+		if repair.Status == "COMPLETED" {
+			return s.Repo.SoftDelete(id)
+		}
+	}
+
+	// CÁC TRƯỜNG HỢP CÒN LẠI (Chưa xuất hoá đơn, sửa nháp...) -> Xoá cứng (bay màu)
+	return s.Repo.HardDelete(id)
+}

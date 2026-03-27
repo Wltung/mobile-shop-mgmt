@@ -333,3 +333,30 @@ func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
 
 	return count, revenue, nil
 }
+
+// Hàm dọn rác xoá cứng (Chỉ dùng cho DRAFT)
+func (r *InvoiceRepo) HardDelete(id int) error {
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Quét sạch chi tiết hoá đơn
+	if _, err := tx.Exec("DELETE FROM invoice_items WHERE invoice_id = ?", id); err != nil {
+		return err
+	}
+
+	// 2. Quét sạch hoá đơn
+	if _, err := tx.Exec("DELETE FROM invoices WHERE id = ?", id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *InvoiceRepo) SoftDeleteRepairByInvoice(invoiceID int) error {
+	query := `UPDATE repairs SET deleted_at = NOW() WHERE invoice_id = ?`
+	_, err := r.DB.Exec(query, invoiceID)
+	return err
+}

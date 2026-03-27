@@ -27,4 +27,9 @@ export const warrantyService = {
         const response = await http.get<{ data: any[] }>('/warranties/search', { params })
         return response.data
     },
+
+    delete: async (id: number) => {
+        const response = await http.delete<{ message: string }>(`/warranties/${id}`)
+        return response.data
+    },
 }

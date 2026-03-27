@@ -39,4 +39,9 @@ export const repairService = {
         const response = await http.post<{ message: string; invoice_id: number }>(`/repairs/${id}/complete`)
         return response.data
     },
+
+    delete: async (id: number) => {
+        const response = await http.delete<{ message: string }>(`/repairs/${id}`)
+        return response.data
+    },
 }

@@ -43,4 +43,9 @@ export const phoneService = {
         )
         return response.data
     },
+
+    delete: async (id: number) => {
+        const response = await http.delete<{ message: string }>(`/phones/${id}`)
+        return response.data
+    },
 }

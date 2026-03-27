@@ -19,6 +19,7 @@ type Repair struct {
 	InvoiceID      *int       `db:"invoice_id" json:"invoice_id"`
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt      *time.Time `db:"deleted_at" json:"deleted_at"`
 }
 
 type RepairPart struct {

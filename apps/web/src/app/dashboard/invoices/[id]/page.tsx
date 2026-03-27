@@ -8,7 +8,8 @@ import {
     User, 
     CreditCard, 
     FileText, 
-    PackageSearch
+    PackageSearch,
+    Trash2
 } from 'lucide-react'
 
 // Components UI & Utils
@@ -23,6 +24,8 @@ import PageLoading from '@/components/common/PageLoading'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useInvoiceDetail } from '@/hooks/invoice/useInvoiceDetail'
 import { useToast } from '@/hooks/use-toast'
+import ConfirmModal from '@/components/common/ConfirmModal'
+import { useState } from 'react'
 
 // --- LOCAL COMPONENT: InfoBlock ---
 const InfoBlock = ({
@@ -47,11 +50,17 @@ const InfoBlock = ({
 export default function InvoiceDetailPage() {
     const { id } = useParams()
     const { toast } = useToast()
-    const { invoice, isLoading } = useInvoiceDetail(Number(id))
+    const { invoice, isLoading, isCanceling, cancelOrDeleteInvoice } = useInvoiceDetail(Number(id))
     const router = useRouter()
+
+    const [showCancelModal, setShowCancelModal] = useState(false)
 
     if (isLoading) return <PageLoading title="Chi tiết hoá đơn" />
     if (!invoice) return null
+
+    const isPaid = invoice?.status === 'PAID'
+    const isDraft = invoice?.status === 'DRAFT'
+    const isCancelled = invoice?.status === 'CANCELLED'
 
     // Hàm render Badge cho Loại hoá đơn
     const getInvoiceTypeBadge = (type: string) => {
@@ -142,6 +151,18 @@ export default function InvoiceDetailPage() {
                                     <Printer className="h-4 w-4" />
                                     <span>In hoá đơn</span>
                                 </Button>
+
+                                {/* ĐÃ THÊM: Nút Huỷ / Xoá hoá đơn */}
+                                {!isCancelled && (
+                                    <Button 
+                                        variant="destructive" 
+                                        className="gap-2 bg-red-500 hover:bg-red-600 text-white shadow-sm font-semibold px-4"
+                                        onClick={() => setShowCancelModal(true)}
+                                    >
+                                        <Trash2 className="h-4 w-4" /> 
+                                        {isPaid ? 'Huỷ hoá đơn' : 'Xoá bản nháp'}
+                                    </Button>
+                                )}
                             </>
                         }
                     />
@@ -352,6 +373,22 @@ export default function InvoiceDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* SỬ DỤNG COMPONENT DÙNG CHUNG */}
+            <ConfirmModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={cancelOrDeleteInvoice}
+                isLoading={isCanceling}
+                title={isPaid ? 'Cảnh báo: Huỷ hoá đơn' : 'Xác nhận xoá bản nháp?'}
+                description={
+                    isPaid 
+                        ? <>Bạn đang thực hiện thao tác <strong className="text-red-600">Huỷ hoá đơn đã thanh toán</strong>. Thao tác này sẽ hoàn trả máy về kho, giải phóng IMEI và không thể hoàn tác.</>
+                        : <>Bạn có chắc chắn muốn xoá vĩnh viễn hoá đơn nháp này cùng với dữ liệu máy bên trong không?</>
+                }
+                confirmText={isPaid ? 'Xác nhận huỷ' : 'Xác nhận xoá'}
+                variant="danger"
+            />
         </div>
     )
 }

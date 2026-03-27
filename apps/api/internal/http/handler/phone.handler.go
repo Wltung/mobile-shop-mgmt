@@ -155,3 +155,22 @@ func (h *PhoneHandler) UpdatePhone(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật thành công"})
 }
+
+func (h *PhoneHandler) DeletePhone(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	userIDFloat, _ := c.Get("userID")
+	userID := int(userIDFloat.(float64))
+
+	if err := h.Service.DeletePhone(id, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xoá máy thành công"})
+}

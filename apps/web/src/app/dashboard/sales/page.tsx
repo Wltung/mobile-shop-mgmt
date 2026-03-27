@@ -30,11 +30,13 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import SalePhoneModal from '@/components/phones/sales/SalePhoneModal'
+import ConfirmModal from '@/components/common/ConfirmModal'
 
 export default function SalesPage() {
     const router = useRouter()
 
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false)
+    const [confirmDeleteItem, setConfirmDeleteItem] = useState<Phone | null>(null)
 
     // Sử dụng hook list nhưng set logic riêng cho trang Sales
     const {
@@ -50,6 +52,7 @@ export default function SalesPage() {
         formatJustDate,
         setStatus,
         refresh,
+        deletePhone
     } = usePhoneList('SALE')
 
     // --- CẤU HÌNH STATS (Khác trang Import) ---
@@ -167,9 +170,15 @@ export default function SalesPage() {
                         <Eye className="h-4 w-4" />
                     </button>
                     {/* Nút xoá hoá đơn bán (nếu cần) */}
-                    <button className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                    </button>
+                    {item.invoice_status !== 'CANCELLED' && (
+                        <button 
+                            className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                            onClick={() => setConfirmDeleteItem(item)}
+                            title={item.invoice_status === 'PAID' ? "Huỷ hoá đơn này" : "Xoá bản nháp"}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
             ),
         },
@@ -275,6 +284,27 @@ export default function SalesPage() {
                 isOpen={isSaleModalOpen}
                 onClose={() => setIsSaleModalOpen(false)}
                 onSuccess={() => refresh()} // Refresh list sau khi bán xong
+            />
+
+            {/* MODAL XÁC NHẬN HUỶ/XOÁ */}
+            <ConfirmModal
+                isOpen={!!confirmDeleteItem}
+                onClose={() => setConfirmDeleteItem(null)}
+                onConfirm={() => {
+                    if (confirmDeleteItem && confirmDeleteItem.invoice_id) {
+                        // Gọi hàm deletePhone (truyền ID máy và ID hoá đơn)
+                        deletePhone(confirmDeleteItem.id, confirmDeleteItem.invoice_id)
+                        setConfirmDeleteItem(null)
+                    }
+                }}
+                title={confirmDeleteItem?.invoice_status === 'PAID' ? 'Cảnh báo: Huỷ hoá đơn bán' : 'Xác nhận xoá bản nháp?'}
+                description={
+                    confirmDeleteItem?.invoice_status === 'PAID' 
+                        ? <>Bạn đang thực hiện thao tác <strong className="text-red-600">Huỷ hoá đơn đã thanh toán</strong>. Thao tác này sẽ tự động hoàn trả máy <strong className="text-slate-800">{confirmDeleteItem?.model_name}</strong> về lại trong kho và không thể hoàn tác.</>
+                        : <>Bạn có chắc chắn muốn xoá hoá đơn nháp này? Máy <strong className="text-slate-800">{confirmDeleteItem?.model_name}</strong> sẽ được trả lại kho.</>
+                }
+                confirmText={confirmDeleteItem?.invoice_status === 'PAID' ? 'Xác nhận huỷ' : 'Xác nhận xoá'}
+                variant="danger"
             />
         </div>
     )

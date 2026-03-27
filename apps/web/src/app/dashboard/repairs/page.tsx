@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import PageActionButton from '@/components/common/PageActionButton'
 import CreateRepairModal from '@/components/phones/repairs/CreateRepairModal'
+import ConfirmModal from '@/components/common/ConfirmModal'
 
 // Chú ý: Component CreateRepairModal sẽ được tạo ở bước sau
 // import CreateRepairModal from '@/components/repairs/CreateRepairModal'
@@ -44,9 +45,13 @@ export default function RepairListPage() {
         formatCurrency,
         formatJustDate,
         refresh,
+        deleteRepair
     } = useRepairList()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+
+    const [confirmDeleteItem, setConfirmDeleteItem] = useState<Repair | null>(null)
+    const [warningItem, setWarningItem] = useState<Repair | null>(null)
 
     // --- 1. CẤU HÌNH STATS (Khớp với hình thiết kế) ---
     const statItems = [
@@ -216,6 +221,14 @@ export default function RepairListPage() {
                     <button 
                         className="rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Xóa phiếu"
+                        onClick={() => {
+                            // Phân luồng y hệt lúc bán/nhập máy
+                            if (item.invoice_id) {
+                                setWarningItem(item)
+                            } else {
+                                setConfirmDeleteItem(item)
+                            }
+                        }}
                     >
                         <Trash2 className="h-5 w-5" />
                     </button>
@@ -313,6 +326,55 @@ export default function RepairListPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refresh()}
+            />
+
+            {/* ĐÃ THÊM: MODAL ĐỎ XÁC NHẬN XOÁ */}
+            <ConfirmModal
+                isOpen={!!confirmDeleteItem}
+                onClose={() => setConfirmDeleteItem(null)}
+                onConfirm={() => {
+                    if (confirmDeleteItem) {
+                        deleteRepair(confirmDeleteItem.id)
+                        setConfirmDeleteItem(null)
+                    }
+                }}
+                title="Xác nhận xoá phiếu sửa chữa?"
+                description={
+                    <>
+                        Bạn có chắc chắn muốn xoá phiếu sửa chữa này không?
+                        {confirmDeleteItem?.repair_category === 'SHOP_DEVICE_REPAIR'
+                            ? confirmDeleteItem?.status !== 'COMPLETED'
+                                ? <span><br/>Máy kho sẽ được hoàn trả lại trạng thái chờ bán (IN_STOCK) và không thể hoàn tác.</span>
+                                : <span><br/>Lịch sử sửa chữa của máy này sẽ bị xoá (ẩn) khỏi danh sách.</span>
+                            : <span><br/>Dữ liệu sẽ bị <strong className="text-slate-700">xoá vĩnh viễn</strong>.</span>
+                        }
+                    </>
+                }
+                confirmText="Xác nhận xoá"
+                variant="danger"
+            />
+
+            {/* ĐÃ THÊM: MODAL VÀNG CẢNH BÁO */}
+            <ConfirmModal
+                isOpen={!!warningItem}
+                onClose={() => setWarningItem(null)}
+                onConfirm={() => {
+                    if (warningItem?.invoice_id) {
+                        router.push(`/dashboard/invoices/${warningItem.invoice_id}`)
+                    }
+                    setWarningItem(null)
+                }}
+                title="Không thể xoá trực tiếp!"
+                description={
+                    <>
+                        Phiếu sửa chữa này đã được chốt và thanh toán trong hệ thống.
+                        <br /><br />
+                        Vui lòng chuyển sang chi tiết hoá đơn và thực hiện thao tác <strong className="text-red-600">Huỷ hoá đơn</strong> để hoàn tác lại trạng thái.
+                    </>
+                }
+                confirmText="Xem hoá đơn"
+                cancelText="Đã hiểu"
+                variant="warning"
             />
         </div>
     )

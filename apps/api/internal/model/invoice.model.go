@@ -35,6 +35,7 @@ type Invoice struct {
 	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
 	Note        *string    `db:"note" json:"note"`
 	UpdatedAt   *time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt   *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
 
 	// Fields hiển thị thêm (JOIN)
 	CreatorName string        `db:"creator_name" json:"creator_name,omitempty"`

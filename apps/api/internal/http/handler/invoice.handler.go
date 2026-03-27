@@ -148,3 +148,28 @@ func (h *InvoiceHandler) GetInvoices(c *gin.Context) {
 		},
 	})
 }
+
+// DELETE /api/invoices/:id
+func (h *InvoiceHandler) DeleteInvoice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	userIDFloat, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
+		return
+	}
+	userID := int(userIDFloat.(float64))
+
+	// Gọi bộ não điều phối
+	if err := h.Service.CancelOrDeleteInvoice(id, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xử lý hoá đơn thành công"})
+}

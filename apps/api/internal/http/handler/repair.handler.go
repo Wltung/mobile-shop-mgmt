@@ -149,3 +149,20 @@ func (h *RepairHandler) CompleteRepair(c *gin.Context) {
 		"invoice_id": invoiceID, // Trả về ID hoá đơn để FE có thể redirect sang trang In
 	})
 }
+
+// DELETE /api/repairs/:id
+func (h *RepairHandler) DeleteRepair(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	if err := h.Service.DeleteRepairTicket(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xoá phiếu sửa chữa thành công"})
+}

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import PageActionButton from '@/components/common/PageActionButton'
 import CreateWarrantyModal from '@/components/phones/warranties/CreateWarrantyModal'
+import ConfirmModal from '@/components/common/ConfirmModal'
 
 // import CreateWarrantyModal from '@/components/phones/warranties/CreateWarrantyModal'
 
@@ -40,9 +41,11 @@ export default function WarrantyListPage() {
         setDateFilter,
         formatJustDate,
         refresh,
+        deleteWarranty
     } = useWarrantyList()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [confirmDeleteItem, setConfirmDeleteItem] = useState<Warranty | null>(null)
 
     // --- 1. CẤU HÌNH STATS ---
     const statItems = [
@@ -155,6 +158,7 @@ export default function WarrantyListPage() {
                     <button 
                         className="rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Xóa phiếu"
+                        onClick={() => setConfirmDeleteItem(item)}
                     >
                         <Trash2 className="h-5 w-5" />
                     </button>
@@ -251,6 +255,26 @@ export default function WarrantyListPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refresh()}
+            />
+
+            {/* MODAL XÁC NHẬN XOÁ */}
+            <ConfirmModal
+                isOpen={!!confirmDeleteItem}
+                onClose={() => setConfirmDeleteItem(null)}
+                onConfirm={() => {
+                    if (confirmDeleteItem) {
+                        deleteWarranty(confirmDeleteItem.id)
+                        setConfirmDeleteItem(null)
+                    }
+                }}
+                title="Xác nhận xoá phiếu bảo hành?"
+                description={
+                    confirmDeleteItem?.status === 'RECEIVED'
+                        ? <>Phiếu này mới được tiếp nhận và chưa xử lý. Dữ liệu sẽ bị <strong className="text-red-600">xoá vĩnh viễn</strong>.</>
+                        : <>Phiếu này đã được xử lý. Lịch sử của phiếu sẽ được <strong className="text-slate-700">ẩn khỏi danh sách</strong> để đảm bảo an toàn dữ liệu.</>
+                }
+                confirmText="Xác nhận xoá"
+                variant="danger"
             />
         </div>
     )

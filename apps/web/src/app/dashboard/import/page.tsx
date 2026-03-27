@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Search, Eye, Trash2, Package, DollarSign } from 'lucide-react'
+import { Plus, Search, Eye, Trash2, Package, DollarSign, AlertTriangle } from 'lucide-react'
 import { usePhoneList } from '@/hooks/phone/usePhoneList'
 import { Phone } from '@/types/phone'
 import { ColumnDef } from '@/types/common'
@@ -22,6 +22,8 @@ import {
 import ImportPhoneModal from '@/components/phones/import/ImportPhoneModal'
 import PageActionButton from '@/components/common/PageActionButton'
 
+import ConfirmModal from '@/components/common/ConfirmModal'
+
 export default function ImportPage() {
     const router = useRouter()
     const {
@@ -37,22 +39,25 @@ export default function ImportPage() {
         formatCurrency,
         formatJustDate,
         refresh,
+        deletePhone
     } = usePhoneList('IMPORT')
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+    
+    // States quản lý Modals
+    const [confirmDeleteItem, setConfirmDeleteItem] = useState<Phone | null>(null)
+    const [warningItem, setWarningItem] = useState<Phone | null>(null)
 
     // --- 1. CẤU HÌNH STATS ---
     const statItems = [
         {
             label: 'Tổng máy đang có trong kho',
-            // Lấy từ cục stats API trả về
             value: `${stats?.inventoryCount || 0} máy`,
             icon: <Package className="h-5 w-5 text-blue-600" />,
             color: 'blue' as const,
         },
         {
             label: 'Tổng giá trị tồn kho',
-            // Lấy từ cục stats API trả về
             value: formatCurrency(stats?.inventoryValue || 0),
             icon: <DollarSign className="h-5 w-5 text-green-600" />,
             color: 'green' as const,
@@ -74,7 +79,6 @@ export default function ImportPage() {
             header: 'ĐỜI MÁY',
             accessorKey: 'model_name',
             cell: (item) => {
-                // ĐÃ FIX: Xử lý hiển thị RAM / ROM
                 const ram = item.details?.ram || ''
                 const storage = item.details?.storage || ''
                 const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
@@ -180,22 +184,43 @@ export default function ImportPage() {
         {
             header: 'THAO TÁC',
             className: 'text-center',
-            cell: (item) => (
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary"
-                        onClick={() =>
-                            router.push(`/dashboard/phones/${item.id}`)
-                        }
-                        title="Xem chi tiết"
-                    >
-                        <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                    </button>
-                </div>
-            ),
+            cell: (item) => {
+                // LOGIC CHỐT CHẶN:
+                const isLocked = item.status !== 'IN_STOCK' // Bị khoá nếu Đã bán hoặc Đang sửa
+                const isPaidImport = item.invoice_status === 'PAID' // Đã chốt dòng tiền
+
+                return (
+                    <div className="flex items-center justify-center gap-2">
+                        <button
+                            className="rounded p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-primary"
+                            onClick={() => router.push(`/dashboard/phones/${item.id}`)}
+                            title="Xem chi tiết"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </button>
+                        
+                        <button 
+                            disabled={isLocked}
+                            onClick={() => {
+                                if (isPaidImport) {
+                                    setWarningItem(item)
+                                } else {
+                                    // ĐÃ FIX: Lưu nguyên object thay vì chỉ id
+                                    setConfirmDeleteItem(item) 
+                                }
+                            }}
+                            className={`rounded p-2 transition-colors ${
+                                isLocked 
+                                    ? 'text-slate-300 cursor-not-allowed opacity-50' 
+                                    : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+                            }`}
+                            title={isLocked ? "Không thể xoá máy đã bán hoặc đang sửa" : "Xoá máy"}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
+                )
+            },
         },
     ]
 
@@ -220,9 +245,7 @@ export default function ImportPage() {
                             <SelectValue placeholder="Thời gian" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">
-                                Tất cả thời gian
-                            </SelectItem>
+                            <SelectItem value="all">Tất cả thời gian</SelectItem>
                             <SelectItem value="today">Hôm nay</SelectItem>
                             <SelectItem value="week">Tuần này</SelectItem>
                             <SelectItem value="month">Tháng này</SelectItem>
@@ -230,17 +253,12 @@ export default function ImportPage() {
                     </Select>
                 </div>
                 <div className="relative min-w-[160px] flex-1 md:flex-none">
-                    <Select
-                        onValueChange={setStatus}
-                        value={filters.status || 'ALL'}
-                    >
+                    <Select onValueChange={setStatus} value={filters.status || 'ALL'}>
                         <SelectTrigger className="h-10 border-slate-300">
                             <SelectValue placeholder="Tất cả trạng thái" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">
-                                Tất cả trạng thái
-                            </SelectItem>
+                            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
                             <SelectItem value="IN_STOCK">Trong kho</SelectItem>
                             <SelectItem value="SOLD">Đã bán</SelectItem>
                             <SelectItem value="REPAIRING">Đang sửa</SelectItem>
@@ -261,7 +279,6 @@ export default function ImportPage() {
                     <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                         <StatsCards stats={statItems} />
 
-                        {/* --- SỬ DỤNG COMPONENT CHUNG --- */}
                         <PageActionButton
                             label="Nhập máy mới"
                             icon={<Plus className="h-5 w-5" />}
@@ -287,10 +304,57 @@ export default function ImportPage() {
                 </div>
             </div>
 
+            {/* MODAL THÊM MỚI */}
             <ImportPhoneModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={() => refresh()}
+            />
+
+            {/* MODAL ĐỎ: XÁC NHẬN XOÁ MÁY */}
+            <ConfirmModal
+                isOpen={!!confirmDeleteItem}
+                onClose={() => setConfirmDeleteItem(null)}
+                onConfirm={() => {
+                    if (confirmDeleteItem) {
+                        deletePhone(confirmDeleteItem.id, confirmDeleteItem.invoice_id)
+                        setConfirmDeleteItem(null)
+                    }
+                }}
+                title="Xác nhận xoá máy?"
+                description={
+                    <>
+                        Bạn có chắc chắn muốn xoá thông tin máy này?<br />
+                        Dữ liệu về IMEI và lịch sử nhập máy sẽ bị <span className="text-slate-700 font-bold">xoá vĩnh viễn</span> và không thể hoàn tác.
+                    </>
+                }
+                confirmText="Xác nhận xoá"
+                variant="danger"
+            />
+
+            {/* MODAL VÀNG: CẢNH BÁO MÁY ĐÃ CÓ HOÁ ĐƠN PAID */}
+            <ConfirmModal
+                isOpen={!!warningItem}
+                onClose={() => setWarningItem(null)}
+                onConfirm={() => {
+                    if (warningItem?.invoice_id) {
+                        router.push(`/dashboard/invoices/${warningItem.invoice_id}`)
+                    } else {
+                        router.push(`/dashboard/invoices`)
+                    }
+                    setWarningItem(null)
+                }}
+                title="Không thể xoá trực tiếp!"
+                description={
+                    <>
+                        Máy này đã được thanh toán trong hoá đơn <span className="font-bold text-slate-700">{warningItem?.invoice_code || 'Nhập'}</span>. 
+                        <br /><br />
+                        Để xoá máy, vui lòng chuyển đến chi tiết hoá đơn và thực hiện thao tác <span className="font-bold text-red-600">Huỷ hoá đơn</span>.
+                    </>
+                }
+                confirmText="Xem hoá đơn"
+                cancelText="Đã hiểu"
+                variant="warning"
             />
         </div>
     )

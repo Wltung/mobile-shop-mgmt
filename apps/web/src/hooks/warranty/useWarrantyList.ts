@@ -125,6 +125,23 @@ export const useWarrantyList = () => {
         }))
     }
 
+    const deleteWarranty = async (id: number) => {
+        try {
+            setIsLoading(true)
+            await warrantyService.delete(id)
+            toast({ title: 'Thành công', description: 'Đã xoá phiếu bảo hành.' })
+            refresh()
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Lỗi',
+                description: error.response?.data?.error || 'Không thể xoá dữ liệu.',
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     return {
         warranties,
         isLoading,
@@ -137,5 +154,6 @@ export const useWarrantyList = () => {
         refresh,
         formatJustDate,
         setDateFilter,
+        deleteWarranty
     }
 }

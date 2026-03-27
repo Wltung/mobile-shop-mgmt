@@ -89,7 +89,7 @@ func (r *RepairRepo) GetAll(filter model.RepairFilter) ([]model.RepairListItem, 
 	baseQuery := `
 		FROM repairs r
 		LEFT JOIN phones p ON r.phone_id = p.id
-		WHERE 1=1
+		WHERE r.deleted_at IS NULL
 	`
 	var args []interface{}
 
@@ -130,12 +130,12 @@ func (r *RepairRepo) GetStats() (int, int, error) {
 	var completedTodayCount int
 
 	// Đếm 3 trạng thái trong ngày hôm nay
-	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE status IN ('PENDING', 'REPAIRING', 'WAITING_CUSTOMER') AND DATE(created_at) = CURDATE()`)
+	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND status IN ('PENDING', 'REPAIRING', 'WAITING_CUSTOMER') AND DATE(created_at) = CURDATE()`)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	err = r.DB.Get(&completedTodayCount, `SELECT COUNT(*) FROM repairs WHERE status = 'COMPLETED' AND DATE(updated_at) = CURDATE()`)
+	err = r.DB.Get(&completedTodayCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND status = 'COMPLETED' AND DATE(updated_at) = CURDATE()`)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -164,4 +164,14 @@ func (r *RepairRepo) GetPhoneBasicInfo(phoneID int) (string, string, string, err
 		}
 	}
 	return p.ModelName, p.IMEI, color, nil
+}
+
+func (r *RepairRepo) HardDelete(id int) error {
+	_, err := r.DB.Exec("DELETE FROM repairs WHERE id = ?", id)
+	return err
+}
+
+func (r *RepairRepo) SoftDelete(id int) error {
+	_, err := r.DB.Exec("UPDATE repairs SET deleted_at = NOW() WHERE id = ?", id)
+	return err
 }

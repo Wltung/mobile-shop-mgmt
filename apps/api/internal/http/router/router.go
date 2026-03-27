@@ -68,6 +68,7 @@ func NewRouter(
 				phones.GET("/sales", phoneHandler.GetSalePhones)
 				phones.GET("/:id", phoneHandler.GetPhoneDetail)
 				phones.PATCH("/:id", phoneHandler.UpdatePhone)
+				phones.DELETE(":id", phoneHandler.DeletePhone)
 			}
 			// Invoice Routes
 			invoices := protected.Group("/invoices")
@@ -77,6 +78,7 @@ func NewRouter(
 				invoices.GET("", invoiceHandler.GetInvoices)
 				invoices.PATCH("/:id/status", invoiceHandler.UpdateInvoiceStatus)
 				invoices.PATCH("/:id", invoiceHandler.UpdateInvoice)
+				invoices.DELETE(":id", invoiceHandler.DeleteInvoice)
 			}
 			// Repair Routes
 			repairs := protected.Group("/repairs")
@@ -86,6 +88,7 @@ func NewRouter(
 				repairs.GET("/:id", repairHandler.GetRepair)
 				repairs.PATCH("/:id", repairHandler.UpdateRepair)
 				repairs.POST("/:id/complete", repairHandler.CompleteRepair)
+				repairs.DELETE(":id", repairHandler.DeleteRepair)
 			}
 			warranties := protected.Group("/warranties")
 			{
@@ -94,6 +97,7 @@ func NewRouter(
 				warranties.GET("/:id", warrantyHandler.GetByID)
 				warranties.GET("/search", warrantyHandler.Search)
 				warranties.PATCH("/:id", warrantyHandler.Update)
+				warranties.DELETE("/:id", warrantyHandler.Delete)
 			}
 		}
 	}

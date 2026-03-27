@@ -18,6 +18,7 @@ type Warranty struct {
 	EndDate       *time.Time `db:"end_date" json:"end_date"`
 	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt     *time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt     *time.Time `db:"deleted_at" json:"deleted_at"`
 }
 
 // 2. Cấu trúc JSON cho cột description

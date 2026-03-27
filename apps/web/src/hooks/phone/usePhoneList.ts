@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast'
 import { debounce } from 'lodash'
 import { PaginationMeta } from '@/types/common'
 import { formatCurrency, formatDateForInput, formatJustDate } from '@/lib/utils'
+import { invoiceService } from '@/services/invoice.service'
 
 // Định nghĩa kiểu danh sách
 type ListType = 'IMPORT' | 'SALE'
@@ -145,6 +146,30 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         }))
     }
 
+    const deletePhone = async (id: number, invoiceId?: number | null) => {
+        try {
+            setIsLoading(true)
+            if (invoiceId) {
+                // Máy có hoá đơn -> Xoá hoá đơn (BE sẽ tự xoá máy)
+                await invoiceService.delete(invoiceId)
+            } else {
+                // Máy nhập tay không hoá đơn -> Xoá máy trực tiếp
+                await phoneService.delete(id)
+            }
+            
+            toast({ title: 'Thành công', description: 'Đã xoá dữ liệu thành công.' })
+            refresh()
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Lỗi',
+                description: error.response?.data?.error || 'Không thể xoá máy.',
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     return {
         phones,
         isLoading,
@@ -158,5 +183,6 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         formatCurrency,
         formatJustDate,
         setDateFilter,
+        deletePhone,
     }
 }

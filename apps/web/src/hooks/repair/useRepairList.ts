@@ -125,6 +125,23 @@ export const useRepairList = () => {
         }))
     }
 
+    const deleteRepair = async (id: number) => {
+        try {
+            setIsLoading(true)
+            await repairService.delete(id)
+            toast({ title: 'Thành công', description: 'Đã xoá phiếu sửa chữa.' })
+            refresh()
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Lỗi',
+                description: error.response?.data?.error || 'Không thể xoá dữ liệu.',
+            })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     return {
         repairs,
         isLoading,
@@ -138,5 +155,6 @@ export const useRepairList = () => {
         formatCurrency,
         formatJustDate,
         setDateFilter,
+        deleteRepair
     }
 }

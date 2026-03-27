@@ -50,7 +50,7 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 	baseQuery := `
 		FROM warranties w
 		LEFT JOIN invoices i ON w.invoice_id = i.id
-		WHERE 1=1
+		WHERE w.deleted_at IS NULL
 	`
 	var args []interface{}
 
@@ -191,12 +191,24 @@ func (r *WarrantyRepo) GetStats() (map[string]int, error) {
 	}
 
 	var receivedToday int
-	_ = r.DB.Get(&receivedToday, `SELECT COUNT(*) FROM warranties WHERE DATE(created_at) = CURDATE()`)
+	_ = r.DB.Get(&receivedToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND DATE(created_at) = CURDATE()`)
 	stats["receivedTodayCount"] = receivedToday
 
 	var doneToday int
-	_ = r.DB.Get(&doneToday, `SELECT COUNT(*) FROM warranties WHERE status IN ('COMPLETED', 'DELIVERED') AND DATE(updated_at) = CURDATE()`)
+	_ = r.DB.Get(&doneToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND status IN ('COMPLETED', 'DELIVERED', 'DONE') AND DATE(updated_at) = CURDATE()`)
 	stats["doneTodayCount"] = doneToday
 
 	return stats, nil
+}
+
+// Xoá cứng
+func (r *WarrantyRepo) HardDelete(id int) error {
+	_, err := r.DB.Exec("DELETE FROM warranties WHERE id = ?", id)
+	return err
+}
+
+// Xoá mềm
+func (r *WarrantyRepo) SoftDelete(id int) error {
+	_, err := r.DB.Exec("UPDATE warranties SET deleted_at = NOW() WHERE id = ?", id)
+	return err
 }

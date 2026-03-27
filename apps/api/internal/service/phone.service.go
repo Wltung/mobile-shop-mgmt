@@ -167,3 +167,34 @@ func (s *PhoneService) MarkPhoneAsSold(phoneID int, salePrice int64, saleDate ti
 func (s *PhoneService) RevertPhoneToInStock(phoneID int) error {
 	return s.Repo.RevertToInStock(phoneID)
 }
+
+func (s *PhoneService) DeletePhone(id int, userID int) error {
+	existingPhone, err := s.Repo.GetByID(id, userID)
+	if err != nil {
+		return err
+	}
+	if existingPhone == nil {
+		return errors.New("không tìm thấy máy")
+	}
+	if existingPhone.Status != "IN_STOCK" {
+		return errors.New("chỉ có thể xoá máy đang trong kho")
+	}
+
+	// ĐÃ FIX: Chặn đứng mọi nỗ lực xoá máy nếu nó có gắn với Hoá đơn
+	if existingPhone.InvoiceID != nil {
+		return errors.New("máy này đang gắn với một hoá đơn. Vui lòng gọi API xoá/huỷ hoá đơn thay vì xoá trực tiếp máy")
+	}
+
+	// Chỉ Xoá mềm với máy nhập lẻ (không qua hoá đơn)
+	return s.Repo.SoftDelete(id, userID)
+}
+
+// Xoá cứng máy (Dành cho hoá đơn DRAFT)
+func (s *PhoneService) HardDeletePhone(id int, userID int) error {
+	return s.Repo.HardDelete(id, userID)
+}
+
+// Xoá mềm máy (Dành cho hoá đơn PAID) - Bỏ qua các check ràng buộc hoá đơn
+func (s *PhoneService) SoftDeletePhoneBypass(id int, userID int) error {
+	return s.Repo.SoftDelete(id, userID)
+}

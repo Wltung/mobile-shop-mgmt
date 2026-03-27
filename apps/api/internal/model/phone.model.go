@@ -18,8 +18,9 @@ type Phone struct {
 	SaleDate     *time.Time `db:"sale_date" json:"sale_date"`
 	Note         *string    `db:"note" json:"note"`
 
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 
 	ImportBy     *int   `db:"import_by" json:"import_by"`
 	ImporterName string `db:"importer_name" json:"importer_name"`

@@ -193,3 +193,73 @@ func (s *InvoiceService) GetInvoices(filter model.InvoiceFilter) ([]model.Invoic
 
 	return items, total, stats, nil
 }
+
+// Xử lý Xoá/Huỷ hoá đơn
+func (s *InvoiceService) CancelOrDeleteInvoice(id int, userID int) error {
+	inv, err := s.GetInvoiceDetail(id)
+	if err != nil {
+		return err
+	}
+	if inv == nil {
+		return fmt.Errorf("không tìm thấy hoá đơn")
+	}
+
+	// --- KỊCH BẢN 1: HOÁ ĐƠN NHÁP (DRAFT) -> XOÁ CỨNG ---
+	if inv.Status == model.InvoiceStatusDraft {
+		switch inv.Type {
+		case model.InvoiceTypeImport:
+			for _, item := range inv.Items {
+				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
+					_ = s.PhoneService.HardDeletePhone(*item.PhoneID, userID)
+				}
+			}
+		case model.InvoiceTypeSale:
+			// ĐÃ VÁ LỖI: Nếu xoá nháp đơn BÁN -> Phải nhả máy về kho IN_STOCK
+			for _, item := range inv.Items {
+				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
+					s.PhoneService.RevertPhoneToInStock(*item.PhoneID)
+				}
+			}
+		}
+		// Xoá cứng hoá đơn
+		return s.Repo.HardDelete(id)
+	}
+
+	// --- KỊCH BẢN 2: HOÁ ĐƠN ĐÃ CHỐT (PAID) -> HUỶ MỀM ---
+	if inv.Status == model.InvoiceStatusPaid {
+		// 1. Gạch chéo hoá đơn (Chuyển status thành CANCELLED)
+		err := s.Repo.UpdateStatus(id, model.InvoiceStatusCancelled)
+		if err != nil {
+			return err
+		}
+
+		// 2. Xử lý logic hoàn trả
+		switch inv.Type {
+		case model.InvoiceTypeSale:
+			// Huỷ đơn BÁN -> Nhả máy về kho
+			for _, item := range inv.Items {
+				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
+					s.PhoneService.RevertPhoneToInStock(*item.PhoneID)
+				}
+			}
+		case model.InvoiceTypeImport:
+			// Huỷ đơn NHẬP -> Xoá mềm máy + Giải phóng IMEI cho nhập lại
+			for _, item := range inv.Items {
+				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
+					_ = s.PhoneService.SoftDeletePhoneBypass(*item.PhoneID, userID)
+				}
+			}
+		case model.InvoiceTypeRepair:
+			// ĐÃ THÊM: Huỷ đơn SỬA CHỮA -> Trả phiếu sửa về REPAIRING và gỡ liên kết
+			_ = s.Repo.SoftDeleteRepairByInvoice(id)
+		}
+		return nil
+	}
+
+	// --- KỊCH BẢN 3: ĐÃ HUỶ TỪ TRƯỚC ---
+	if inv.Status == model.InvoiceStatusCancelled {
+		return fmt.Errorf("hoá đơn này đã bị huỷ từ trước")
+	}
+
+	return fmt.Errorf("trạng thái hoá đơn không hợp lệ")
+}

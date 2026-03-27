@@ -38,4 +38,9 @@ export const invoiceService = {
         const response = await http.get('/invoices', { params })
         return response.data
     },
+
+    delete: async (id: number) => {
+        const response = await http.delete<{ message: string }>(`/invoices/${id}`)
+        return response.data
+    },
 }

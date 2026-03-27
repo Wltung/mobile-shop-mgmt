@@ -32,7 +32,7 @@ func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 
 func (r *PhoneRepo) GetByIMEI(imei string, userID int) (*model.Phone, error) {
 	var phone model.Phone
-	query := `SELECT * FROM phones WHERE import_by = ? AND imei = ? LIMIT 1`
+	query := `SELECT * FROM phones WHERE import_by = ? AND imei = ? AND deleted_at IS NULL AND status IN ('IN_STOCK', 'REPAIRING') LIMIT 1`
 	err := r.DB.Get(&phone, query, userID, imei)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -76,7 +76,7 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 			JOIN invoices i ON ii.invoice_id = i.id
 			WHERE ii.item_type = 'PHONE' AND i.type = 'IMPORT'
 		) inv ON p.id = inv.phone_id
-		WHERE p.import_by = ?
+		WHERE p.import_by = ? AND p.deleted_at IS NULL
 	`
 	args := []interface{}{userID}
 
@@ -122,7 +122,7 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
         JOIN invoice_items ii ON p.id = ii.phone_id
         JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
         -- ĐÃ XOÁ LEFT JOIN CUSTOMERS, DÙNG TRỰC TIẾP inv.customer_name
-        WHERE p.import_by = ? AND p.status = 'SOLD'
+        WHERE p.import_by = ? AND p.deleted_at IS NULL AND p.status = 'SOLD'
 	`
 	args := []interface{}{userID}
 
@@ -265,10 +265,11 @@ func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
 		WHERE p.import_by = ? 
-		  AND p.status = 'SOLD'
-		  AND i.type = 'SALE'
-		  AND i.status = 'PAID'
-		  AND DATE(p.sale_date) = CURDATE()
+			AND p.deleted_at IS NULL
+			AND p.status = 'SOLD'
+			AND i.type = 'SALE'
+			AND i.status = 'PAID'
+			AND DATE(p.sale_date) = CURDATE()
 	`
 	if err := r.DB.Get(&count, queryCount, userID); err != nil {
 		return 0, 0, err
@@ -281,10 +282,11 @@ func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
 		WHERE p.import_by = ? 
-		  AND p.status = 'SOLD'
-		  AND i.type = 'SALE'
-		  AND i.status = 'PAID'
-		  AND DATE(p.sale_date) = CURDATE()
+			AND p.deleted_at IS NULL
+			AND p.status = 'SOLD'
+			AND i.type = 'SALE'
+			AND i.status = 'PAID'
+			AND DATE(p.sale_date) = CURDATE()
 	`
 	if err := r.DB.Get(&revenue, queryRevenue, userID); err != nil {
 		return 0, 0, err
@@ -304,9 +306,10 @@ func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
 		WHERE p.import_by = ? 
-		  AND p.status = 'IN_STOCK'
-		  AND i.type = 'IMPORT'
-		  AND i.status = 'PAID'
+			AND p.deleted_at IS NULL
+			AND p.status = 'IN_STOCK'
+			AND i.type = 'IMPORT'
+			AND i.status = 'PAID'
 	`
 	if err := r.DB.Get(&count, queryCount, userID); err != nil {
 		return 0, 0, err
@@ -319,13 +322,34 @@ func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
 		WHERE p.import_by = ? 
-		  AND p.status = 'IN_STOCK'
-		  AND i.type = 'IMPORT'
-		  AND i.status = 'PAID'
+			AND p.deleted_at IS NULL
+			AND p.status = 'IN_STOCK'
+			AND i.type = 'IMPORT'
+			AND i.status = 'PAID'
 	`
 	if err := r.DB.Get(&inventoryValue, queryValue, userID); err != nil {
 		return 0, 0, err
 	}
 
 	return count, inventoryValue, nil
+}
+
+func (r *PhoneRepo) SoftDelete(id int, userID int) error {
+	// Gắn thêm _DEL_id vào IMEI để đề phòng vướng Unique Constraint trong DB, đồng thời update deleted_at
+	query := `
+		UPDATE phones 
+		SET deleted_at = NOW(), 
+			imei = CONCAT(imei, '_DEL_', id),
+			updated_at = NOW()
+		WHERE id = ? AND import_by = ?
+	`
+	_, err := r.DB.Exec(query, id, userID)
+	return err
+}
+
+// Xoá cứng máy khỏi DB
+func (r *PhoneRepo) HardDelete(id int, userID int) error {
+	query := `DELETE FROM phones WHERE id = ? AND import_by = ?`
+	_, err := r.DB.Exec(query, id, userID)
+	return err
 }
