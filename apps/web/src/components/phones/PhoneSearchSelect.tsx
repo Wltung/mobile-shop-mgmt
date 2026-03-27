@@ -47,8 +47,15 @@ export default function PhoneSearchSelect({
 
     const handleSelect = (phone: Phone) => {
         onSelect(phone)
+
+        const color = phone.details?.color || ''
+        const storage = phone.details?.storage || ''
+        const ram = phone.details?.ram || ''
+        const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
+        const extraInfo = [color, memoryInfo].filter(Boolean).join(' - ')
+        const displayName = extraInfo ? `${phone.model_name} (${extraInfo})` : phone.model_name
         // Set text hiển thị
-        setSearchTerm(`${phone.model_name} - IMEI: ${phone.imei}`)
+        setSearchTerm(`${displayName} - IMEI: ${phone.imei}`)
         // [FIX] Chỉ đóng dropdown, KHÔNG xoá text vừa set
         closeSearchResults()
     }
@@ -89,24 +96,33 @@ export default function PhoneSearchSelect({
             {/* Dropdown Kết quả */}
             {!disabled && searchResults.length > 0 && (
                 <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5">
-                    {searchResults.map((phone) => (
-                        <div
-                            key={phone.id}
-                            className="cursor-pointer border-b border-slate-50 px-4 py-3 last:border-0 hover:bg-slate-50 transition-colors"
-                            onClick={() => handleSelect(phone)}
-                        >
-                            <p className="font-bold text-slate-800 text-sm">{phone.model_name}</p>
-                            <div className="mt-1 flex justify-between text-xs text-slate-500">
-                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600">
-                                    {phone.imei}
-                                </span>
-                                <span className="font-bold text-primary">
-                                    {/* NẾU CÓ GIÁ THÌ HIỂN THỊ, KHÔNG THÌ HIỂN THỊ '---' */}
-                                    {phone.sale_price ? formatCurrency(phone.sale_price) : '---'}
-                                </span>
+                    {searchResults.map((phone) => {
+                        // --- ĐÃ FIX: Gom Màu và Dung lượng vào tên máy hiển thị trong list ---
+                        const color = phone.details?.color || ''
+                        const storage = phone.details?.storage || ''
+                        const ram = phone.details?.ram || ''
+                        const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
+                        const extraInfo = [color, memoryInfo].filter(Boolean).join(' - ')
+                        const displayName = extraInfo ? `${phone.model_name} (${extraInfo})` : phone.model_name
+
+                        return (
+                            <div
+                                key={phone.id}
+                                className="cursor-pointer border-b border-slate-50 px-4 py-3 last:border-0 hover:bg-slate-50 transition-colors"
+                                onClick={() => handleSelect(phone)}
+                            >
+                                <p className="font-bold text-slate-800 text-sm">{displayName}</p>
+                                <div className="mt-1 flex justify-between text-xs text-slate-500">
+                                    <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600">
+                                        IMEI: {phone.imei}
+                                    </span>
+                                    <span className="font-bold text-primary">
+                                        {phone.sale_price ? formatCurrency(phone.sale_price) : '---'}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
         </div>

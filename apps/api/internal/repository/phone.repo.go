@@ -243,8 +243,8 @@ func (r *PhoneRepo) UpdateStatus(id int, status string) error {
 }
 
 func (r *PhoneRepo) MarkAsSold(id int, salePrice int64, saleDate time.Time) error {
-	query := `UPDATE phones SET status = 'SOLD', sale_price = ?, sale_date = ?, updated_at = NOW() WHERE id = ?`
-	_, err := r.DB.Exec(query, salePrice, saleDate, id)
+	query := `UPDATE phones SET status = 'SOLD', sale_date = ?, updated_at = NOW() WHERE id = ?`
+	_, err := r.DB.Exec(query, saleDate, id)
 	return err
 }
 
@@ -252,4 +252,80 @@ func (r *PhoneRepo) RevertToInStock(id int) error {
 	query := `UPDATE phones SET status = 'IN_STOCK', sale_date = NULL, updated_at = NOW() WHERE id = ?`
 	_, err := r.DB.Exec(query, id)
 	return err
+}
+
+func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
+	var count int
+	var revenue int64
+
+	// Đếm số lượng máy bán
+	queryCount := `
+		SELECT COUNT(p.id) 
+		FROM phones p
+		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
+		JOIN invoices i ON ii.invoice_id = i.id
+		WHERE p.import_by = ? 
+		  AND p.status = 'SOLD'
+		  AND i.type = 'SALE'
+		  AND i.status = 'PAID'
+		  AND DATE(p.sale_date) = CURDATE()
+	`
+	if err := r.DB.Get(&count, queryCount, userID); err != nil {
+		return 0, 0, err
+	}
+
+	// Tính tổng doanh thu
+	queryRevenue := `
+		SELECT COALESCE(SUM(p.sale_price), 0)
+		FROM phones p
+		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
+		JOIN invoices i ON ii.invoice_id = i.id
+		WHERE p.import_by = ? 
+		  AND p.status = 'SOLD'
+		  AND i.type = 'SALE'
+		  AND i.status = 'PAID'
+		  AND DATE(p.sale_date) = CURDATE()
+	`
+	if err := r.DB.Get(&revenue, queryRevenue, userID); err != nil {
+		return 0, 0, err
+	}
+
+	return count, revenue, nil
+}
+
+func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
+	var count int
+	var inventoryValue int64
+
+	// Đếm số máy tồn kho (đã thanh toán hoá đơn nhập)
+	queryCount := `
+		SELECT COUNT(p.id) 
+		FROM phones p
+		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
+		JOIN invoices i ON ii.invoice_id = i.id
+		WHERE p.import_by = ? 
+		  AND p.status = 'IN_STOCK'
+		  AND i.type = 'IMPORT'
+		  AND i.status = 'PAID'
+	`
+	if err := r.DB.Get(&count, queryCount, userID); err != nil {
+		return 0, 0, err
+	}
+
+	// Tính tổng giá trị tồn kho (Tổng vốn đang nằm trong kho)
+	queryValue := `
+		SELECT COALESCE(SUM(p.purchase_price), 0)
+		FROM phones p
+		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
+		JOIN invoices i ON ii.invoice_id = i.id
+		WHERE p.import_by = ? 
+		  AND p.status = 'IN_STOCK'
+		  AND i.type = 'IMPORT'
+		  AND i.status = 'PAID'
+	`
+	if err := r.DB.Get(&inventoryValue, queryValue, userID); err != nil {
+		return 0, 0, err
+	}
+
+	return count, inventoryValue, nil
 }

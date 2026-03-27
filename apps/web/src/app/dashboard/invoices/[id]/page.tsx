@@ -37,7 +37,6 @@ const InfoBlock = ({
     valueClassName?: string
 }) => (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-        {/* Tăng kích thước tiêu đề lên text-xs (12px) */}
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
             {label}
         </span>
@@ -54,7 +53,7 @@ export default function InvoiceDetailPage() {
     if (isLoading) return <PageLoading title="Chi tiết hoá đơn" />
     if (!invoice) return null
 
-    // Hàm render Badge cho Loại hoá đơn theo chuẩn thiết kế
+    // Hàm render Badge cho Loại hoá đơn
     const getInvoiceTypeBadge = (type: string) => {
         switch (type) {
             case 'SALE': 
@@ -68,29 +67,27 @@ export default function InvoiceDetailPage() {
         }
     }
 
-    const getInvoiceTypeNameForToast = (type: string) => {
-        switch (type) {
-            case 'SALE': return 'Bán máy'
-            case 'REPAIR': return 'Sửa chữa'
-            case 'IMPORT': return 'Nhập máy'
-            default: return 'Khác'
+    // Dịch Phương thức thanh toán
+    const getPaymentMethod = (method?: string) => {
+        switch (method) {
+            case 'CASH': return 'Tiền mặt'
+            case 'TRANSFER': return 'Chuyển khoản'
+            case 'CARD': return 'Quẹt thẻ'
+            default: return method || '---'
         }
     }
 
     // Xử lý nút Xem nguồn đơn
     const handleViewSource = () => {
         if (invoice.type === 'REPAIR') {
-            // Đợi BE join bảng repairs trả về repair_id
             if (invoice.repair_id) {
                 router.push(`/dashboard/repairs/${invoice.repair_id}`)
             } else {
                 toast({ title: 'Lỗi', description: 'Không tìm thấy ID phiếu sửa chữa gốc.', variant: 'destructive' })
             }
         } else if (invoice.type === 'SALE') {
-            // SALE dùng thẳng ID của hoá đơn
             router.push(`/dashboard/sales/${invoice.id}`) 
         } else if (invoice.type === 'IMPORT') {
-            // IMPORT trỏ về trang chi tiết thiết bị (lấy máy đầu tiên)
             const phoneId = invoice.items?.[0]?.phone_id
             if (phoneId) {
                 router.push(`/dashboard/phones/${phoneId}`) 
@@ -101,6 +98,11 @@ export default function InvoiceDetailPage() {
             toast({ title: 'Thông báo', description: 'Không hỗ trợ xem nguồn cho hoá đơn này.' })
         }
     }
+
+    // Tính toán lại Tổng tiền gốc (Subtotal) dựa trên dữ liệu chuẩn
+    const discountValue = invoice.discount || 0
+    const finalAmount = invoice.total_amount || 0
+    const subTotal = finalAmount + discountValue
 
     return (
         <div className="flex h-full flex-col bg-[#f8fafc]">
@@ -153,7 +155,6 @@ export default function InvoiceDetailPage() {
                             iconClassName="bg-blue-50 text-blue-600"
                         >
                             <div className="flex flex-col gap-5 mt-2">
-                                {/* Đưa Họ Tên và SĐT lên cùng 1 hàng */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <InfoBlock label="Họ và tên" value={invoice.customer_name || 'Khách vãng lai'} />
                                     <InfoBlock label="Số điện thoại" value={invoice.customer_phone || '---'} />
@@ -169,7 +170,6 @@ export default function InvoiceDetailPage() {
                             iconClassName="bg-emerald-50 text-emerald-600"
                         >
                             <div className="flex flex-col gap-5 mt-2">
-                                {/* Đổi chỗ Thời gian tạo lên cùng hàng với Loại giao dịch */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <InfoBlock 
                                         label="Loại giao dịch" 
@@ -183,7 +183,12 @@ export default function InvoiceDetailPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <InfoBlock 
                                         label="Phương thức" 
-                                        value={invoice.payment_method === 'CASH' ? 'Tiền mặt' : invoice.payment_method || 'Chuyển khoản'} 
+                                        value={getPaymentMethod(invoice.payment_method)} 
+                                    />
+                                    <InfoBlock 
+                                        label="Người lập đơn" 
+                                        value={invoice.creator_name || 'Hệ thống'} 
+                                        valueClassName="text-base text-blue-700 font-bold"
                                     />
                                 </div>
                             </div>
@@ -214,6 +219,32 @@ export default function InvoiceDetailPage() {
                                         invoice.items.map((item, index) => {
                                             const isService = item.item_type === 'SERVICE' || item.item_type === 'TIỀN CÔNG'
 
+                                            // ĐÃ FIX: Logic tính toán hiển thị thẻ Bảo hành
+                                            let warrantyUI = <span className="text-slate-400">---</span>
+
+                                            if (item.warranty_months && item.warranty_months > 0) {
+                                                // Nếu có tháng bảo hành (Linh kiện, Máy)
+                                                warrantyUI = (
+                                                    <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-md font-semibold">
+                                                        {item.warranty_months} tháng
+                                                    </span>
+                                                )
+                                            } else if (isService && item.warranty_expiry) {
+                                                // Nếu là Dịch vụ (Công thợ) và có ngày hết hạn -> Tính ra số ngày
+                                                const createdDate = new Date(invoice.created_at)
+                                                const expiryDate = new Date(item.warranty_expiry)
+                                                const diffTime = expiryDate.getTime() - createdDate.getTime()
+                                                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+                                                
+                                                if (diffDays > 0) {
+                                                    warrantyUI = (
+                                                        <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-md font-semibold">
+                                                            {diffDays} ngày
+                                                        </span>
+                                                    )
+                                                }
+                                            }
+
                                             return (
                                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-6 py-4 text-center font-medium text-slate-500">
@@ -232,13 +263,8 @@ export default function InvoiceDetailPage() {
                                                         {isService ? <span className="text-slate-400">---</span> : item.quantity}
                                                     </td>
                                                     <td className="px-6 py-4 text-center text-xs">
-                                                        {item.warranty_months && item.warranty_months > 0 ? (
-                                                            <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-md font-semibold">
-                                                                {item.warranty_months} tháng
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-slate-400">---</span>
-                                                        )}
+                                                        {/* Render thẻ bảo hành đã tính toán */}
+                                                        {warrantyUI}
                                                     </td>
                                                     <td className={`px-6 py-4 text-right font-bold ${item.amount < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
                                                         {formatCurrency(item.amount)}
@@ -275,27 +301,31 @@ export default function InvoiceDetailPage() {
                             </DetailCard>
                         </div>
 
-                        {/* BLOCK TỔNG TIỀN (GIAO DIỆN MỚI) */}
+                        {/* BLOCK TỔNG TIỀN (GIAO DIỆN ĐÃ FIX) */}
                         <DetailCard
                                 title="Tổng thanh toán"
                                 icon={<FileText className="h-5 w-5 text-amber-600" />}
                                 iconClassName="bg-amber-50 text-amber-600"
-                                className="h-full"
+                                className="h-full flex flex-col justify-between"
                         >    
-                            {/* Dòng Tổng tiền gốc */}
-                            <div className="flex justify-between items-center text-[15px]">
-                                <span className="text-slate-500 font-medium">Tổng tiền hàng</span>
-                                <span className="text-slate-900 font-bold">{formatCurrency(invoice.total_amount)}</span>
-                            </div>
+                            <div className="flex flex-col gap-3.5 mt-2">
+                                {/* Dòng Tổng tiền gốc (Subtotal) */}
+                                <div className="flex justify-between items-center text-[15px]">
+                                    <span className="text-slate-500 font-medium">Tổng tiền hàng</span>
+                                    <span className="text-slate-900 font-bold">{formatCurrency(subTotal)}</span>
+                                </div>
 
-                            {/* Dòng Giảm giá (Tạm thời để 0, chờ BE & FE bổ sung trường discount) */}
-                            <div className="flex justify-between items-center text-[15px]">
-                                <span className="text-slate-500 font-medium">Giảm giá</span>
-                                <span className="text-emerald-600 font-bold">- {formatCurrency(0)}</span>
+                                {/* Dòng Giảm giá (Chỉ hiển thị nếu có giảm giá) */}
+                                {discountValue > 0 && (
+                                    <div className="flex justify-between items-center text-[15px]">
+                                        <span className="text-slate-500 font-medium">Khách được giảm</span>
+                                        <span className="text-emerald-600 font-bold">- {formatCurrency(discountValue)}</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Dòng Tổng cộng thanh toán */}
-                            <div className="border-t border-slate-100 border-dashed pt-5 mt-1 flex justify-between items-end">
+                            <div className="border-t border-slate-100 border-dashed pt-5 mt-auto flex justify-between items-end">
                                 <div className="flex flex-col gap-2">
                                     <span className="text-[12px] font-bold uppercase tracking-wider text-slate-400">
                                         Khách cần trả
@@ -315,7 +345,7 @@ export default function InvoiceDetailPage() {
                                     )}
                                 </div>
                                 <span className="text-[32px] leading-none font-black text-blue-600 tracking-tight">
-                                    {formatCurrency(invoice.total_amount)}
+                                    {formatCurrency(finalAmount)}
                                 </span>
                             </div>
                         </DetailCard>

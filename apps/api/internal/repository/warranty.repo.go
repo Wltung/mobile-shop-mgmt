@@ -55,9 +55,11 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 	var args []interface{}
 
 	if filter.Keyword != "" {
-		baseQuery += ` AND (w.warranty_code LIKE ? OR w.customer_name LIKE ? OR w.customer_phone LIKE ? OR w.imei LIKE ?)`
+		// ĐÃ FIX: Bổ sung thêm w.device_name LIKE ? vào chuỗi tìm kiếm
+		baseQuery += ` AND (w.warranty_code LIKE ? OR i.customer_name LIKE ? OR i.customer_phone LIKE ? OR w.imei LIKE ? OR w.device_name LIKE ?)`
 		kw := "%" + filter.Keyword + "%"
-		args = append(args, kw, kw, kw, kw)
+
+		args = append(args, kw, kw, kw, kw, kw)
 	}
 	if filter.Status != "" && filter.Status != "ALL" {
 		baseQuery += ` AND w.status = ?`

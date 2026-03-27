@@ -54,7 +54,17 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     // --- LOGIC TÌM KIẾM MÁY ---
     const handleSelectPhone = (phone: Phone) => {
         form.setValue('phone_id', phone.id, { shouldValidate: true })
-        setSelectedPhoneName(phone.model_name)
+        
+        // Bóc tách Màu sắc và Dung lượng (như đã bàn luận trước đó)
+        const color = phone.details?.color || ''
+        const storage = phone.details?.storage || ''
+        const ram = phone.details?.ram || ''
+
+        const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
+        const extraInfo = [color, memoryInfo].filter(Boolean).join(' - ')
+        const displayName = extraInfo ? `${phone.model_name} (${extraInfo})` : phone.model_name
+        
+        setSelectedPhoneName(displayName)
 
         if (phone.sale_price) {
             form.setValue('actual_sale_price', String(phone.sale_price))
@@ -73,18 +83,19 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                     ? 'PAID'
                     : 'DRAFT'
 
-            // Format lại Note tránh bị undefined
             const customerInfoNote = `\n--- THÔNG TIN KHÁCH HÀNG ---\nTên: ${values.customer_name || 'Khách lẻ'}\nSĐT: ${values.customer_phone || '---'}\nCCCD: ${values.customer_id_number || '---'}\nHTTT: ${values.payment_method}`
 
             const payload = {
                 type: 'SALE',
                 status: finalStatus,
                 payment_method: values.payment_method,
+                
+                // ĐÃ FIX: Chỉ gửi discount (chênh lệch) nếu giá bán thực tế thấp hơn giá niêm yết
                 discount: discountAmount > 0 ? discountAmount : 0,
 
                 customer_name: values.customer_name,
                 customer_phone: values.customer_phone,
-                customer_id_number: values.customer_id_number, // Truyền CCCD xuống BE
+                customer_id_number: values.customer_id_number,
 
                 note: (values.note || '') + customerInfoNote,
                 items: [
@@ -93,7 +104,11 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                         phone_id: values.phone_id,
                         description: selectedPhoneName,
                         quantity: 1,
-                        unit_price: Number(values.actual_sale_price),
+                        
+                        // ĐÃ FIX: unit_price luôn là Giá Niêm Yết của máy (bảo toàn lịch sử giá)
+                        // Nếu trường hợp máy chưa set giá (rất hiếm), ta lấy đỡ giá khách chốt
+                        unit_price: selectedPhonePrice || Number(values.actual_sale_price),
+                        
                         warranty_months: Number(values.warranty),
                     },
                 ],
@@ -134,7 +149,6 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                         <h4 className="mb-4 border-b border-slate-100 pb-2 text-xs font-bold uppercase tracking-wider text-primary">
                             Thông tin khách hàng
                         </h4>
-                        {/* CHIA 3 CỘT VÀ BỎ DẤU SAO BẮT BUỘC */}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <FormField
                                 control={form.control}
@@ -218,12 +232,12 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                 )}
                             />
 
-                            <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
-                                <div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <div className="space-y-1.5">
                                     <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
                                         Giá bán niêm yết
                                     </label>
-                                    <div className="py-2 text-sm font-bold text-slate-900">
+                                    <div className="h-9 flex items-center px-3 rounded-lg border border-slate-200 bg-slate-100/50 text-sm font-bold text-slate-600 shadow-sm">
                                         {selectedPhonePrice
                                             ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPhonePrice)
                                             : '--'}
@@ -243,9 +257,9 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                                     <Input
                                                         {...field}
                                                         placeholder="0"
-                                                        className="h-9 text-sm"
+                                                        className="h-9 text-sm pr-10 font-bold text-primary"
                                                     />
-                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-bold text-slate-500">
+                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-bold text-slate-400">
                                                         ₫
                                                     </div>
                                                 </div>
@@ -253,8 +267,9 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
                                             <FormMessage />
                                             
                                             {discountAmount > 0 && (
-                                                <div className="text-[11px] font-bold text-emerald-600 mt-1.5">
-                                                    ↓ Đã giảm: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discountAmount)}
+                                                <div className="text-[11px] font-bold text-emerald-600 mt-1.5 flex items-center gap-1.5">
+                                                    <span className="bg-emerald-100/60 px-1.5 py-0.5 rounded uppercase tracking-wider">Đã giảm</span>
+                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discountAmount)}
                                                 </div>
                                             )}
                                         </FormItem>

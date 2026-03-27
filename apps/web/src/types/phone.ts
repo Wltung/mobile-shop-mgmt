@@ -38,6 +38,12 @@ export interface PhoneListResponse {
     message: string
     data: Phone[]
     meta: PaginationMeta
+    stats?: {
+        todayCount?: number
+        todayRevenue?: number
+        inventoryCount?: number
+        inventoryValue?: number
+    }
 }
 
 export interface PhoneFilterParams {

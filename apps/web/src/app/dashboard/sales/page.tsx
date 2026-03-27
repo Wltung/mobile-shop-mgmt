@@ -55,18 +55,18 @@ export default function SalesPage() {
     // --- CẤU HÌNH STATS (Khác trang Import) ---
     const statItems = [
         {
-            label: 'Số máy bán hôm nay',
-            // Lưu ý: Logic tính "Hôm nay" cần BE hỗ trợ hoặc filter list client
-            // Tạm thời hiển thị tổng số máy đã bán (dựa trên filter SOLD)
-            value: `${stats.totalPhones} máy`,
-            icon: <ShoppingCart className="h-5 w-5" />,
+            label: 'SỐ MÁY BÁN TRONG NGÀY',
+            // Sử dụng dữ liệu mới từ backend
+            value: `${stats?.todayCount || 0} máy`, 
+            icon: <ShoppingCart className="h-6 w-6 text-blue-600" />,
             color: 'blue' as const,
         },
         {
-            label: 'Doanh thu', // Hiển thị tổng giá trị bán
-            value: formatCurrency(stats.totalValue),
-            icon: <DollarSign className="h-5 w-5" />,
-            color: 'green' as const,
+            label: 'DOANH THU TRONG NGÀY',
+            // Sử dụng dữ liệu mới từ backend
+            value: formatCurrency(stats?.todayRevenue || 0), 
+            icon: <DollarSign className="h-6 w-6 text-emerald-600" />,
+            color: 'emerald' as const,
         },
     ]
 

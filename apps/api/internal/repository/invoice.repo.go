@@ -206,7 +206,16 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 	if err == nil {
 		if input.PhoneID != nil && *input.PhoneID != currentItem.PhoneID {
 			newPhoneID := *input.PhoneID
-			_, err = tx.Exec("UPDATE invoice_items SET phone_id = ?, description = (SELECT model_name FROM phones WHERE id = ?) WHERE id = ?", newPhoneID, newPhoneID, currentItem.ID)
+
+			updateItemQuery := `
+				UPDATE invoice_items 
+				SET phone_id = ?, 
+					description = (SELECT model_name FROM phones WHERE id = ?),
+					unit_price = COALESCE((SELECT sale_price FROM phones WHERE id = ?), 0),
+					amount = COALESCE((SELECT sale_price FROM phones WHERE id = ?), 0)
+				WHERE id = ?
+			`
+			_, err = tx.Exec(updateItemQuery, newPhoneID, newPhoneID, newPhoneID, newPhoneID, currentItem.ID)
 			if err != nil {
 				return err
 			}
@@ -215,12 +224,6 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 		updateItemQuery := `UPDATE invoice_items SET updated_at = NOW()`
 		var itemArgs []interface{}
 
-		if input.ActualSalePrice != "" {
-			updateItemQuery += `, unit_price = ?, amount = ?`
-			itemArgs = append(itemArgs, input.ActualSalePrice, input.ActualSalePrice)
-		}
-
-		// ĐÃ FIX 4: Nếu đổi Số tháng bảo hành -> Cập nhật luôn Ngày hết hạn
 		if input.Warranty != "" {
 			updateItemQuery += `, warranty_months = ?`
 			itemArgs = append(itemArgs, input.Warranty)
@@ -230,16 +233,12 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 				isPaid = true
 			}
 
-			// Chỉ tính ngày hết hạn nếu hoá đơn đã PAID
 			if isPaid {
 				months, _ := strconv.Atoi(input.Warranty)
 				newExpiry := currentInv.CreatedAt.AddDate(0, months, 0)
-
-				// Nếu vừa mới chuyển từ DRAFT -> PAID trong lúc này, tính từ NOW()
 				if currentInv.Status == model.InvoiceStatusDraft && input.Status != nil && *input.Status == model.InvoiceStatusPaid {
 					newExpiry = time.Now().AddDate(0, months, 0)
 				}
-
 				updateItemQuery += `, warranty_expiry = ?`
 				itemArgs = append(itemArgs, newExpiry)
 			}
@@ -252,8 +251,16 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 			return err
 		}
 
+		// ĐÃ FIX 3: Nếu có thay đổi giá chốt (ActualSalePrice), ta update vào bảng `invoices`
+		// Công thức: total_amount = Giá chốt, discount = (unit_price của linh kiện) - Giá chốt
 		if input.ActualSalePrice != "" {
-			if _, err := tx.Exec("UPDATE invoices SET total_amount = ? WHERE id = ?", input.ActualSalePrice, id); err != nil {
+			updateInvSql := `
+				UPDATE invoices 
+				SET total_amount = ?, 
+					discount = (SELECT amount FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1) - ?
+				WHERE id = ?
+			`
+			if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, input.ActualSalePrice, id); err != nil {
 				return err
 			}
 		}
@@ -313,7 +320,13 @@ func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
 		return 0, 0, err
 	}
 
-	err = r.DB.Get(&revenue, `SELECT COALESCE(SUM(total_amount), 0) FROM invoices WHERE DATE(created_at) = CURDATE() AND status = 'PAID'`)
+	err = r.DB.Get(&revenue, `
+		SELECT COALESCE(SUM(total_amount), 0) 
+		FROM invoices 
+		WHERE DATE(created_at) = CURDATE() 
+			AND status = 'PAID' 
+			AND type != 'IMPORT'
+	`)
 	if err != nil {
 		return 0, 0, err
 	}

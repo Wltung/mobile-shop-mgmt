@@ -71,6 +71,11 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		})
 	}
 
+	finalTotal := totalAmount - input.Discount
+	if finalTotal < 0 {
+		finalTotal = 0 // Tránh trường hợp giảm giá lố tay thành số âm
+	}
+
 	// 2. TẠO HEADER HOÁ ĐƠN
 	status := input.Status
 	if status == "" {
@@ -87,14 +92,16 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		Type:             input.Type,
 		Status:           status,
 		PaymentMethod:    input.PaymentMethod,
-		CustomerName:     input.CustomerName,     // Lưu thẳng Text
-		CustomerPhone:    input.CustomerPhone,    // Lưu thẳng Text
-		CustomerIDNumber: input.CustomerIDNumber, // Lưu thẳng Text
-		TotalAmount:      totalAmount,
-		Discount:         input.Discount,
-		CreatedBy:        userID,
-		CreatedAt:        time.Now(),
-		Note:             input.Note,
+		CustomerName:     &input.CustomerName,
+		CustomerPhone:    &input.CustomerPhone,
+		CustomerIDNumber: &input.CustomerIDNumber,
+
+		TotalAmount: finalTotal,
+		Discount:    input.Discount,
+
+		CreatedBy: userID,
+		CreatedAt: time.Now(),
+		Note:      &input.Note,
 	}
 
 	// 3. LƯU VÀO DB

@@ -42,10 +42,8 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    // Lấy thông tin máy hiện tại trong hoá đơn
     const currentPhoneItem = invoice.items?.find(i => i.item_type === 'PHONE')
 
-    // State lưu thông tin máy đang được chọn (để update UI Màu/Tình trạng)
     const [selectedPhoneDetails, setSelectedPhoneDetails] = useState<{
         color?: string,
         appearance?: string,
@@ -53,6 +51,7 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         storage?: string
     } | null>(null)
 
+    // ĐÃ FIX: Lấy Giá niêm yết làm chuẩn (TotalAmount + Discount)
     const [originalPhonePrice, setOriginalPhonePrice] = useState<number>(
         invoice.total_amount + (invoice.discount ?? 0)
     )
@@ -79,12 +78,13 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
             payment_status: invoice.status === 'PAID' ? 'PAID' : 'DRAFT',
             note: invoice.note || '',
             phone_id: currentPhoneItem?.phone_id || 0,
+            
+            // Set giá trị khởi tạo bằng với TotalAmount hiện tại của Hoá đơn (Giá chốt)
             actual_sale_price: String(invoice.total_amount || 0),
             warranty: String(invoice.items?.[0]?.warranty_months || '6'),
         },
     })
 
-    // --- HÀM ĐỔI MÁY ---
     const handleSelectPhone = (phone: Phone) => {
         setSelectedPhoneDetails({
             color: phone.details?.color,
@@ -93,16 +93,17 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
             storage: phone.details?.storage
         })
         form.setValue('phone_id', phone.id, { shouldDirty: true, shouldValidate: true })
-        if (phone.sale_price) {
-            form.setValue('actual_sale_price', String(phone.sale_price))
-            setOriginalPhonePrice(phone.sale_price)
-        }
+        
+        // ĐÃ FIX: Xử lý fallback cho giá trị 0 nếu máy mới chưa có giá niêm yết
+        const newOriginalPrice = phone.sale_price || 0
+        setOriginalPhonePrice(newOriginalPrice)
+        form.setValue('actual_sale_price', String(newOriginalPrice), { shouldDirty: true })
     }
 
     const watchActualPrice = form.watch('actual_sale_price')
+    // ĐÃ FIX: Tính số tiền chênh lệch
     const discountAmount = originalPhonePrice && watchActualPrice ? originalPhonePrice - Number(watchActualPrice) : 0
 
-    // Thêm formState để lấy isDirty
     const { formState: { isDirty } } = form
 
     const onSubmit: SubmitHandler<EditSaleFormValues> = async (values) => {
@@ -116,17 +117,12 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
         try {
             const payload = {
                 ...values,
-                // Xử lý ngày: Nếu có giá trị thì format ISO, nếu rỗng thì gửi undefined (để BE không update)
                 sale_date: values.sale_date ? new Date(values.sale_date).toISOString() : undefined,
-                
-                // Xử lý các trường optional khác: Nếu rỗng -> gửi undefined
                 customer_id_number: values.customer_id_number || undefined,
                 note: values.note || undefined,
-                
-                // Phone ID: Nếu bằng 0 hoặc không có -> undefined
                 phone_id: values.phone_id && values.phone_id > 0 ? values.phone_id : undefined,
                 
-                // Giá bán: Convert sang string chuẩn, nếu rỗng -> undefined
+                // ĐÃ FIX: Gửi giá chốt (TotalAmount mới) và mức giảm giá (Discount)
                 actual_sale_price: values.actual_sale_price ? String(values.actual_sale_price) : undefined,
                 discount: discountAmount > 0 ? discountAmount : 0,
             }
@@ -151,7 +147,6 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
     const inputClass = "h-11 rounded-xl border-slate-200 bg-slate-50/50 shadow-sm focus:border-primary focus:ring-primary focus:bg-white transition-all font-medium text-slate-800"
     const labelClass = "text-sm font-semibold text-slate-700 mb-1.5 block"
 
-    // LOGIC KHOÁ: Nếu đã thanh toán (PAID) thì khoá
     const isLocked = invoice.status === 'PAID'
 
     return (
@@ -159,7 +154,6 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
                 
                 <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-                    {/* Cảnh báo nếu bị khoá */}
                     {isLocked && (
                         <div className="rounded-lg bg-blue-50 border border-blue-100 p-4 flex items-center gap-3 text-blue-800 mb-2">
                             <Smartphone className="h-5 w-5" />
@@ -222,18 +216,15 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                             <h4 className="text-lg font-bold text-slate-800">Thông tin máy bán</h4>
                         </div>
 
-                        {/* --- COMPONENT TÌM KIẾM MÁY (ĐỔI MÁY) --- */}
                         <PhoneSearchSelect 
                             label="Tìm kiếm máy (Đổi máy)"
                             placeholder="Nhập IMEI hoặc tên máy để tìm..."
-                            // Kiểm tra kỹ null check ở đây
                             initialValue={currentPhoneItem ? `${currentPhoneItem.description} - IMEI: ${currentPhoneItem.imei || ''}` : ''}
                             onSelect={handleSelectPhone}
                             disabled={isLocked}
                         />
 
                         <div className="flex flex-col gap-6">
-                            {/* HÀNG 1: Màu sắc - Giá bán niêm yết */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5">
                                     <label className={labelClass}>Màu sắc</label>
@@ -247,14 +238,13 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                 </div>
                             </div>
 
-                            {/* HÀNG 2: Tình trạng - Bảo hành */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5">
                                     <label className={labelClass}>
                                         RAM / Dung lượng
                                     </label>
-                                    <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
-                                        {selectedPhoneDetails?.ram || '---'} / {selectedPhoneDetails?.storage || '---'}
+                                    <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-medium text-slate-500 cursor-not-allowed">
+                                        {[selectedPhoneDetails?.ram, selectedPhoneDetails?.storage].filter(Boolean).join(' / ') || '---'}
                                     </div>
                                 </div>
                                 <FormField
@@ -328,7 +318,6 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                 name="actual_sale_price"
                                 render={({ field }) => (
                                     <FormItem>
-                                        {/* Đổi nhãn thành Giá bán thực tế */}
                                         <FormLabel className={labelClass}>Giá bán thực tế</FormLabel>
                                         <FormControl>
                                             <div className="relative">
@@ -340,7 +329,6 @@ export default function EditSaleForm({ invoice, onSuccess, onCancel }: Props) {
                                         </FormControl>
                                         <FormMessage />
                                         
-                                        {/* BỔ SUNG HIỂN THỊ SỐ TIỀN GIẢM GIÁ CHỈ KHI ĐANG SỬA */}
                                         {discountAmount > 0 && !isLocked && (
                                             <div className="text-[12px] font-bold text-emerald-600 mt-2 flex items-center gap-1.5">
                                                 <span className="bg-emerald-100/60 px-2 py-0.5 rounded text-[11px] uppercase tracking-wider">Đã giảm</span>

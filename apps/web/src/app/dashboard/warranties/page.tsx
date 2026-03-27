@@ -171,7 +171,7 @@ export default function WarrantyListPage() {
                     <Search className="h-5 w-5" />
                 </div>
                 <Input
-                    placeholder="Tìm kiếm IMEI, tên khách..."
+                    placeholder="Tìm kiếm đời máy, tên khách, SĐT..."
                     className="h-10 border-slate-300 pl-10 focus-visible:ring-primary bg-slate-50/50"
                     value={filters.keyword || ''}
                     onChange={(e) => setKeyword(e.target.value)}

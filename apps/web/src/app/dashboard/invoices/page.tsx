@@ -17,13 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function InvoiceListPage() {
     const router = useRouter()
     
-    // (Lưu ý: Bạn nhớ bổ sung setDateFilter vào useInvoiceList nếu chưa có)
+    // ĐÃ FIX: Lôi thêm setType ra từ hook
     const {
         invoices, isLoading, meta, stats, filters,
-        setKeyword, setStatus, setPage, setDateFilter
+        setKeyword, setStatus, setType, setPage, setDateFilter
     } = useInvoiceList()
 
-    // --- 1. CẤU HÌNH STATS THEO ẢNH (KÉO DÀI VÀ THÊM "TRONG NGÀY") ---
     const statItems = [
         {
             label: 'TỔNG DOANH THU HOÁ ĐƠN TRONG NGÀY',
@@ -39,8 +38,17 @@ export default function InvoiceListPage() {
         },
     ]
 
-    // --- 2. CẤU HÌNH CỘT BẢNG KHÔNG DÙNG BADGE ---
     const columns: ColumnDef<Invoice>[] = [
+        // ĐÃ FIX: BỔ SUNG CỘT MÃ HOÁ ĐƠN LÊN ĐẦU
+        {
+            header: 'MÃ HOÁ ĐƠN',
+            accessorKey: 'invoice_code',
+            cell: (item) => (
+                <span className="font-mono font-bold text-blue-600">
+                    {item.invoice_code || `#HD-${item.id}`}
+                </span>
+            ),
+        },
         {
             header: 'NGÀY TẠO',
             accessorKey: 'created_at',
@@ -139,7 +147,6 @@ export default function InvoiceListPage() {
         },
     ]
 
-    // --- 3. CẤU HÌNH THANH CÔNG CỤ GIỐNG HÌNH MẪU ---
     const Toolbar = (
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div className="relative w-full md:max-w-md">
@@ -154,9 +161,9 @@ export default function InvoiceListPage() {
                 />
             </div>
             
-            <div className="flex w-full gap-3 md:w-auto">
-                {/* Thay Loại hoá đơn bằng Khoảng ngày để giống Mockup */}
-                <div className="relative min-w-[160px] flex-1 md:flex-none">
+            {/* ĐÃ FIX: Flex-wrap để các select rớt dòng mượt mà trên mobile */}
+            <div className="flex w-full flex-wrap gap-3 md:w-auto md:flex-nowrap">
+                <div className="relative min-w-[150px] flex-1 md:flex-none">
                     <Select onValueChange={setDateFilter} defaultValue="all">
                         <SelectTrigger className="h-10 border-slate-300 font-medium text-slate-600">
                             <SelectValue placeholder="Khoảng ngày" />
@@ -169,7 +176,23 @@ export default function InvoiceListPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="relative min-w-[180px] flex-1 md:flex-none">
+
+                {/* ĐÃ FIX: THÊM BỘ LỌC LOẠI HOÁ ĐƠN */}
+                <div className="relative min-w-[150px] flex-1 md:flex-none">
+                    <Select onValueChange={setType} value={filters.type || 'ALL'}>
+                        <SelectTrigger className="h-10 border-slate-300 font-medium text-slate-600">
+                            <SelectValue placeholder="Loại hoá đơn" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Loại: Tất cả</SelectItem>
+                            <SelectItem value="SALE">Bán máy</SelectItem>
+                            <SelectItem value="REPAIR">Sửa chữa</SelectItem>
+                            <SelectItem value="IMPORT">Nhập hàng</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="relative min-w-[170px] flex-1 md:flex-none">
                     <Select onValueChange={setStatus} value={filters.status || 'ALL'}>
                         <SelectTrigger className="h-10 border-slate-300 font-medium text-slate-600">
                             <SelectValue placeholder="Trạng thái: Tất cả" />
@@ -192,12 +215,10 @@ export default function InvoiceListPage() {
 
             <div className="flex-1 overflow-y-auto p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-                    {/* STATS SECTION - Bọc trong div w-full để 2 khối này kéo ngang ra */}
                     <div className="w-full">
                         <StatsCards stats={statItems} />
                     </div>
 
-                    {/* TABLE SECTION */}
                     <section className="flex flex-col gap-4">
                         <DataTable
                             data={invoices}

@@ -52,7 +52,7 @@ export default function CreateRepairForm({ onSuccess, onCancel }: Props) {
             form.setValue('customer_phone', '')
         } else if (repairCategory === 'SHOP_DEVICE_REPAIR') {
             form.setValue('customer_name', 'Nội bộ cửa hàng')
-            form.setValue('customer_phone', '0999999999')
+            form.setValue('customer_phone', '')
         }
     }, [repairCategory, form])
 
@@ -181,7 +181,7 @@ export default function CreateRepairForm({ onSuccess, onCancel }: Props) {
                                 </>
                             )}
                             <FormField control={form.control} name="color" render={({ field }) => (
-                                <FormItem><FormLabel className={labelClass}>Màu sắc</FormLabel><FormControl><Input placeholder="Vàng, Đen..." {...field} className={inputClass} disabled={repairCategory === 'SHOP_DEVICE_REPAIR'} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel className={labelClass}>Màu sắc</FormLabel><FormControl><Input placeholder="---" {...field} className={inputClass} disabled={repairCategory === 'SHOP_DEVICE_REPAIR'} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     </div>

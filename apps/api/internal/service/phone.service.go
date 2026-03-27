@@ -70,24 +70,50 @@ func (s *PhoneService) ImportPhone(input model.PhoneInput, userID int) (int, err
 	return s.Repo.Create(phone)
 }
 
-func (s *PhoneService) GetImportPhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+func (s *PhoneService) GetImportPhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, map[string]interface{}, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
 	if filter.Limit < 1 {
 		filter.Limit = 5
 	}
-	return s.Repo.GetImports(userID, filter)
+
+	items, total, totalVal, err := s.Repo.GetImports(userID, filter)
+	if err != nil {
+		return nil, 0, 0, nil, err
+	}
+
+	// ĐÃ FIX: Gọi hàm đếm Tồn kho
+	inventoryCount, inventoryValue, _ := s.Repo.GetInventoryStats(userID)
+	stats := map[string]interface{}{
+		"inventoryCount": inventoryCount,
+		"inventoryValue": inventoryValue,
+	}
+
+	return items, total, totalVal, stats, nil
 }
 
-func (s *PhoneService) GetSalePhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+func (s *PhoneService) GetSalePhones(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, map[string]interface{}, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
 	if filter.Limit < 1 {
 		filter.Limit = 5
 	}
-	return s.Repo.GetSales(userID, filter)
+
+	items, total, totalVal, err := s.Repo.GetSales(userID, filter)
+	if err != nil {
+		return nil, 0, 0, nil, err
+	}
+
+	// ĐÃ FIX: Gọi Repo lấy Stats và đóng gói
+	todayCount, todayRevenue, _ := s.Repo.GetDailySaleStats(userID)
+	stats := map[string]interface{}{
+		"todayCount":   todayCount,
+		"todayRevenue": todayRevenue,
+	}
+
+	return items, total, totalVal, stats, nil
 }
 
 func (s *PhoneService) GetPhoneDetail(id, userID int) (*model.Phone, error) {

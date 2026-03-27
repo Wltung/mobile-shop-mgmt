@@ -44,15 +44,17 @@ export default function ImportPage() {
     // --- 1. CẤU HÌNH STATS ---
     const statItems = [
         {
-            label: 'Tổng máy kho',
-            value: `${stats.totalPhones} máy`,
-            icon: <Package className="h-5 w-5" />,
+            label: 'Tổng máy đang có trong kho',
+            // Lấy từ cục stats API trả về
+            value: `${stats?.inventoryCount || 0} máy`,
+            icon: <Package className="h-5 w-5 text-blue-600" />,
             color: 'blue' as const,
         },
         {
-            label: 'Tổng giá trị nhập',
-            value: formatCurrency(stats.totalValue),
-            icon: <DollarSign className="h-5 w-5" />,
+            label: 'Tổng giá trị tồn kho',
+            // Lấy từ cục stats API trả về
+            value: formatCurrency(stats?.inventoryValue || 0),
+            icon: <DollarSign className="h-5 w-5 text-green-600" />,
             color: 'green' as const,
         },
     ]
@@ -71,16 +73,26 @@ export default function ImportPage() {
         {
             header: 'ĐỜI MÁY',
             accessorKey: 'model_name',
-            cell: (item) => (
-                <div className="flex flex-col">
-                    <span className="font-bold text-slate-900">
-                        {item.model_name}
-                    </span>
-                    <span className="font-mono text-xs text-slate-500">
-                        {item.imei}
-                    </span>
-                </div>
-            ),
+            cell: (item) => {
+                // ĐÃ FIX: Xử lý hiển thị RAM / ROM
+                const ram = item.details?.ram || ''
+                const storage = item.details?.storage || ''
+                const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
+                const displayName = memoryInfo 
+                    ? `${item.model_name} (${memoryInfo})` 
+                    : item.model_name
+
+                return (
+                    <div className="flex flex-col">
+                        <span className="font-bold text-slate-900">
+                            {displayName}
+                        </span>
+                        <span className="font-mono text-xs text-slate-500">
+                            IMEI: {item.imei}
+                        </span>
+                    </div>
+                )
+            },
         },
         {
             header: 'GIÁ NHẬP',

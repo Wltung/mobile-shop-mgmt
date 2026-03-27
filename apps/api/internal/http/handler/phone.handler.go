@@ -48,7 +48,8 @@ func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 
 func (h *PhoneHandler) handleGetList(
 	c *gin.Context,
-	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, error),
+	// ĐÃ FIX: Thêm map[string]interface{} vào chữ ký của func parameter
+	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, map[string]interface{}, error),
 ) {
 	userIDFloat, exists := c.Get("userID")
 	if !exists {
@@ -68,7 +69,8 @@ func (h *PhoneHandler) handleGetList(
 		filter.Limit = 5
 	}
 
-	phones, total, totalValue, err := serviceFunc(userID, filter)
+	// ĐÃ FIX: Hứng thêm biến stats
+	phones, total, totalValue, stats, err := serviceFunc(userID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
@@ -82,6 +84,7 @@ func (h *PhoneHandler) handleGetList(
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Lấy dữ liệu thành công",
 		"data":    phones,
+		"stats":   stats, // ĐÃ FIX: Gắn cục stats vào response JSON gửi về FE
 		"meta": gin.H{
 			"page":        filter.Page,
 			"limit":       filter.Limit,

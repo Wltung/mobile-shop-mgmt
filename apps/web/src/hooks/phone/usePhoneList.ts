@@ -34,6 +34,13 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         total_value: 0,
     })
 
+    const [stats, setStats] = useState({ 
+        todayCount: 0, 
+        todayRevenue: 0,
+        inventoryCount: 0,
+        inventoryValue: 0
+    })
+
     const fetchPhones = async (currentFilters: PhoneFilterParams) => {
         try {
             setIsLoading(true)
@@ -47,6 +54,17 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
             }
             setPhones(res.data || [])
             setMeta(res.meta) // Lưu meta backend trả về
+
+            if (res.stats) {
+                setStats({ 
+                    todayCount: res.stats.todayCount || 0, 
+                    todayRevenue: res.stats.todayRevenue || 0,
+                    inventoryCount: res.stats.inventoryCount || 0,
+                    inventoryValue: res.stats.inventoryValue || 0,
+                })
+            } else {
+                setStats({ todayCount: 0, todayRevenue: 0, inventoryCount: 0, inventoryValue: 0 })
+            }
         } catch (error) {
             toast({
                 variant: 'destructive',
@@ -131,7 +149,7 @@ export const usePhoneList = (type: ListType = 'IMPORT') => {
         phones,
         isLoading,
         meta,
-        stats: { totalPhones: meta.total, totalValue: meta.total_value },
+        stats,
         filters,
         setKeyword,
         setStatus,

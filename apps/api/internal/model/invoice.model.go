@@ -25,15 +25,15 @@ type Invoice struct {
 	PaymentMethod string `db:"payment_method" json:"payment_method"`
 
 	// Thay thế CustomerID bằng 3 cột lưu trực tiếp
-	CustomerName     string `db:"customer_name" json:"customer_name"`
-	CustomerPhone    string `db:"customer_phone" json:"customer_phone"`
-	CustomerIDNumber string `db:"customer_id_number" json:"customer_id_number"`
+	CustomerName     *string `db:"customer_name" json:"customer_name"`
+	CustomerPhone    *string `db:"customer_phone" json:"customer_phone"`
+	CustomerIDNumber *string `db:"customer_id_number" json:"customer_id_number"`
 
 	TotalAmount int64      `db:"total_amount" json:"total_amount"`
 	Discount    int64      `db:"discount" json:"discount"`
 	CreatedBy   int        `db:"created_by" json:"created_by"`
 	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
-	Note        string     `db:"note" json:"note"`
+	Note        *string    `db:"note" json:"note"`
 	UpdatedAt   *time.Time `db:"updated_at" json:"updated_at"`
 
 	// Fields hiển thị thêm (JOIN)
