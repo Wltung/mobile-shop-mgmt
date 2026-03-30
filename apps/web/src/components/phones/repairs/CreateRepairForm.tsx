@@ -17,7 +17,10 @@ import { Phone } from '@/types/phone'
 import PhoneSearchSelect from '../PhoneSearchSelect'
 import { formatCurrency } from '@/lib/utils'
 
-interface Props { onSuccess: () => void; onCancel: () => void }
+interface Props { 
+    onSuccess: (printData?: { repairId: number }) => void; 
+    onCancel: () => void 
+}
 
 const REPAIR_CATEGORIES = [
     { id: 'CUSTOMER_DEVICE_REPAIR', label: 'Máy khách', desc: 'Khách lẻ đem tới' },
@@ -91,9 +94,16 @@ export default function CreateRepairForm({ onSuccess, onCancel }: Props) {
                 has_labor_warranty: values.has_labor_warranty
             }
 
-            await repairService.create(payload)
+            const res = await repairService.create(payload)
             toast({ title: 'Thành công', description: 'Đã tạo phiếu tiếp nhận máy sửa.' })
-            onSuccess()
+
+            // KÍCH HOẠT MODAL IN
+            if (values.create_appointment) {
+                const returnedId = res.repair_id
+                onSuccess({ repairId: returnedId })
+            } else {
+                onSuccess()
+            }
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Lỗi', description: error.response?.data?.error || 'Không thể tạo phiếu tiếp nhận.' })
         } finally {
@@ -252,8 +262,9 @@ export default function CreateRepairForm({ onSuccess, onCancel }: Props) {
                                         )} />
                                         
                                         {/* HẸN TRẢ MÁY & IN PHIẾU GỘP CHUNG LAYOUT GIỐNG TIỀN CÔNG */}
-                                        <div className="flex items-center justify-between space-y-0">
-                                            <div className="flex items-center gap-4">
+                                        <div className="flex items-start justify-between">
+                                            {/* Thêm h-11 ở đây để cân bằng chiều cao với cái Input bên phải */}
+                                            <div className="flex items-center gap-4 h-11">
                                                 <label className="text-sm font-semibold text-slate-700">
                                                     Hẹn trả máy
                                                 </label>
@@ -273,11 +284,12 @@ export default function CreateRepairForm({ onSuccess, onCancel }: Props) {
                                                 )} />
                                             </div>
                                             
-                                            <FormField control={form.control} name="appointment_date" render={({ field }) => (
-                                                <FormItem className="space-y-0">
+                                            <FormField control={form.control} name="appointment_date" render={({ field }) => (                                               
+                                                <FormItem className="flex flex-col items-end space-y-1">
                                                     <FormControl>
                                                         <Input type="datetime-local" {...field} className={`${inputClass} w-40 text-slate-600`} />
                                                     </FormControl>
+                                                    <FormMessage className="text-[11px] text-right" /> 
                                                 </FormItem>
                                             )} />
                                         </div>

@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-    Printer,
     Edit,
     Smartphone,
     Download,
@@ -24,24 +23,16 @@ import DetailCard from '@/components/common/detail/DetailCard'
 import DetailRow from '@/components/common/detail/DetailRow'
 import PageHeader from '@/components/common/detail/PageHeader'
 import EditPhoneModal from '@/components/phones/import/EditPhoneModal'
-import { usePrintInvoice } from '@/hooks/invoice/usePrintInvoice'
 import PhoneStatusBadge from '@/components/common/badges/PhoneStatusBadge'
-import InvoicePreviewModal from '@/components/invoices/InvoicePreviewModal'
 import PageLoading from '@/components/common/PageLoading'
 import { useLockImport } from '@/hooks/invoice/useLockImportInvoice'
+import PrintInvoiceAction from '@/components/print/PrintInvoiceAction'
 
 export default function PhoneDetailPage() {
     const { id } = useParams()
 
     const { phone, isLoading, formatCurrency, formatDateForInput, refresh } =
         usePhoneDetail(Number(id))
-        
-    const {
-        isInvoiceModalOpen,
-        setIsInvoiceModalOpen,
-        activeInvoiceId,
-        handlePrintInvoice,
-    } = usePrintInvoice({ phone })
 
     const { handleLockImport, isLocking } = useLockImport({
         phone,
@@ -51,7 +42,6 @@ export default function PhoneDetailPage() {
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-    const canPrint = phone?.invoice_status === 'PAID'
     const isDraft = phone?.invoice_status === 'DRAFT'
 
     if (isLoading) return <PageLoading title="Chi tiết máy" />
@@ -118,18 +108,10 @@ export default function PhoneDetailPage() {
                                     <Edit className="h-5 w-5" />
                                     <span>Sửa thông tin</span>
                                 </Button>
-                                <Button
-                                    onClick={handlePrintInvoice}
-                                    disabled={!canPrint}
-                                    className={`gap-2 text-white shadow-md transition-all ${
-                                        canPrint
-                                            ? 'bg-primary shadow-primary/20 hover:bg-blue-600'
-                                            : 'cursor-not-allowed bg-slate-300 shadow-none'
-                                    }`}
-                                >
-                                    <Printer className="h-5 w-5" />
-                                    <span>In hoá đơn</span>
-                                </Button>
+                                <PrintInvoiceAction 
+                                    invoiceId={phone.invoice_id} 
+                                    status={phone.invoice_status} 
+                                />
                             </>
                         }
                     />
@@ -226,8 +208,8 @@ export default function PhoneDetailPage() {
                                 value={
                                     <span className="font-medium text-slate-700">
                                         {phone.payment_method === 'CASH' ? 'Tiền mặt' :
-                                         phone.payment_method === 'TRANSFER' ? 'Chuyển khoản' :
-                                         phone.payment_method === 'CARD' ? 'Quẹt thẻ' : '---'}
+                                        phone.payment_method === 'TRANSFER' ? 'Chuyển khoản' :
+                                        phone.payment_method === 'CARD' ? 'Quẹt thẻ' : '---'}
                                     </span>
                                 }
                             />
@@ -274,15 +256,6 @@ export default function PhoneDetailPage() {
                     setIsEditModalOpen(false)
                 }}
             />
-
-            {activeInvoiceId > 0 && (
-                <InvoicePreviewModal
-                    isOpen={isInvoiceModalOpen}
-                    onClose={() => setIsInvoiceModalOpen(false)}
-                    phone={phone}
-                    invoiceId={activeInvoiceId}
-                />
-            )}
         </div>
     )
 }

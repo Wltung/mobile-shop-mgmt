@@ -51,10 +51,16 @@ func (s *AuthService) Register(input model.RegisterInput) error {
 
 	role := input.Role
 	if role == "" {
-		role = "staff"
+		role = "admin"
 	}
 
-	return s.Repo.Create(model.User{
+	tenantName := input.TenantName
+	if tenantName == "" {
+		tenantName = "Cửa hàng của " + input.FullName
+	}
+
+	// Gọi hàm tạo cả 2
+	return s.Repo.CreateTenantAndUser(tenantName, model.User{
 		Username:     input.Username,
 		Email:        input.Email,
 		PasswordHash: string(hashed),
@@ -88,7 +94,7 @@ func (s *AuthService) Login(input model.LoginInput) (string, *model.User, error)
 	}
 
 	// Gọi TokenManager để tạo JWT
-	token, err := s.TokenManager.GenerateJWT(user.ID, user.Role, tokenDuration)
+	token, err := s.TokenManager.GenerateJWT(user.ID, user.TenantID, user.Role, tokenDuration)
 	if err != nil {
 		return "", nil, err
 	}

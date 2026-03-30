@@ -19,6 +19,7 @@ const (
 // 1. Entity map với Database
 type Invoice struct {
 	ID            int    `db:"id" json:"id"`
+	TenantID      int    `db:"tenant_id" json:"-"`
 	InvoiceCode   string `db:"invoice_code" json:"invoice_code"`
 	Type          string `db:"type" json:"type"`
 	Status        string `db:"status" json:"status"`

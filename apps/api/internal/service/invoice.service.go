@@ -10,7 +10,7 @@ import (
 
 type InvoiceService struct {
 	Repo         *repository.InvoiceRepo
-	PhoneService *PhoneService // Đã xoá CustomerService
+	PhoneService *PhoneService
 }
 
 func NewInvoiceService(repo *repository.InvoiceRepo, phoneService *PhoneService) *InvoiceService {
@@ -20,7 +20,7 @@ func NewInvoiceService(repo *repository.InvoiceRepo, phoneService *PhoneService)
 	}
 }
 
-func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
+func (s *InvoiceService) generateInvoiceCode(invType string, tenantID int) (string, error) {
 	prefix := "HD"
 	switch invType {
 	case "IMPORT":
@@ -36,7 +36,7 @@ func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
 	now := time.Now()
 	dateStr := now.Format("02012006")
 
-	count, err := s.Repo.GetCountTodayByType(invType)
+	count, err := s.Repo.GetCountTodayByType(invType, tenantID)
 	if err != nil {
 		return "", err
 	}
@@ -46,8 +46,7 @@ func (s *InvoiceService) generateInvoiceCode(invType string) (string, error) {
 	return code, nil
 }
 
-func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID int) (int, error) {
-	// 1. TÍNH TOÁN ITEMS & TỔNG TIỀN
+func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID int, tenantID int) (int, error) {
 	var totalAmount int64 = 0
 	var items []model.InvoiceItem
 
@@ -73,21 +72,21 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 
 	finalTotal := totalAmount - input.Discount
 	if finalTotal < 0 {
-		finalTotal = 0 // Tránh trường hợp giảm giá lố tay thành số âm
+		finalTotal = 0
 	}
 
-	// 2. TẠO HEADER HOÁ ĐƠN
 	status := input.Status
 	if status == "" {
 		status = model.InvoiceStatusPaid
 	}
 
-	code, err := s.generateInvoiceCode(input.Type)
+	code, err := s.generateInvoiceCode(input.Type, tenantID)
 	if err != nil {
 		return 0, err
 	}
 
 	invoice := model.Invoice{
+		TenantID:         tenantID,
 		InvoiceCode:      code,
 		Type:             input.Type,
 		Status:           status,
@@ -95,26 +94,22 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 		CustomerName:     &input.CustomerName,
 		CustomerPhone:    &input.CustomerPhone,
 		CustomerIDNumber: &input.CustomerIDNumber,
-
-		TotalAmount: finalTotal,
-		Discount:    input.Discount,
-
-		CreatedBy: userID,
-		CreatedAt: time.Now(),
-		Note:      &input.Note,
+		TotalAmount:      finalTotal,
+		Discount:         input.Discount,
+		CreatedBy:        userID,
+		CreatedAt:        time.Now(),
+		Note:             &input.Note,
 	}
 
-	// 3. LƯU VÀO DB
 	invoiceID, err := s.Repo.Create(invoice, items)
 	if err != nil {
 		return 0, err
 	}
 
-	// 4. CẬP NHẬT TRẠNG THÁI MÁY
 	if input.Type == model.InvoiceTypeSale {
 		for _, item := range items {
 			if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-				s.PhoneService.MarkPhoneAsSold(*item.PhoneID, item.UnitPrice, invoice.CreatedAt)
+				s.PhoneService.MarkPhoneAsSold(*item.PhoneID, item.UnitPrice, invoice.CreatedAt, tenantID)
 			}
 		}
 	}
@@ -122,17 +117,17 @@ func (s *InvoiceService) CreateInvoice(input model.CreateInvoiceInput, userID in
 	return invoiceID, nil
 }
 
-func (s *InvoiceService) GetInvoiceDetail(id int) (*model.Invoice, error) {
-	return s.Repo.GetByID(id)
+func (s *InvoiceService) GetInvoiceDetail(id int, tenantID int) (*model.Invoice, error) {
+	return s.Repo.GetByID(id, tenantID)
 }
 
-func (s *InvoiceService) UpdateStatus(id int, status string) error {
-	return s.Repo.UpdateStatus(id, status)
+func (s *InvoiceService) UpdateStatus(id int, status string, tenantID int) error {
+	return s.Repo.UpdateStatus(id, status, tenantID)
 }
 
-func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput, userID int) error {
-	// 1. LẤY HOÁ ĐƠN CŨ ĐỂ KIỂM TRA MÁY BỊ ĐỔI
-	oldInvoice, err := s.GetInvoiceDetail(id)
+func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput, tenantID int) error {
+
+	oldInvoice, err := s.GetInvoiceDetail(id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -145,37 +140,30 @@ func (s *InvoiceService) UpdateInvoice(id int, input model.UpdateInvoiceInput, u
 		}
 	}
 
-	// 2. GỌI REPO UPDATE HOÁ ĐƠN TRỰC TIẾP
-	err = s.Repo.Update(id, input)
+	err = s.Repo.Update(id, input, tenantID)
 	if err != nil {
 		return err
 	}
 
-	// 3. ĐIỀU PHỐI ĐỔI TRẠNG THÁI MÁY (Chỉ áp dụng cho hoá đơn BÁN)
 	if oldInvoice.Type == model.InvoiceTypeSale {
 		if input.PhoneID != nil && oldPhoneID != nil && *input.PhoneID != *oldPhoneID {
-			// A. Có đổi máy: Trả máy cũ về kho
-			s.PhoneService.RevertPhoneToInStock(*oldPhoneID)
-
-			// B. Đánh dấu máy mới thành Đã bán
+			s.PhoneService.RevertPhoneToInStock(*oldPhoneID, tenantID)
 			salePrice := oldPrice
 			if input.ActualSalePrice != "" {
 				parsedPrice, _ := strconv.ParseInt(input.ActualSalePrice, 10, 64)
 				salePrice = parsedPrice
 			}
-			s.PhoneService.MarkPhoneAsSold(*input.PhoneID, salePrice, time.Now())
-
+			s.PhoneService.MarkPhoneAsSold(*input.PhoneID, salePrice, time.Now(), tenantID)
 		} else if input.ActualSalePrice != "" && oldPhoneID != nil {
-			// C. Không đổi máy nhưng có đổi Giá bán
 			parsedPrice, _ := strconv.ParseInt(input.ActualSalePrice, 10, 64)
-			s.PhoneService.MarkPhoneAsSold(*oldPhoneID, parsedPrice, time.Now())
+			s.PhoneService.MarkPhoneAsSold(*oldPhoneID, parsedPrice, time.Now(), tenantID)
 		}
 	}
 
 	return nil
 }
 
-func (s *InvoiceService) GetInvoices(filter model.InvoiceFilter) ([]model.Invoice, int, model.InvoiceStats, error) {
+func (s *InvoiceService) GetInvoices(filter model.InvoiceFilter, tenantID int) ([]model.Invoice, int, model.InvoiceStats, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -183,20 +171,19 @@ func (s *InvoiceService) GetInvoices(filter model.InvoiceFilter) ([]model.Invoic
 		filter.Limit = 10
 	}
 
-	items, total, err := s.Repo.GetAll(filter)
+	items, total, err := s.Repo.GetAll(filter, tenantID)
 	if err != nil {
 		return nil, 0, model.InvoiceStats{}, err
 	}
 
-	count, revenue, _ := s.Repo.GetDailyStats()
+	count, revenue, _ := s.Repo.GetDailyStats(tenantID)
 	stats := model.InvoiceStats{TotalCount: count, TotalRevenue: revenue}
 
 	return items, total, stats, nil
 }
 
-// Xử lý Xoá/Huỷ hoá đơn
-func (s *InvoiceService) CancelOrDeleteInvoice(id int, userID int) error {
-	inv, err := s.GetInvoiceDetail(id)
+func (s *InvoiceService) CancelOrDeleteInvoice(id int, tenantID int) error {
+	inv, err := s.GetInvoiceDetail(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return err
 	}
@@ -204,59 +191,71 @@ func (s *InvoiceService) CancelOrDeleteInvoice(id int, userID int) error {
 		return fmt.Errorf("không tìm thấy hoá đơn")
 	}
 
-	// --- KỊCH BẢN 1: HOÁ ĐƠN NHÁP (DRAFT) -> XOÁ CỨNG ---
+	if inv.Type == model.InvoiceTypeImport {
+		for _, item := range inv.Items {
+			if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
+				phone, err := s.PhoneService.GetPhoneDetail(*item.PhoneID, tenantID)
+				if err != nil {
+					return fmt.Errorf("lỗi khi kiểm tra dữ liệu máy: %v", err)
+				}
+
+				if phone != nil && (phone.Status == "SOLD" || phone.Status == "REPAIRING") {
+					trangThai := "Đã bán (SOLD)"
+					action := "huỷ hoá đơn bán"
+					if phone.Status == "REPAIRING" {
+						trangThai = "Đang sửa chữa (REPAIRING)"
+						action = "huỷ phiếu sửa chữa"
+					}
+
+					return fmt.Errorf("không thể huỷ hoá đơn vì máy '%s' đang ở trạng thái %s. Vui lòng %s trước", phone.ModelName, trangThai, action)
+				}
+			}
+		}
+	}
+
 	if inv.Status == model.InvoiceStatusDraft {
 		switch inv.Type {
 		case model.InvoiceTypeImport:
 			for _, item := range inv.Items {
 				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-					_ = s.PhoneService.HardDeletePhone(*item.PhoneID, userID)
+					_ = s.PhoneService.HardDeletePhone(*item.PhoneID, tenantID)
 				}
 			}
 		case model.InvoiceTypeSale:
-			// ĐÃ VÁ LỖI: Nếu xoá nháp đơn BÁN -> Phải nhả máy về kho IN_STOCK
 			for _, item := range inv.Items {
 				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-					s.PhoneService.RevertPhoneToInStock(*item.PhoneID)
+					s.PhoneService.RevertPhoneToInStock(*item.PhoneID, tenantID)
 				}
 			}
 		}
-		// Xoá cứng hoá đơn
-		return s.Repo.HardDelete(id)
+		return s.Repo.HardDelete(id, tenantID) // ĐÃ FIX
 	}
 
-	// --- KỊCH BẢN 2: HOÁ ĐƠN ĐÃ CHỐT (PAID) -> HUỶ MỀM ---
 	if inv.Status == model.InvoiceStatusPaid {
-		// 1. Gạch chéo hoá đơn (Chuyển status thành CANCELLED)
-		err := s.Repo.UpdateStatus(id, model.InvoiceStatusCancelled)
+		err := s.Repo.UpdateStatus(id, model.InvoiceStatusCancelled, tenantID) // ĐÃ FIX
 		if err != nil {
 			return err
 		}
 
-		// 2. Xử lý logic hoàn trả
 		switch inv.Type {
 		case model.InvoiceTypeSale:
-			// Huỷ đơn BÁN -> Nhả máy về kho
 			for _, item := range inv.Items {
 				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-					s.PhoneService.RevertPhoneToInStock(*item.PhoneID)
+					s.PhoneService.RevertPhoneToInStock(*item.PhoneID, tenantID)
 				}
 			}
 		case model.InvoiceTypeImport:
-			// Huỷ đơn NHẬP -> Xoá mềm máy + Giải phóng IMEI cho nhập lại
 			for _, item := range inv.Items {
 				if item.ItemType == model.ItemTypePhone && item.PhoneID != nil {
-					_ = s.PhoneService.SoftDeletePhoneBypass(*item.PhoneID, userID)
+					_ = s.PhoneService.SoftDeletePhoneBypass(*item.PhoneID, tenantID)
 				}
 			}
 		case model.InvoiceTypeRepair:
-			// ĐÃ THÊM: Huỷ đơn SỬA CHỮA -> Trả phiếu sửa về REPAIRING và gỡ liên kết
-			_ = s.Repo.SoftDeleteRepairByInvoice(id)
+			_ = s.Repo.SoftDeleteRepairByInvoice(id, tenantID) // ĐÃ FIX
 		}
 		return nil
 	}
 
-	// --- KỊCH BẢN 3: ĐÃ HUỶ TỪ TRƯỚC ---
 	if inv.Status == model.InvoiceStatusCancelled {
 		return fmt.Errorf("hoá đơn này đã bị huỷ từ trước")
 	}

@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast'
 import { invoiceService } from '@/services/invoice.service'
 
 interface Props {
-    onSuccess: () => void
+    onSuccess: (printData?: { phone: any; invoiceId: number }) => void
     onCancel: () => void
 }
 
@@ -75,30 +75,30 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                 },
             }
 
+            // 1. TẠO MÁY
             const res = await phoneService.create(payload)
 
-            // 2. LUÔN TẠO HOÁ ĐƠN
+            // 2. TẠO HOÁ ĐƠN
             const invoiceStatus = values.create_invoice ? 'PAID' : 'DRAFT'
             
-            // Vì ta đã gỡ bảng Customers ở BE, KHÔNG GỬI customer_id nữa
-            // BE sẽ nhận trực tiếp Text (CustomerName, CustomerPhone, CustomerIDNumber)
             let finalCustomerName = values.seller_name
             if (!finalCustomerName || finalCustomerName.trim() === '') {
                 finalCustomerName = 'Khách vãng lai'
             }
             
-            await invoiceService.create({
+            // Gọi API và lấy invoice_id từ response
+            const invoiceRes = await invoiceService.create({
                 type: 'IMPORT',
                 status: invoiceStatus,
                 customer_name: finalCustomerName, 
                 customer_phone: values.seller_phone,
-                customer_id_number: values.seller_id, // Gửi CCCD về Invoices
-                payment_method: values.payment_method || 'CASH', // Gửi phương thức thanh toán
+                customer_id_number: values.seller_id,
+                payment_method: values.payment_method || 'CASH',
                 note: `Phiếu nhập kho cho ${values.model_name} (IMEI: ${values.imei})`,
                 items: [
                     {
                         item_type: 'PHONE',
-                        phone_id: res.phone_id,
+                        phone_id: res.phone_id, 
                         description: values.model_name,
                         quantity: 1,
                         unit_price: priceNumber,
@@ -107,17 +107,28 @@ export default function ImportPhoneForm({ onSuccess, onCancel }: Props) {
                 ],
             })
 
+            // 3. XỬ LÝ LOGIC BẬT IN HOÁ ĐƠN
             if (invoiceStatus === 'PAID') {
-                toast({ title: 'Thành công', description: 'Đã nhập kho và tạo hoá đơn thanh toán.' })
+                toast({ title: 'Thành công', description: 'Đã nhập kho và tạo hoá đơn thanh toán.', variant: 'default' })
+                
+                // Gọi đúng hàm getDetail từ phoneService
+                const newPhone = await phoneService.getDetail(res.phone_id) 
+                
+                // Truyền data in ngược lên Modal Cha
+                onSuccess({ 
+                    phone: newPhone, 
+                    invoiceId: invoiceRes.invoice_id 
+                })
             } else {
                 toast({ 
                     title: 'Đã lưu nháp', 
-                    description: 'Đã nhập kho. Hoá đơn ở trạng thái Nháp (có thể sửa thông tin).',
+                    description: 'Đã nhập kho. Hoá đơn ở trạng thái Nháp.',
                     variant: "default"
                 })
+                // Không in thì đóng form như bình thường
+                onSuccess()
             }
 
-            onSuccess()
         } catch (error: any) {
             toast({
                 variant: 'destructive',

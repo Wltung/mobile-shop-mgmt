@@ -23,6 +23,7 @@ import PageLoading from '@/components/common/PageLoading'
 import { useWarrantyDetail } from '@/hooks/warranty/useWarrantyDetail'
 import WarrantyStatusBadge from '@/components/common/badges/WarrantyStatusBadge'
 import EditWarrantyModal from '@/components/phones/warranties/EditWarrantyModal'
+import PrintWarrantyAction from '@/components/print/PrintWarrantyAction'
 
 // --- LOCAL COMPONENT: InfoBlock ---
 const InfoBlock = ({
@@ -178,12 +179,7 @@ export default function WarrantyDetailPage() {
                                     <Edit className="h-4 w-4" />
                                     <span>Sửa thông tin</span>
                                 </Button>
-                                <Button 
-                                    className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 font-semibold px-6"
-                                >
-                                    <Printer className="h-4 w-4" />
-                                    <span>In phiếu bảo hành</span>
-                                </Button>
+                                <PrintWarrantyAction warrantyId={warranty.id} />
                             </>
                         }
                     />
@@ -224,7 +220,7 @@ export default function WarrantyDetailPage() {
                                     {partName && (
                                         <InfoBlock 
                                             label="Linh kiện / Dịch vụ" 
-                                            value={<span className="text-blue-700 font-semibold">{partName}</span>} 
+                                            value={<span className="text-blue-700 font-semibold">{isSale ? "---" : partName}</span>} 
                                         />
                                     )}
 

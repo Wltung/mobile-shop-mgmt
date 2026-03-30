@@ -28,6 +28,7 @@ import { useInvoiceDetail } from '@/hooks/invoice/useInvoiceDetail'
 import PageLoading from '@/components/common/PageLoading'
 import EditSaleModal from '@/components/phones/sales/EditSaleModal'
 import { useLockSale } from '@/hooks/invoice/useLockSaleInvoice'
+import PrintInvoiceAction from '@/components/print/PrintInvoiceAction'
 
 // --- LOCAL COMPONENT: InfoBlock (Thay thế DetailRow để hiển thị dạng dọc) ---
 const InfoBlock = ({
@@ -129,17 +130,10 @@ export default function SaleDetailPage() {
                                     <Edit className="h-4 w-4" />
                                     <span>Sửa thông tin</span>
                                 </Button>
-                                <Button 
-                                    disabled={!isPaid}
-                                    className={`gap-2 text-white shadow-md transition-all ${
-                                        isPaid 
-                                        ? 'bg-primary hover:bg-blue-600 shadow-primary/20' 
-                                        : 'bg-slate-300 cursor-not-allowed shadow-none'
-                                    }`}
-                                >
-                                    <Printer className="h-4 w-4" />
-                                    <span>In hoá đơn</span>
-                                </Button>
+                                <PrintInvoiceAction 
+                                    invoiceId={invoice.id} 
+                                    status={invoice.status} 
+                                />
                             </>
                         }
                     />

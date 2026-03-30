@@ -16,13 +16,32 @@ func NewUserRepo(db *sqlx.DB) *UserRepo {
 	return &UserRepo{DB: db}
 }
 
-func (r *UserRepo) Create(u model.User) error {
-	query := `
-		INSERT INTO users (username, email, password_hash, full_name, role) 
-		VALUES (:username, :email, :password_hash, :full_name, :role)
+func (r *UserRepo) CreateTenantAndUser(tenantName string, u model.User) error {
+	// Dùng Transaction để nếu lỗi thì rollback cả 2
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Tạo Tenant
+	res, err := tx.Exec("INSERT INTO tenants (name, status) VALUES (?, 'ACTIVE')", tenantName)
+	if err != nil {
+		return err
+	}
+	tenantID, _ := res.LastInsertId()
+
+	// 2. Gắn TenantID vào User và tạo User
+	u.TenantID = int(tenantID)
+	queryUser := `
+		INSERT INTO users (tenant_id, username, email, password_hash, full_name, role) 
+		VALUES (:tenant_id, :username, :email, :password_hash, :full_name, :role)
 	`
-	_, err := r.DB.NamedExec(query, u)
-	return err
+	if _, err := tx.NamedExec(queryUser, u); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r *UserRepo) GetByUsername(username string) (*model.User, error) {

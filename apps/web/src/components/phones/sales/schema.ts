@@ -35,6 +35,19 @@ export const salePhoneSchema = salePhoneBase
         create_invoice: z.boolean(),
         phone_id: z.number().positive("Vui lòng chọn máy"),
     })
+    .refine(
+        (data) => {
+            // Nếu bật Toggle In mà trạng thái KHÔNG PHẢI PAID -> Lỗi
+            if (data.create_invoice && data.payment_status !== 'PAID') {
+                return false
+            }
+            return true
+        },
+        {
+            message: "Vui lòng chuyển trạng thái thành 'Đã thanh toán' để chốt và in hoá đơn",
+            path: ["payment_status"], // Báo lỗi đỏ chót ngay tại ô Select trạng thái
+        }
+    )
 
 export const editSaleSchema = salePhoneBase
     .extend({
@@ -53,9 +66,9 @@ export const defaultSaleValues: SaleFormValues = {
     customer_id_number: '',
     phone_id: 0,
     actual_sale_price: '',
-    warranty: '6', // Mặc định 6 tháng
+    warranty: '3', // Mặc định 6 tháng
     payment_method: 'CASH',
-    payment_status: 'PAID',
+    payment_status: 'DRAFT',
     note: '',
-    create_invoice: true,
+    create_invoice: false,
 }

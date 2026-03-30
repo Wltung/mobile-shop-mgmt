@@ -22,8 +22,7 @@ func NewRepairService(repo *repository.RepairRepo, invService *InvoiceService, p
 	}
 }
 
-func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID int) (int, error) {
-	// 1. CHUẨN BỊ OBJECT DESCRIPTION JSON
+func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID int, tenantID int) (int, error) {
 	descObj := model.RepairDescription{
 		Fault:            input.Fault,
 		Accessories:      input.Accessories,
@@ -33,15 +32,13 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 		HasLaborWarranty: input.HasLaborWarranty,
 	}
 
-	// Logic Auto Hẹn trả
 	if input.PromisedReturnDate != nil && *input.PromisedReturnDate != "" {
 		descObj.IsPromisedReturn = true
 		descObj.PromisedReturnDate = input.PromisedReturnDate
 	}
 
-	// Logic Tự map máy kho
 	if input.RepairCategory == "SHOP_DEVICE_REPAIR" && input.PhoneID != nil {
-		name, imei, color, err := s.Repo.GetPhoneBasicInfo(*input.PhoneID)
+		name, imei, color, err := s.Repo.GetPhoneBasicInfo(*input.PhoneID, tenantID)
 		if err == nil {
 			descObj.DeviceName = name
 			descObj.IMEI = imei
@@ -56,7 +53,6 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 	descBytes, _ := json.Marshal(descObj)
 	descStr := string(descBytes)
 
-	// 2. MAP VÀO MODEL REPAIR
 	var passPtr *string
 	if input.DevicePassword != "" {
 		passPtr = &input.DevicePassword
@@ -81,20 +77,20 @@ func (s *RepairService) CreateRepairTicket(input model.CreateRepairInput, userID
 		DevicePassword: passPtr,
 	}
 
-	repairID, err := s.Repo.Create(repair)
+	repairID, err := s.Repo.Create(repair, userID, tenantID)
 	if err != nil {
 		return 0, err
 	}
 
 	if input.RepairCategory == "SHOP_DEVICE_REPAIR" && input.PhoneID != nil {
-		s.PhoneService.UpdatePhoneStatus(*input.PhoneID, "REPAIRING")
+		s.PhoneService.UpdatePhoneStatus(*input.PhoneID, "REPAIRING", tenantID)
 	}
 
 	return repairID, nil
 }
 
-func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput) error {
-	existingRepair, err := s.Repo.GetByID(id)
+func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput, tenantID int) error {
+	existingRepair, err := s.Repo.GetByID(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return err
 	}
@@ -121,7 +117,6 @@ func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput
 		isDescUpdated = true
 	}
 
-	// Cập nhật ngày hẹn trả (Có ngày thì bật true, rỗng thì tắt false)
 	if input.PromisedReturnDate != nil {
 		if *input.PromisedReturnDate != "" {
 			descObj.IsPromisedReturn = true
@@ -152,11 +147,11 @@ func (s *RepairService) UpdateRepairTicket(id int, input model.UpdateRepairInput
 		input.Description = &str
 	}
 
-	return s.Repo.Update(id, input)
+	return s.Repo.Update(id, input, tenantID) // ĐÃ FIX
 }
 
-func (s *RepairService) GetRepairDetail(id int) (*model.RepairListItem, error) {
-	item, err := s.Repo.GetByID(id)
+func (s *RepairService) GetRepairDetail(id int, tenantID int) (*model.RepairListItem, error) {
+	item, err := s.Repo.GetByID(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +165,7 @@ func (s *RepairService) GetRepairDetail(id int) (*model.RepairListItem, error) {
 	return item, nil
 }
 
-func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairListItem, int, map[string]int, error) {
+func (s *RepairService) GetRepairs(filter model.RepairFilter, tenantID int) ([]model.RepairListItem, int, map[string]int, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -178,7 +173,7 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 		filter.Limit = 10
 	}
 
-	items, total, err := s.Repo.GetAll(filter)
+	items, total, err := s.Repo.GetAll(filter, tenantID) // ĐÃ FIX
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -196,7 +191,7 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 		}
 	}
 
-	repairingCount, completedCount, _ := s.Repo.GetStats()
+	repairingCount, completedCount, _ := s.Repo.GetStats(tenantID) // ĐÃ FIX
 	stats := map[string]int{
 		"repairingCount":      repairingCount,
 		"completedTodayCount": completedCount,
@@ -205,8 +200,8 @@ func (s *RepairService) GetRepairs(filter model.RepairFilter) ([]model.RepairLis
 	return items, total, stats, nil
 }
 
-func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
-	repair, err := s.GetRepairDetail(id)
+func (s *RepairService) CompleteRepair(id int, userID int, tenantID int) (int, error) {
+	repair, err := s.GetRepairDetail(id, tenantID)
 	if err != nil {
 		return 0, err
 	}
@@ -217,34 +212,23 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		return *repair.InvoiceID, nil
 	}
 
-	// ==========================================
-	// NHÁNH 1: SỬA MÁY KHO (Không tạo hoá đơn, cộng dồn giá vốn)
-	// ==========================================
 	if repair.RepairCategory == "SHOP_DEVICE_REPAIR" {
-
-		// 1. Mở khoá trả máy về IN_STOCK (Không cộng thêm purchase_price nữa)
 		if repair.PhoneID != nil {
-			errStatus := s.PhoneService.UpdatePhoneStatus(*repair.PhoneID, "IN_STOCK")
+			errStatus := s.PhoneService.UpdatePhoneStatus(*repair.PhoneID, "IN_STOCK", tenantID)
 			if errStatus != nil {
 				return 0, fmt.Errorf("lỗi khi trả máy về IN_STOCK: %v", errStatus)
 			}
 		}
 
-		// 2. Chốt phiếu sửa
 		statusCompleted := "COMPLETED"
-		err = s.Repo.Update(id, model.UpdateRepairInput{
-			Status: &statusCompleted,
-		})
+		err = s.Repo.Update(id, model.UpdateRepairInput{Status: &statusCompleted}, tenantID)
 		if err != nil {
 			return 0, fmt.Errorf("lỗi cập nhật trạng thái phiếu: %v", err)
 		}
 
-		return 0, nil // Trả về 0 vì KHÔNG CÓ hoá đơn nào được tạo ra
+		return 0, nil
 	}
 
-	// ==========================================
-	// NHÁNH 2: SỬA MÁY KHÁCH (Tạo hoá đơn thu tiền)
-	// ==========================================
 	deviceName := "Thiết bị sửa chữa"
 	if repair.DeviceName != "" {
 		deviceName = repair.DeviceName
@@ -312,7 +296,7 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 		Discount:      discountAmount,
 	}
 
-	invoiceID, err := s.InvoiceService.CreateInvoice(invoiceInput, userID)
+	invoiceID, err := s.InvoiceService.CreateInvoice(invoiceInput, userID, tenantID)
 	if err != nil {
 		return 0, fmt.Errorf("lỗi khi tạo hoá đơn: %v", err)
 	}
@@ -321,7 +305,7 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 	err = s.Repo.Update(id, model.UpdateRepairInput{
 		Status:    &statusCompleted,
 		InvoiceID: &invoiceID,
-	})
+	}, tenantID)
 	if err != nil {
 		return 0, fmt.Errorf("đã xuất HĐ nhưng lỗi cập nhật trạng thái phiếu: %v", err)
 	}
@@ -329,8 +313,8 @@ func (s *RepairService) CompleteRepair(id int, userID int) (int, error) {
 	return invoiceID, nil
 }
 
-func (s *RepairService) DeleteRepairTicket(id int) error {
-	repair, err := s.GetRepairDetail(id)
+func (s *RepairService) DeleteRepairTicket(id int, tenantID int) error {
+	repair, err := s.GetRepairDetail(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return err
 	}
@@ -338,24 +322,18 @@ func (s *RepairService) DeleteRepairTicket(id int) error {
 		return errors.New("không tìm thấy phiếu sửa chữa")
 	}
 
-	// NẾU ĐÃ XUẤT HOÁ ĐƠN: Chặn lại, bắt qua giao diện Hoá đơn để huỷ
 	if repair.InvoiceID != nil {
 		return errors.New("phiếu sửa chữa này đã được xuất hoá đơn. Vui lòng chuyển sang mục Hoá Đơn để thực hiện thao tác Huỷ.")
 	}
 
-	// NẾU LÀ MÁY KHO
 	if repair.RepairCategory == "SHOP_DEVICE_REPAIR" {
-		// Nếu đang sửa dở dang -> Trả lại kho
 		if repair.Status != "COMPLETED" && repair.PhoneID != nil {
-			s.PhoneService.UpdatePhoneStatus(*repair.PhoneID, "IN_STOCK")
+			s.PhoneService.UpdatePhoneStatus(*repair.PhoneID, "IN_STOCK", tenantID)
 		}
-
-		// Nếu sửa xong rồi (đã chốt) -> Chỉ xoá mềm để giữ lịch sử sửa chữa
 		if repair.Status == "COMPLETED" {
-			return s.Repo.SoftDelete(id)
+			return s.Repo.SoftDelete(id, tenantID) // ĐÃ FIX
 		}
 	}
 
-	// CÁC TRƯỜNG HỢP CÒN LẠI (Chưa xuất hoá đơn, sửa nháp...) -> Xoá cứng (bay màu)
-	return s.Repo.HardDelete(id)
+	return s.Repo.HardDelete(id, tenantID) // ĐÃ FIX
 }

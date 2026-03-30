@@ -5,6 +5,7 @@ import "time"
 // 1. Entity map với DB
 type Warranty struct {
 	ID            int        `db:"id" json:"id"`
+	TenantID      int        `db:"tenant_id" json:"-"`
 	WarrantyCode  *string    `db:"warranty_code" json:"warranty_code"`
 	PhoneID       *int       `db:"phone_id" json:"phone_id"`
 	InvoiceID     *int       `db:"invoice_id" json:"invoice_id"`
@@ -19,6 +20,8 @@ type Warranty struct {
 	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt     *time.Time `db:"updated_at" json:"updated_at"`
 	DeletedAt     *time.Time `db:"deleted_at" json:"deleted_at"`
+
+	UserID int `db:"user_id" json:"-"`
 }
 
 // 2. Cấu trúc JSON cho cột description

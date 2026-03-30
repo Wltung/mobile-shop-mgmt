@@ -36,7 +36,8 @@ export default function SalesPage() {
     const router = useRouter()
 
     const [isSaleModalOpen, setIsSaleModalOpen] = useState(false)
-    const [confirmDeleteItem, setConfirmDeleteItem] = useState<Phone | null>(null)
+    const [deleteItem, setDeleteItem] = useState<Phone | null>(null)
+    const [warningItem, setWarningItem] = useState<Phone | null>(null)
 
     // Sử dụng hook list nhưng set logic riêng cho trang Sales
     const {
@@ -173,7 +174,13 @@ export default function SalesPage() {
                     {item.invoice_status !== 'CANCELLED' && (
                         <button 
                             className="rounded p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
-                            onClick={() => setConfirmDeleteItem(item)}
+                            onClick={() => {
+                                if (item.invoice_status === 'PAID') {
+                                    setWarningItem(item) // Đã thanh toán -> Bật cảnh báo vàng
+                                } else {
+                                    setDeleteItem(item)  // Lưu nháp -> Bật xoá đỏ
+                                }
+                            }}
                             title={item.invoice_status === 'PAID' ? "Huỷ hoá đơn này" : "Xoá bản nháp"}
                         >
                             <Trash2 className="h-4 w-4" />
@@ -286,25 +293,50 @@ export default function SalesPage() {
                 onSuccess={() => refresh()} // Refresh list sau khi bán xong
             />
 
-            {/* MODAL XÁC NHẬN HUỶ/XOÁ */}
+            {/* MODAL ĐỎ: XOÁ HOÁ ĐƠN NHÁP */}
             <ConfirmModal
-                isOpen={!!confirmDeleteItem}
-                onClose={() => setConfirmDeleteItem(null)}
+                isOpen={!!deleteItem}
+                onClose={() => setDeleteItem(null)}
                 onConfirm={() => {
-                    if (confirmDeleteItem && confirmDeleteItem.invoice_id) {
-                        // Gọi hàm deletePhone (truyền ID máy và ID hoá đơn)
-                        deletePhone(confirmDeleteItem.id, confirmDeleteItem.invoice_id)
-                        setConfirmDeleteItem(null)
+                    if (deleteItem && deleteItem.invoice_id) {
+                        deletePhone(deleteItem.id, deleteItem.invoice_id)
+                        setDeleteItem(null)
                     }
                 }}
-                title={confirmDeleteItem?.invoice_status === 'PAID' ? 'Cảnh báo: Huỷ hoá đơn bán' : 'Xác nhận xoá bản nháp?'}
+                title="Xác nhận xoá bản nháp?"
                 description={
-                    confirmDeleteItem?.invoice_status === 'PAID' 
-                        ? <>Bạn đang thực hiện thao tác <strong className="text-red-600">Huỷ hoá đơn đã thanh toán</strong>. Thao tác này sẽ tự động hoàn trả máy <strong className="text-slate-800">{confirmDeleteItem?.model_name}</strong> về lại trong kho và không thể hoàn tác.</>
-                        : <>Bạn có chắc chắn muốn xoá hoá đơn nháp này? Máy <strong className="text-slate-800">{confirmDeleteItem?.model_name}</strong> sẽ được trả lại kho.</>
+                    <>
+                        Bạn có chắc chắn muốn xoá phiếu bán này? <br />
+                        Máy <span className="font-bold text-slate-700">{deleteItem?.model_name}</span> sẽ được tự động hoàn trả lại kho.
+                    </>
                 }
-                confirmText={confirmDeleteItem?.invoice_status === 'PAID' ? 'Xác nhận huỷ' : 'Xác nhận xoá'}
+                confirmText="Xác nhận xoá"
                 variant="danger"
+            />
+
+            {/* MODAL VÀNG: CẢNH BÁO MÁY ĐÃ CÓ HOÁ ĐƠN PAID */}
+            <ConfirmModal
+                isOpen={!!warningItem}
+                onClose={() => setWarningItem(null)}
+                onConfirm={() => {
+                    if (warningItem?.invoice_id) {
+                        router.push(`/dashboard/invoices/${warningItem.invoice_id}`)
+                    } else {
+                        router.push(`/dashboard/invoices`)
+                    }
+                    setWarningItem(null)
+                }}
+                title="Không thể xoá trực tiếp!"
+                description={
+                    <>
+                        Máy này đã được thanh toán trong hoá đơn xuất <span className="font-bold text-slate-700">{warningItem?.invoice_code || 'Bán'}</span>. 
+                        <br /><br />
+                        Để hoàn trả máy lại kho, vui lòng chuyển đến chi tiết hoá đơn và thực hiện thao tác <span className="font-bold text-red-600">Huỷ hoá đơn</span>.
+                    </>
+                }
+                confirmText="Xem hoá đơn"
+                cancelText="Đã hiểu"
+                variant="warning"
             />
         </div>
     )

@@ -44,6 +44,7 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 		// (Optional) Lưu claims vào context nếu cần dùng ở handler sau
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			c.Set("userID", claims["sub"])
+			c.Set("tenantID", claims["tenant_id"]) // CỰC KỲ QUAN TRỌNG
 			c.Set("role", claims["role"])
 		}
 

@@ -16,8 +16,7 @@ func NewWarrantyService(repo *repository.WarrantyRepo) *WarrantyService {
 	return &WarrantyService{Repo: repo}
 }
 
-func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID int) (int, error) {
-	// 1. XÁC THỰC HẠN BẢO HÀNH
+func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID int, tenantID int) (int, error) {
 	if input.EndDate == nil {
 		return 0, errors.New("thiết bị không có thông tin hạn bảo hành")
 	}
@@ -30,7 +29,6 @@ func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID
 		return 0, errors.New("thiết bị đã hết hạn bảo hành, không thể tạo phiếu")
 	}
 
-	// 2. ĐÓNG GÓI 2 CHUỖI JSON
 	descObj := model.WarrantyDescription{
 		Condition: input.Condition,
 		Fault:     input.Fault,
@@ -46,7 +44,6 @@ func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID
 	techBytes, _ := json.Marshal(techObj)
 	techStr := string(techBytes)
 
-	// 3. MAP DATA
 	var imeiPtr *string
 	if input.IMEI != "" {
 		imeiPtr = &input.IMEI
@@ -64,10 +61,10 @@ func (s *WarrantyService) CreateWarranty(input model.CreateWarrantyInput, userID
 		EndDate:       input.EndDate,
 	}
 
-	return s.Repo.Create(warranty)
+	return s.Repo.Create(warranty, userID, tenantID)
 }
 
-func (s *WarrantyService) GetWarranties(filter model.WarrantyFilter) ([]model.WarrantyListItem, int, map[string]int, error) {
+func (s *WarrantyService) GetWarranties(filter model.WarrantyFilter, tenantID int) ([]model.WarrantyListItem, int, map[string]int, error) {
 	if filter.Page < 1 {
 		filter.Page = 1
 	}
@@ -75,12 +72,11 @@ func (s *WarrantyService) GetWarranties(filter model.WarrantyFilter) ([]model.Wa
 		filter.Limit = 10
 	}
 
-	items, total, err := s.Repo.GetAll(filter)
+	items, total, err := s.Repo.GetAll(filter, tenantID)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	// PARSE 2 CỤC JSON
 	for i := range items {
 		if items[i].Description != nil {
 			var descObj model.WarrantyDescription
@@ -96,17 +92,16 @@ func (s *WarrantyService) GetWarranties(filter model.WarrantyFilter) ([]model.Wa
 		}
 	}
 
-	stats, _ := s.Repo.GetStats()
+	stats, _ := s.Repo.GetStats(tenantID) // ĐÃ FIX
 	return items, total, stats, nil
 }
 
-func (s *WarrantyService) GetWarrantyDetail(id int) (*model.WarrantyListItem, error) {
-	item, err := s.Repo.GetByID(id)
+func (s *WarrantyService) GetWarrantyDetail(id int, tenantID int) (*model.WarrantyListItem, error) {
+	item, err := s.Repo.GetByID(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return nil, err
 	}
 
-	// PARSE 2 CỤC JSON
 	if item != nil {
 		if item.Description != nil {
 			var descObj model.WarrantyDescription
@@ -125,8 +120,8 @@ func (s *WarrantyService) GetWarrantyDetail(id int) (*model.WarrantyListItem, er
 	return item, nil
 }
 
-func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput) error {
-	existing, err := s.GetWarrantyDetail(id)
+func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput, tenantID int) error {
+	existing, err := s.GetWarrantyDetail(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return err
 	}
@@ -134,7 +129,6 @@ func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput
 		return errors.New("không tìm thấy phiếu bảo hành")
 	}
 
-	// 1. Cập nhật cục JSON Description
 	var descObj model.WarrantyDescription
 	if existing.Description != nil {
 		json.Unmarshal([]byte(*existing.Description), &descObj)
@@ -152,10 +146,9 @@ func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput
 	if isDescUpdated {
 		b, _ := json.Marshal(descObj)
 		str := string(b)
-		input.Description = &str // Gán vào input ẩn để gửi xuống Repo
+		input.Description = &str
 	}
 
-	// 2. Cập nhật cục JSON TechnicalNote
 	var techObj model.WarrantyTechnicalNote
 	if existing.TechnicalNote != nil {
 		json.Unmarshal([]byte(*existing.TechnicalNote), &techObj)
@@ -173,18 +166,18 @@ func (s *WarrantyService) UpdateWarranty(id int, input model.UpdateWarrantyInput
 	if isTechUpdated {
 		b, _ := json.Marshal(techObj)
 		str := string(b)
-		input.TechnicalNote = &str // Gán vào input ẩn để gửi xuống Repo
+		input.TechnicalNote = &str
 	}
 
-	return s.Repo.Update(id, input)
+	return s.Repo.Update(id, input, tenantID) // ĐÃ FIX
 }
 
-func (s *WarrantyService) SearchWarranty(keyword string, invType string) ([]model.WarrantySearchItem, error) {
-	return s.Repo.SearchWarranty(keyword, invType)
+func (s *WarrantyService) SearchWarranty(keyword string, invType string, tenantID int) ([]model.WarrantySearchItem, error) {
+	return s.Repo.SearchWarranty(keyword, invType, tenantID) // ĐÃ FIX
 }
 
-func (s *WarrantyService) DeleteWarranty(id int) error {
-	existing, err := s.GetWarrantyDetail(id)
+func (s *WarrantyService) DeleteWarranty(id int, tenantID int) error {
+	existing, err := s.GetWarrantyDetail(id, tenantID) // ĐÃ FIX
 	if err != nil {
 		return err
 	}
@@ -192,12 +185,9 @@ func (s *WarrantyService) DeleteWarranty(id int) error {
 		return errors.New("không tìm thấy phiếu bảo hành")
 	}
 
-	// Phân luồng thông minh
 	if existing.Status == "RECEIVED" {
-		// Nháp, mới tạo -> Bay màu
-		return s.Repo.HardDelete(id)
+		return s.Repo.HardDelete(id, tenantID) // ĐÃ FIX
 	}
 
-	// Đã xử lý / Đã xong -> Xoá mềm giấu đi
-	return s.Repo.SoftDelete(id)
+	return s.Repo.SoftDelete(id, tenantID) // ĐÃ FIX
 }

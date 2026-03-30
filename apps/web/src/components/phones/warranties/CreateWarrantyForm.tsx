@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 import WarrantyItemSearchSelect from './WarrantyItemSearchSelect'
 
 interface Props {
-    onSuccess: () => void
+    onSuccess: (printData?: { warrantyId: number }) => void
     onCancel: () => void
 }
 
@@ -92,10 +92,17 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                 end_date: values.end_date,
             }
 
-            await warrantyService.create(payload)
+            // Lấy response về để lấy ID
+            const res = await warrantyService.create(payload)
 
             toast({ title: 'Thành công', description: 'Đã tạo phiếu tiếp nhận bảo hành.' })
-            onSuccess()
+            
+            // LOGIC IN: Nếu bật toggle in thì bắn ID ra ngoài, không thì thôi
+            if (values.create_receipt && res.id) {
+                onSuccess({ warrantyId: res.id })
+            } else {
+                onSuccess()
+            }
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Lỗi', description: error.response?.data?.error || 'Không thể tạo phiếu.' })
         } finally {
@@ -122,6 +129,13 @@ export default function CreateWarrantyForm({ onSuccess, onCancel }: Props) {
                             <div className="space-y-1.5 mb-6">
                                 <label className={labelClass}>Tìm kiếm máy / IMEI</label>
                                 <WarrantyItemSearchSelect type={watchType} onSelect={handleSelectDevice} />
+
+                                {/* Thêm dòng này để hứng lỗi từ device_name và in ra chữ đỏ */}
+                                {form.formState.errors.device_name && (
+                                    <p className="text-[0.8rem] font-medium text-destructive mt-1">
+                                        {form.formState.errors.device_name.message}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="flex-1 p-5 rounded-xl border border-slate-100 bg-slate-50/70 flex flex-col gap-4">

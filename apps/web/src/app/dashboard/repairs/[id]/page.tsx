@@ -19,6 +19,8 @@ import RepairStatusBadge from '@/components/common/badges/RepairStatusBadge'
 import EditRepairModal from '@/components/phones/repairs/EditRepairModal'
 import { useToast } from '@/hooks/use-toast'
 import { repairService } from '@/services/repair.service'
+import PrintRepairAction from '@/components/print/PrintRepairAction'
+import PrintInvoiceAction from '@/components/print/PrintInvoiceAction'
 
 // --- LOCAL COMPONENT: InfoBlock ---
 const InfoBlock = ({
@@ -146,18 +148,13 @@ export default function RepairDetailPage() {
                                     <Edit className="h-4 w-4" />
                                     <span>{isLocked ? 'Đã chốt phiếu' : 'Sửa thông tin'}</span>
                                 </Button>
-                                <Button 
-                                    disabled={!isLocked || isCompleting}
-                                    onClick={handleCompleteAndPrint}
-                                    className={`gap-2 text-white shadow-md transition-all font-semibold px-6 ${
-                                        isLocked 
-                                        ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20' 
-                                        : 'bg-slate-300 cursor-not-allowed shadow-none'
-                                    }`}
-                                >
-                                    {isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                                    <span>{isCompleting ? 'Đang tạo HD...' : 'Hoàn thành & In hoá đơn'}</span>
-                                </Button>
+                                <PrintInvoiceAction
+                                    invoiceId={repair.invoice_id} 
+                                    // Nếu đã chốt (isLocked) thì truyền 'PAID' để mở khoá nút in, ngược lại truyền 'DRAFT' để nút tự disable
+                                    status={isLocked ? 'PAID' : 'DRAFT'} 
+                                    // Chèn thêm class của bạn để giữ nguyên form UI (độ rộng, padding...)
+                                    className="font-semibold px-6"
+                                />
                             </>
                         }
                     />
@@ -220,21 +217,9 @@ export default function RepairDetailPage() {
                                         value={
                                             <div className="flex items-center gap-3">
                                                 <span className="text-blue-600 font-bold">{appointmentDate}</span>
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    disabled={repair.repair_category === 'SHOP_DEVICE_REPAIR'}
-                                                    onClick={() => {
-                                                        // TODO: Chèn logic gọi hàm in hoặc mở tab In phiếu hẹn của bạn vào đây
-                                                        toast({ title: 'In phiếu hẹn', description: 'Đang mở mẫu in...' })
-                                                    }}
-                                                    className="h-7 px-2.5 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-700"
-                                                >
-                                                    <Printer className="w-3.5 h-3.5 mr-1.5" />
-                                                    In phiếu
-                                                </Button>
+                                                <PrintRepairAction repair={repair} />
                                             </div>
-                                        } 
+                                        }
                                     />
                                 </div>
                                 <InfoBlock

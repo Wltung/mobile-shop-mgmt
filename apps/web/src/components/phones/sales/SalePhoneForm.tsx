@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Check } from 'lucide-react'
@@ -30,9 +30,10 @@ import { invoiceService } from '@/services/invoice.service'
 import { useToast } from '@/hooks/use-toast'
 import { Phone } from '@/types/phone'
 import PhoneSearchSelect from '../PhoneSearchSelect'
+import { phoneService } from '@/services/phone.service'
 
 interface Props {
-    onSuccess: () => void
+    onSuccess: (printData?: { phone: any; invoiceId: number }) => void
     onCancel: () => void
 }
 
@@ -50,6 +51,13 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
 
     const watchActualPrice = form.watch('actual_sale_price')
     const discountAmount = selectedPhonePrice && watchActualPrice ? selectedPhonePrice - Number(watchActualPrice) : 0
+    const paymentStatus = form.watch('payment_status')
+
+    useEffect(() => {
+        if (paymentStatus === 'DRAFT') {
+            form.setValue('create_invoice', false)
+        }
+    }, [paymentStatus, form])
 
     // --- LOGIC TÌM KIẾM MÁY ---
     const handleSelectPhone = (phone: Phone) => {
@@ -78,55 +86,77 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
     const onSubmit: SubmitHandler<SaleFormValues> = async (values) => {
         setIsLoading(true)
         try {
-            const finalStatus =
-                values.create_invoice && values.payment_status === 'PAID'
-                    ? 'PAID'
-                    : 'DRAFT'
+            // 1. Lấy trạng thái từ Select (Không phụ thuộc Toggle nữa)
+            const invoiceStatus = values.payment_status
 
+            // 2. [GIỮ NGUYÊN LOGIC CỦA BẠN] Tạo Note thông tin khách hàng
             const customerInfoNote = `\n--- THÔNG TIN KHÁCH HÀNG ---\nTên: ${values.customer_name || 'Khách lẻ'}\nSĐT: ${values.customer_phone || '---'}\nCCCD: ${values.customer_id_number || '---'}\nHTTT: ${values.payment_method}`
 
+            // 3. [GIỮ NGUYÊN LOGIC CỦA BẠN] Map dữ liệu payload
             const payload = {
                 type: 'SALE',
-                status: finalStatus,
+                status: invoiceStatus, // Dùng thẳng status từ Select
                 payment_method: values.payment_method,
                 
-                // ĐÃ FIX: Chỉ gửi discount (chênh lệch) nếu giá bán thực tế thấp hơn giá niêm yết
+                // Trả lại logic tính discount
                 discount: discountAmount > 0 ? discountAmount : 0,
 
                 customer_name: values.customer_name,
                 customer_phone: values.customer_phone,
                 customer_id_number: values.customer_id_number,
 
+                // Trả lại logic cộng Note
                 note: (values.note || '') + customerInfoNote,
                 items: [
                     {
                         item_type: 'PHONE',
                         phone_id: values.phone_id,
-                        description: selectedPhoneName,
+                        description: selectedPhoneName || 'Điện thoại',
                         quantity: 1,
                         
-                        // ĐÃ FIX: unit_price luôn là Giá Niêm Yết của máy (bảo toàn lịch sử giá)
-                        // Nếu trường hợp máy chưa set giá (rất hiếm), ta lấy đỡ giá khách chốt
+                        // Trả lại logic bảo toàn giá niêm yết
                         unit_price: selectedPhonePrice || Number(values.actual_sale_price),
                         
-                        warranty_months: Number(values.warranty),
+                        // Xử lý tháng bảo hành
+                        warranty_months: Number(values.warranty) || 0,
                     },
                 ],
             }
 
-            await invoiceService.create(payload as any)
+            // 4. Gọi API
+            const invoiceRes = await invoiceService.create(payload as any)
 
-            toast({
-                title: 'Thành công',
-                description: 'Đã tạo hoá đơn bán hàng.',
-            })
-            onSuccess()
+            // 5. [LOGIC MỚI] KÍCH HOẠT MODAL IN HOÁ ĐƠN
+            if (values.create_invoice && invoiceStatus === 'PAID') {
+                toast({ 
+                    title: 'Thành công', 
+                    description: 'Đã xuất kho và chốt hoá đơn thanh toán.', 
+                    variant: 'default' 
+                })
+                
+                // Fetch lại máy để in
+                const newPhone = await phoneService.getDetail(values.phone_id)
+                
+                // Bắn ra ngoài cho Preview Modal nảy lên
+                onSuccess({ 
+                    phone: newPhone, 
+                    invoiceId: invoiceRes.invoice_id 
+                })
+            } else {
+                toast({ 
+                    title: 'Thành công', 
+                    description: invoiceStatus === 'PAID' ? 'Đã xuất kho thành công.' : 'Đã tạo hoá đơn nháp.',
+                    variant: 'default' 
+                })
+                // Không in thì đóng Modal bán máy bình thường
+                onSuccess() 
+            }
+
         } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Lỗi',
-                description:
-                    error.response?.data?.error || 'Không thể tạo hoá đơn.',
+                description: error.response?.data?.error || 'Không thể bán máy',
             })
         } finally {
             setIsLoading(false)
@@ -390,25 +420,28 @@ export default function SalePhoneForm({ onSuccess, onCancel }: Props) {
 
                 {/* FOOTER */}
                 <div className="flex items-center justify-between rounded-b-xl border-t border-slate-200 bg-slate-50 px-6 py-4">
-                    <FormField
-                        control={form.control}
-                        name="create_invoice"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                <FormControl>
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                </FormControl>
-                                <FormLabel className="cursor-pointer text-sm font-semibold text-slate-700">
-                                    Tạo hoá đơn
-                                </FormLabel>
-                            </FormItem>
-                        )}
-                    />
+                    {paymentStatus === 'PAID' && (
+                        <FormField
+                            control={form.control}
+                            name="create_invoice"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            className="data-[state=checked]:bg-primary"
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="cursor-pointer text-sm font-semibold text-slate-700">
+                                        Tạo và in hoá đơn
+                                    </FormLabel>
+                                </FormItem>
+                            )}
+                        />
+                    )}
 
-                    <div className="flex items-center gap-3">
+                    <div className="ml-auto flex items-center gap-3">
                         <Button
                             type="button"
                             variant="outline"

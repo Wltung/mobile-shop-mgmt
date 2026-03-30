@@ -15,16 +15,19 @@ func NewRepairRepo(db *sqlx.DB) *RepairRepo {
 	return &RepairRepo{DB: db}
 }
 
-func (r *RepairRepo) Create(repair model.Repair) (int, error) {
+func (r *RepairRepo) Create(repair model.Repair, userID int, tenantID int) (int, error) {
+	repair.UserID = userID
+	repair.TenantID = tenantID
+
 	query := `
 		INSERT INTO repairs (
-			phone_id, customer_name, customer_phone, repair_category, 
+			tenant_id, phone_id, customer_name, customer_phone, repair_category, 
 			description, part_cost, repair_price, 
-			device_password, created_at
+			device_password, created_at, user_id
 		) VALUES (
-			:phone_id, :customer_name, :customer_phone, :repair_category, 
+			:tenant_id, :phone_id, :customer_name, :customer_phone, :repair_category, 
 			:description, :part_cost, :repair_price, 
-			:device_password, NOW()
+			:device_password, NOW(), :user_id
 		)
 	`
 	res, err := r.DB.NamedExec(query, repair)
@@ -35,7 +38,7 @@ func (r *RepairRepo) Create(repair model.Repair) (int, error) {
 	return int(id), err
 }
 
-func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
+func (r *RepairRepo) Update(id int, input model.UpdateRepairInput, tenantID int) error {
 	query := `
 		UPDATE repairs 
 		SET 
@@ -49,39 +52,33 @@ func (r *RepairRepo) Update(id int, input model.UpdateRepairInput) error {
 			status = COALESCE(?, status),
 			invoice_id = COALESCE(?, invoice_id),
 			updated_at = NOW()
-		WHERE id = ?
+		WHERE id = ? AND tenant_id = ?
 	`
 	_, err := r.DB.Exec(query,
-		input.CustomerName,
-		input.CustomerPhone,
-		input.Description,
-		input.DevicePassword,
-		input.PartCost,
-		input.RepairPrice,
-		input.RepairCategory,
-		input.Status,
-		input.InvoiceID,
-		id,
+		input.CustomerName, input.CustomerPhone, input.Description,
+		input.DevicePassword, input.PartCost, input.RepairPrice,
+		input.RepairCategory, input.Status, input.InvoiceID,
+		id, tenantID,
 	)
 	return err
 }
 
-func (r *RepairRepo) GetByID(id int) (*model.RepairListItem, error) {
+func (r *RepairRepo) GetByID(id int, tenantID int) (*model.RepairListItem, error) {
 	var item model.RepairListItem
 	query := `
 		SELECT r.*, p.model_name as phone_model
 		FROM repairs r
 		LEFT JOIN phones p ON r.phone_id = p.id
-		WHERE r.id = ? LIMIT 1
+		WHERE r.id = ? AND r.tenant_id = ? LIMIT 1
 	`
-	err := r.DB.Get(&item, query, id)
+	err := r.DB.Get(&item, query, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &item, nil
 }
 
-func (r *RepairRepo) GetAll(filter model.RepairFilter) ([]model.RepairListItem, int, error) {
+func (r *RepairRepo) GetAll(filter model.RepairFilter, tenantID int) ([]model.RepairListItem, int, error) {
 	offset := (filter.Page - 1) * filter.Limit
 	var items []model.RepairListItem
 	var total int
@@ -89,9 +86,10 @@ func (r *RepairRepo) GetAll(filter model.RepairFilter) ([]model.RepairListItem, 
 	baseQuery := `
 		FROM repairs r
 		LEFT JOIN phones p ON r.phone_id = p.id
-		WHERE r.deleted_at IS NULL
+		WHERE r.deleted_at IS NULL AND r.tenant_id = ?
 	`
 	var args []interface{}
+	args = append(args, tenantID)
 
 	if filter.Keyword != "" {
 		baseQuery += ` AND (r.customer_name LIKE ? OR r.customer_phone LIKE ? OR r.description LIKE ?)`
@@ -112,30 +110,24 @@ func (r *RepairRepo) GetAll(filter model.RepairFilter) ([]model.RepairListItem, 
 		return nil, 0, err
 	}
 
-	selectQuery := `
-		SELECT r.*, p.model_name as phone_model
-	` + baseQuery + ` ORDER BY r.created_at DESC LIMIT ? OFFSET ?`
-
+	selectQuery := `SELECT r.*, p.model_name as phone_model ` + baseQuery + ` ORDER BY r.created_at DESC LIMIT ? OFFSET ?`
 	args = append(args, filter.Limit, offset)
 
 	if err := r.DB.Select(&items, selectQuery, args...); err != nil {
 		return nil, 0, err
 	}
-
 	return items, total, nil
 }
 
-func (r *RepairRepo) GetStats() (int, int, error) {
-	var repairingCount int
-	var completedTodayCount int
+func (r *RepairRepo) GetStats(tenantID int) (int, int, error) {
+	var repairingCount, completedTodayCount int
 
-	// Đếm 3 trạng thái trong ngày hôm nay
-	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND status IN ('PENDING', 'REPAIRING', 'WAITING_CUSTOMER') AND DATE(created_at) = CURDATE()`)
+	err := r.DB.Get(&repairingCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND tenant_id = ? AND status IN ('PENDING', 'REPAIRING', 'WAITING_CUSTOMER') AND DATE(created_at) = CURDATE()`, tenantID)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	err = r.DB.Get(&completedTodayCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND status = 'COMPLETED' AND DATE(updated_at) = CURDATE()`)
+	err = r.DB.Get(&completedTodayCount, `SELECT COUNT(*) FROM repairs WHERE deleted_at IS NULL AND tenant_id = ? AND status = 'COMPLETED' AND DATE(updated_at) = CURDATE()`, tenantID)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -143,14 +135,14 @@ func (r *RepairRepo) GetStats() (int, int, error) {
 	return repairingCount, completedTodayCount, nil
 }
 
-// Hàm lấy Đời máy, IMEI, Màu sắc từ bảng phones
-func (r *RepairRepo) GetPhoneBasicInfo(phoneID int) (string, string, string, error) {
+func (r *RepairRepo) GetPhoneBasicInfo(phoneID int, tenantID int) (string, string, string, error) {
 	var p struct {
 		ModelName string  `db:"model_name"`
 		IMEI      string  `db:"imei"`
 		Details   *string `db:"details"`
 	}
-	err := r.DB.Get(&p, "SELECT model_name, imei, details FROM phones WHERE id = ?", phoneID)
+	// Phải đảm bảo máy kho được lấy là máy của chính cửa hàng đó
+	err := r.DB.Get(&p, "SELECT model_name, imei, details FROM phones WHERE id = ? AND tenant_id = ?", phoneID, tenantID)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -166,12 +158,12 @@ func (r *RepairRepo) GetPhoneBasicInfo(phoneID int) (string, string, string, err
 	return p.ModelName, p.IMEI, color, nil
 }
 
-func (r *RepairRepo) HardDelete(id int) error {
-	_, err := r.DB.Exec("DELETE FROM repairs WHERE id = ?", id)
+func (r *RepairRepo) HardDelete(id int, tenantID int) error {
+	_, err := r.DB.Exec("DELETE FROM repairs WHERE id = ? AND tenant_id = ?", id, tenantID)
 	return err
 }
 
-func (r *RepairRepo) SoftDelete(id int) error {
-	_, err := r.DB.Exec("UPDATE repairs SET deleted_at = NOW() WHERE id = ?", id)
+func (r *RepairRepo) SoftDelete(id int, tenantID int) error {
+	_, err := r.DB.Exec("UPDATE repairs SET deleted_at = NOW() WHERE id = ? AND tenant_id = ?", id, tenantID)
 	return err
 }

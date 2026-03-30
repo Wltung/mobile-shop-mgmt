@@ -72,7 +72,12 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
         defaultValues: defaultValues,
     })
 
-    const isLocked = phone.invoice_status === 'PAID'
+    const isLocked = phone.invoice_status === 'PAID' // Hoá đơn nhập đã chốt
+    const isSold = phone.status === 'SOLD'           // Máy đã bán cho khách
+
+    // Lưới lọc khoá:
+    const lockImport = isLocked || isSold // Các field của NCC/Nhập kho (bị khoá nếu PAID hoặc SOLD)
+    const lockSale = isSold                 // Các field mô tả máy/Giá bán (chỉ bị khoá nếu SOLD)
 
     const { isDirty } = form.formState
 
@@ -174,462 +179,233 @@ export default function EditPhoneForm({ phone, onSuccess, onCancel }: Props) {
                 className="flex h-full flex-col bg-white"
             >
                 <div className="max-h-[70vh] flex-1 overflow-y-auto p-6 lg:p-8">
-                    {/* Hiển thị cảnh báo nếu bị khoá */}
-                    {isLocked && (
+                    {/* Hiển thị cảnh báo tương ứng với cấp độ khoá */}
+                    {isSold ? (
+                        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-700 border border-red-100">
+                            <span className="font-bold">Lưu ý:</span> Máy này đã xuất bán (SOLD). Hệ thống đã khoá toàn bộ thông tin (chỉ cho phép sửa Ghi chú).
+                        </div>
+                    ) : isLocked ? (
                         <div className="mb-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-700 border border-blue-100">
                             <span className="font-bold">Lưu ý:</span> Một số thông tin nhập hàng đã bị khoá vì hoá đơn nhập đã được thanh toán.
                         </div>
-                    )}
+                    ) : null}
 
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                         {/* CỘT 1: THÔNG TIN CƠ BẢN */}
                         <div className="space-y-5">
                             <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                                 <Smartphone className="h-5 w-5 text-blue-500" />
-                                <h4 className="font-bold text-slate-800">
-                                    Thông tin cơ bản
-                                </h4>
+                                <h4 className="font-bold text-slate-800">Thông tin cơ bản</h4>
                             </div>
 
                             <div className="space-y-4">
-                                {/* MODEL NAME: Bị khoá nếu PAID */}
-                                <FormField
-                                    control={form.control}
-                                    name="model_name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className={labelClass}>
-                                                Tên máy / Model
-                                            </FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    disabled={isLocked}
-                                                    className={`${inputClass} ${isLocked ? disabledClass : ''}`}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                <FormField control={form.control} name="model_name" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={labelClass}>Tên máy / Model</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} disabled={lockImport} className={`${inputClass} ${lockImport ? disabledClass : ''}`} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
 
-                                {/* IMEI: Bị khoá nếu PAID */}
-                                <FormField
-                                    control={form.control}
-                                    name="imei"
-                                    render={({ field }) => (
+                                <FormField control={form.control} name="imei" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={labelClass}>IMEI</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} maxLength={15} disabled={lockImport} className={`${inputClass} font-mono ${lockImport ? disabledClass : ''}`} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="status" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className={labelClass}>
-                                                IMEI
-                                            </FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    maxLength={15}
-                                                    disabled={isLocked} // <--- LOCK
-                                                    className={`${inputClass} font-mono ${isLocked ? disabledClass : ''}`}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
+                                            <FormLabel className={labelClass}>Trạng thái</FormLabel>
+                                            <Select disabled={true} onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500 opacity-100`}><SelectValue /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="IN_STOCK">Trong kho</SelectItem>
+                                                    <SelectItem value="REPAIRING">Đang sửa</SelectItem>
+                                                    <SelectItem value="SOLD">Đã bán</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="mt-1 text-[10px] text-slate-400">*Trạng thái chỉ đổi qua giao dịch.</p>
                                         </FormItem>
-                                    )}
-                                />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="status"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Trạng thái
-                                                </FormLabel>
-                                                <Select
-                                                    disabled={true}
-                                                    onValueChange={
-                                                        field.onChange
-                                                    }
-                                                    defaultValue={field.value}
-                                                >
-                                                    <FormControl>
-                                                        <SelectTrigger
-                                                            className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500 opacity-100`}
-                                                        >
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="IN_STOCK">
-                                                            Trong kho
-                                                        </SelectItem>
-                                                        <SelectItem value="REPAIRING">
-                                                            Đang sửa
-                                                        </SelectItem>
-                                                        <SelectItem value="SOLD">
-                                                            Đã bán
-                                                        </SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <p className="mt-1 text-[10px] text-slate-400">
-                                                    *Trạng thái chỉ thay đổi khi
-                                                    tạo hoá đơn bán hoặc phiếu
-                                                    sửa chữa.
-                                                </p>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="sale_price"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Giá bán (niêm yết)
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="0"
-                                                            {...field}
-                                                            className={`${inputClass} pl-3 pr-8 font-bold`}
-                                                        />
-                                                        <span className="absolute right-3 top-2.5 text-sm text-slate-400">
-                                                            ₫
-                                                        </span>
-                                                    </div>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                {/* CHI TIẾT MÁY */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="color"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Màu sắc
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        className={inputClass}
-                                                        placeholder="VD: Space Black"
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="ram"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className={labelClass}>RAM</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger className={inputClass}>
-                                                            <SelectValue placeholder="Chọn" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {['2GB', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB', '24GB'].map((s) => (
-                                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="storage"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Dung lượng
-                                                </FormLabel>
-                                                <Select
-                                                    onValueChange={
-                                                        field.onChange
-                                                    }
-                                                    defaultValue={field.value}
-                                                >
-                                                    <FormControl>
-                                                        <SelectTrigger
-                                                            className={
-                                                                inputClass
-                                                            }
-                                                        >
-                                                            <SelectValue placeholder="Chọn" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {[
-                                                            '64GB',
-                                                            '128GB',
-                                                            '256GB',
-                                                            '512GB',
-                                                            '1TB',
-                                                        ].map((s) => (
-                                                            <SelectItem
-                                                                key={s}
-                                                                value={s}
-                                                            >
-                                                                {s}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
+                                    )} />
+                                    <FormField control={form.control} name="sale_price" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Giá bán (niêm yết)</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Input type="number" placeholder="0" {...field} disabled={lockSale} className={`${inputClass} pl-3 pr-8 font-bold ${lockSale ? disabledClass : ''}`} />
+                                                    <span className="absolute right-3 top-2.5 text-sm text-slate-400">₫</span>
+                                                </div>
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="battery"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Pin (%)
-                                                </FormLabel>
+                                    <FormField control={form.control} name="color" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Màu sắc</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} disabled={lockSale} className={`${inputClass} ${lockSale ? disabledClass : ''}`} placeholder="VD: Space Black" />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="ram" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>RAM</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={lockSale}>
                                                 <FormControl>
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="99"
-                                                            {...field}
-                                                            className={`${inputClass} pr-8`}
-                                                        />
-                                                        <span className="absolute right-3 top-2.5 text-sm text-slate-400">
-                                                            %
-                                                        </span>
-                                                    </div>
+                                                    <SelectTrigger className={`${inputClass} ${lockSale ? disabledClass : ''}`}><SelectValue placeholder="Chọn" /></SelectTrigger>
                                                 </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="appearance"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Tình trạng / Ngoại quan
-                                                </FormLabel>
+                                                <SelectContent>
+                                                    {['2GB', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB', '24GB'].map((s) => (
+                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="storage" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Dung lượng</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={lockSale}>
                                                 <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        className={inputClass}
-                                                        placeholder="VD: 99%, Keng..."
-                                                    />
+                                                    <SelectTrigger className={`${inputClass} ${lockSale ? disabledClass : ''}`}><SelectValue placeholder="Chọn" /></SelectTrigger>
                                                 </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                                                <SelectContent>
+                                                    {['64GB', '128GB', '256GB', '512GB', '1TB'].map((s) => (
+                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="battery" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Pin (%)</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Input type="number" placeholder="99" {...field} disabled={lockSale} className={`${inputClass} pr-8 ${lockSale ? disabledClass : ''}`} />
+                                                    <span className="absolute right-3 top-2.5 text-sm text-slate-400">%</span>
+                                                </div>
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="appearance" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Ngoại quan</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} disabled={lockSale} className={`${inputClass} ${lockSale ? disabledClass : ''}`} placeholder="VD: 99%, Keng..." />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
                                 </div>
                             </div>
                         </div>
 
-                        {/* CỘT 2: THÔNG TIN NHẬP HÀNG */}
+                        {/* CỘT 2: THÔNG TIN NHẬP HÀNG & GHI CHÚ */}
                         <div className="space-y-5">
                             <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                                {/* Dùng icon thay thế cho material symbols */}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="text-green-600"
-                                >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
                                     <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4" />
                                     <polyline points="14 2 14 8 20 8" />
                                     <path d="M2 15h10" />
                                     <path d="m9 18 3-3-3-3" />
                                 </svg>
-                                <h4 className="font-bold text-slate-800">
-                                    Thông tin nhập hàng
-                                </h4>
+                                <h4 className="font-bold text-slate-800">Thông tin nhập hàng</h4>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="purchase_date"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Ngày nhập
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="date"
-                                                        {...field}
-                                                        disabled={isLocked} // <--- LOCK
-                                                        className={`block ${inputClass} ${isLocked ? disabledClass : ''}`}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="purchase_price"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    Giá nhập
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="number"
-                                                            {...field}
-                                                            disabled={isLocked} // <--- LOCK
-                                                            className={`${inputClass} pl-3 pr-8 font-bold ${isLocked ? disabledClass : ''}`}
-                                                        />
-                                                        <span className="absolute right-3 top-2.5 text-sm text-slate-400">
-                                                            ₫
-                                                        </span>
-                                                    </div>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="payment_method"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className={labelClass}>Thanh toán</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
-                                                    <FormControl>
-                                                        <SelectTrigger className={`${inputClass} ${isLocked ? disabledClass : ''}`}>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="CASH">Tiền mặt</SelectItem>
-                                                        <SelectItem value="TRANSFER">Chuyển khoản</SelectItem>
-                                                        <SelectItem value="CARD">Quẹt thẻ</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <FormField
-                                    control={form.control}
-                                    name="seller_name"
-                                    render={({ field }) => (
+                                    <FormField control={form.control} name="purchase_date" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className={labelClass}>
-                                                Tên người bán
-                                            </FormLabel>
+                                            <FormLabel className={labelClass}>Ngày nhập</FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    placeholder="Nguyễn Văn A"
-                                                    disabled={isLocked} // <--- LOCK
-                                                    className={`${inputClass} ${isLocked ? disabledClass : ''}`}
-                                                />
+                                                <Input type="date" {...field} disabled={lockImport} className={`block ${inputClass} ${lockImport ? disabledClass : ''}`} />
                                             </FormControl>
                                         </FormItem>
-                                    )}
-                                />
+                                    )} />
+                                    <FormField control={form.control} name="purchase_price" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Giá nhập</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Input type="number" {...field} disabled={lockImport} className={`${inputClass} pl-3 pr-8 font-bold ${lockImport ? disabledClass : ''}`} />
+                                                    <span className="absolute right-3 top-2.5 text-sm text-slate-400">₫</span>
+                                                </div>
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="payment_method" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>Thanh toán</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={lockImport}>
+                                                <FormControl>
+                                                    <SelectTrigger className={`${inputClass} ${lockImport ? disabledClass : ''}`}><SelectValue /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="CASH">Tiền mặt</SelectItem>
+                                                    <SelectItem value="TRANSFER">Chuyển khoản</SelectItem>
+                                                    <SelectItem value="CARD">Quẹt thẻ</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                </div>
+
+                                <FormField control={form.control} name="seller_name" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={labelClass}>Tên người bán</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} placeholder="Nguyễn Văn A" disabled={lockImport} className={`${inputClass} ${lockImport ? disabledClass : ''}`} />
+                                        </FormControl>
+                                    </FormItem>
+                                )} />
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="seller_phone"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    SĐT Liên hệ
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        placeholder="09xx..."
-                                                        disabled={isLocked} // <--- LOCK
-                                                        className={`${inputClass} ${isLocked ? disabledClass : ''}`}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="seller_id"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel
-                                                    className={labelClass}
-                                                >
-                                                    CCCD / CMND
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        {...field}
-                                                        placeholder="Số căn cước công dân"
-                                                        disabled={isLocked} // <--- LOCK
-                                                        className={`${inputClass} font-mono ${isLocked ? disabledClass : ''}`}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <FormField
-                                    control={form.control}
-                                    name="note"
-                                    render={({ field }) => (
+                                    <FormField control={form.control} name="seller_phone" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel className={labelClass}>
-                                                Ghi chú
-                                            </FormLabel>
+                                            <FormLabel className={labelClass}>SĐT Liên hệ</FormLabel>
                                             <FormControl>
-                                                <Textarea
-                                                    {...field}
-                                                    placeholder="Chi tiết về tình trạng, phụ kiện đi kèm (nếu có)..."
-                                                    className="w-full rounded-lg border-slate-300 text-sm leading-relaxed text-slate-800 shadow-sm focus:border-primary focus:ring-primary"
-                                                    rows={4}
-                                                />
+                                                <Input {...field} placeholder="09xx..." disabled={lockImport} className={`${inputClass} ${lockImport ? disabledClass : ''}`} />
                                             </FormControl>
                                         </FormItem>
-                                    )}
-                                />
+                                    )} />
+                                    <FormField control={form.control} name="seller_id" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className={labelClass}>CCCD / CMND</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder="Số căn cước công dân" disabled={lockImport} className={`${inputClass} font-mono ${lockImport ? disabledClass : ''}`} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                </div>
+
+                                {/* GHI CHÚ: DUY NHẤT FIELD NÀY KHÔNG BAO GIỜ BỊ KHOÁ */}
+                                <FormField control={form.control} name="note" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={labelClass}>Ghi chú (Cho phép sửa đổi)</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                {...field}
+                                                placeholder="Chi tiết về tình trạng, phụ kiện đi kèm (nếu có)..."
+                                                className="w-full rounded-lg border-blue-200 bg-blue-50/30 text-sm leading-relaxed text-slate-800 shadow-sm focus:border-primary focus:ring-primary"
+                                                rows={4}
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )} />
                             </div>
                         </div>
                     </div>

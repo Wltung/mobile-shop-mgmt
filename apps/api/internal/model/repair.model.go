@@ -4,8 +4,9 @@ import "time"
 
 // Repair Entity map với Database
 type Repair struct {
-	ID      int  `db:"id" json:"id"`
-	PhoneID *int `db:"phone_id" json:"phone_id"`
+	ID       int  `db:"id" json:"id"`
+	TenantID int  `db:"tenant_id" json:"-"`
+	PhoneID  *int `db:"phone_id" json:"phone_id"`
 
 	CustomerName  *string `db:"customer_name" json:"customer_name"`
 	CustomerPhone *string `db:"customer_phone" json:"customer_phone"`
@@ -20,6 +21,8 @@ type Repair struct {
 	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt      *time.Time `db:"updated_at" json:"updated_at"`
 	DeletedAt      *time.Time `db:"deleted_at" json:"deleted_at"`
+
+	UserID int `db:"user_id" json:"-"`
 }
 
 type RepairPart struct {

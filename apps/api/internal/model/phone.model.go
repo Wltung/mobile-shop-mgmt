@@ -5,11 +5,13 @@ import (
 )
 
 type Phone struct {
-	ID        int     `db:"id" json:"id"`
-	IMEI      string  `db:"imei" json:"imei"`
-	ModelName string  `db:"model_name" json:"model_name"`
-	Details   JSONMap `db:"details" json:"details"`
-	Status    string  `db:"status" json:"status"`
+	ID         int     `db:"id" json:"id"`
+	TenantID   int     `db:"tenant_id" json:"-"`
+	IMEI       string  `db:"imei" json:"imei"`
+	ActiveIMEI *string `db:"active_imei" json:"active_imei,omitempty"`
+	ModelName  string  `db:"model_name" json:"model_name"`
+	Details    JSONMap `db:"details" json:"details"`
+	Status     string  `db:"status" json:"status"`
 
 	PurchasePrice int64  `db:"purchase_price" json:"purchase_price"`
 	SalePrice     *int64 `db:"sale_price" json:"sale_price"`
@@ -44,6 +46,7 @@ type PhoneInput struct {
 	Details       JSONMap `json:"details"`
 	PurchasePrice int64   `json:"purchase_price" binding:"required"`
 	SalePrice     int64   `json:"sale_price"`
+	PurchaseDate  *string `json:"purchase_date"`
 	Note          string  `json:"note"`
 
 	SellerName  string `json:"seller_name"`

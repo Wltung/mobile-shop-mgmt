@@ -16,14 +16,17 @@ func NewWarrantyRepo(db *sqlx.DB) *WarrantyRepo {
 	return &WarrantyRepo{DB: db}
 }
 
-func (r *WarrantyRepo) Create(w model.Warranty) (int, error) {
+func (r *WarrantyRepo) Create(w model.Warranty, userID int, tenantID int) (int, error) {
+	w.UserID = userID
+	w.TenantID = tenantID
+
 	query := `
 		INSERT INTO warranties (
-			phone_id, invoice_id, device_name, imei, description, technical_note, 
-			status, cost, start_date, end_date, created_at
+			tenant_id, phone_id, invoice_id, device_name, imei, description, technical_note, 
+			status, cost, start_date, end_date, created_at, user_id
 		) VALUES (
-			:phone_id, :invoice_id, :device_name, :imei, :description, :technical_note, 
-			'RECEIVED', :cost, :start_date, :end_date, NOW()
+			:tenant_id, :phone_id, :invoice_id, :device_name, :imei, :description, :technical_note, 
+			'RECEIVED', :cost, :start_date, :end_date, NOW(), :user_id
 		)
 	`
 	res, err := r.DB.NamedExec(query, w)
@@ -37,12 +40,12 @@ func (r *WarrantyRepo) Create(w model.Warranty) (int, error) {
 	}
 
 	code := fmt.Sprintf("BH-%s-%06d", time.Now().Format("02012006"), id)
-	_, err = r.DB.Exec("UPDATE warranties SET warranty_code = ? WHERE id = ?", code, id)
+	_, err = r.DB.Exec("UPDATE warranties SET warranty_code = ? WHERE id = ? AND tenant_id = ?", code, id, tenantID)
 
 	return int(id), err
 }
 
-func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyListItem, int, error) {
+func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter, tenantID int) ([]model.WarrantyListItem, int, error) {
 	offset := (filter.Page - 1) * filter.Limit
 	var items []model.WarrantyListItem
 	var total int
@@ -50,15 +53,14 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 	baseQuery := `
 		FROM warranties w
 		LEFT JOIN invoices i ON w.invoice_id = i.id
-		WHERE w.deleted_at IS NULL
+		WHERE w.deleted_at IS NULL AND w.tenant_id = ?
 	`
 	var args []interface{}
+	args = append(args, tenantID)
 
 	if filter.Keyword != "" {
-		// ĐÃ FIX: Bổ sung thêm w.device_name LIKE ? vào chuỗi tìm kiếm
 		baseQuery += ` AND (w.warranty_code LIKE ? OR i.customer_name LIKE ? OR i.customer_phone LIKE ? OR w.imei LIKE ? OR w.device_name LIKE ?)`
 		kw := "%" + filter.Keyword + "%"
-
 		args = append(args, kw, kw, kw, kw, kw)
 	}
 	if filter.Status != "" && filter.Status != "ALL" {
@@ -80,9 +82,9 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 			w.*, 
 			i.type,
 			i.invoice_code,
-			i.customer_name,         -- LẤY TỪ INVOICE
-			i.customer_phone,        -- LẤY TỪ INVOICE
-			i.customer_id_number     -- LẤY TỪ INVOICE
+			i.customer_name,
+			i.customer_phone,
+			i.customer_id_number
 	` + baseQuery + ` ORDER BY w.created_at DESC LIMIT ? OFFSET ?`
 
 	args = append(args, filter.Limit, offset)
@@ -93,7 +95,7 @@ func (r *WarrantyRepo) GetAll(filter model.WarrantyFilter) ([]model.WarrantyList
 	return items, total, nil
 }
 
-func (r *WarrantyRepo) GetByID(id int) (*model.WarrantyListItem, error) {
+func (r *WarrantyRepo) GetByID(id int, tenantID int) (*model.WarrantyListItem, error) {
 	var item model.WarrantyListItem
 	query := `
 		SELECT 
@@ -103,19 +105,19 @@ func (r *WarrantyRepo) GetByID(id int) (*model.WarrantyListItem, error) {
 			i.customer_name,
 			i.customer_phone,
 			i.customer_id_number,
-			(SELECT MAX(warranty_months) FROM invoice_items WHERE invoice_id = w.invoice_id) as warranty_months -- BẮT THÊM SỐ THÁNG
+			(SELECT MAX(warranty_months) FROM invoice_items WHERE invoice_id = w.invoice_id) as warranty_months
 		FROM warranties w
 		LEFT JOIN invoices i ON w.invoice_id = i.id
-		WHERE w.id = ?
+		WHERE w.id = ? AND w.tenant_id = ?
 	`
-	err := r.DB.Get(&item, query, id)
+	err := r.DB.Get(&item, query, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &item, nil
 }
 
-func (r *WarrantyRepo) Update(id int, input model.UpdateWarrantyInput) error {
+func (r *WarrantyRepo) Update(id int, input model.UpdateWarrantyInput, tenantID int) error {
 	query := `
 		UPDATE warranties SET
 			status = COALESCE(?, status),
@@ -123,21 +125,16 @@ func (r *WarrantyRepo) Update(id int, input model.UpdateWarrantyInput) error {
 			technical_note = COALESCE(?, technical_note),
 			description = COALESCE(?, description),
 			updated_at = NOW()
-		WHERE id = ?
+		WHERE id = ? AND tenant_id = ?
 	`
 	_, err := r.DB.Exec(query,
-		input.Status,
-		input.Cost,
-		input.TechnicalNote,
-		input.Description,
-		id,
+		input.Status, input.Cost, input.TechnicalNote, input.Description, id, tenantID,
 	)
 	return err
 }
 
-func (r *WarrantyRepo) SearchWarranty(keyword string, invType string) ([]model.WarrantySearchItem, error) {
+func (r *WarrantyRepo) SearchWarranty(keyword string, invType string, tenantID int) ([]model.WarrantySearchItem, error) {
 	var items []model.WarrantySearchItem
-
 	query := `
 		SELECT 
 			i.id as invoice_id,
@@ -159,9 +156,15 @@ func (r *WarrantyRepo) SearchWarranty(keyword string, invType string) ([]model.W
 		WHERE ii.warranty_expiry IS NOT NULL
 			AND i.type = ?
 			AND i.status = 'PAID'
+			AND i.tenant_id = ? 
+			AND (
+				p.id IS NULL OR 
+				COALESCE(p.imei, '') = '' OR
+				p.id = (SELECT MAX(id) FROM phones WHERE imei = p.imei AND tenant_id = p.tenant_id)
+			)
 	`
 	var args []interface{}
-	args = append(args, invType)
+	args = append(args, invType, tenantID) // Đã khoá data theo chủ cửa hàng
 
 	if keyword != "" {
 		query += ` AND (
@@ -178,37 +181,34 @@ func (r *WarrantyRepo) SearchWarranty(keyword string, invType string) ([]model.W
 		args = append(args, kw, kw, kw, kw, kw, kw, kw, kw)
 	}
 
-	query += ` ORDER BY i.created_at DESC LIMIT 10` // ĐÃ XOÁ GROUP BY
-
+	query += ` ORDER BY i.created_at DESC LIMIT 10`
 	err := r.DB.Select(&items, query, args...)
 	return items, err
 }
 
-func (r *WarrantyRepo) GetStats() (map[string]int, error) {
+func (r *WarrantyRepo) GetStats(tenantID int) (map[string]int, error) {
 	stats := map[string]int{
 		"receivedTodayCount": 0,
 		"doneTodayCount":     0,
 	}
 
 	var receivedToday int
-	_ = r.DB.Get(&receivedToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND DATE(created_at) = CURDATE()`)
+	_ = r.DB.Get(&receivedToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND tenant_id = ? AND DATE(created_at) = CURDATE()`, tenantID)
 	stats["receivedTodayCount"] = receivedToday
 
 	var doneToday int
-	_ = r.DB.Get(&doneToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND status IN ('COMPLETED', 'DELIVERED', 'DONE') AND DATE(updated_at) = CURDATE()`)
+	_ = r.DB.Get(&doneToday, `SELECT COUNT(*) FROM warranties WHERE deleted_at IS NULL AND tenant_id = ? AND status IN ('COMPLETED', 'DELIVERED', 'DONE') AND DATE(updated_at) = CURDATE()`, tenantID)
 	stats["doneTodayCount"] = doneToday
 
 	return stats, nil
 }
 
-// Xoá cứng
-func (r *WarrantyRepo) HardDelete(id int) error {
-	_, err := r.DB.Exec("DELETE FROM warranties WHERE id = ?", id)
+func (r *WarrantyRepo) HardDelete(id int, tenantID int) error {
+	_, err := r.DB.Exec("DELETE FROM warranties WHERE id = ? AND tenant_id = ?", id, tenantID)
 	return err
 }
 
-// Xoá mềm
-func (r *WarrantyRepo) SoftDelete(id int) error {
-	_, err := r.DB.Exec("UPDATE warranties SET deleted_at = NOW() WHERE id = ?", id)
+func (r *WarrantyRepo) SoftDelete(id int, tenantID int) error {
+	_, err := r.DB.Exec("UPDATE warranties SET deleted_at = NOW() WHERE id = ? AND tenant_id = ?", id, tenantID)
 	return err
 }

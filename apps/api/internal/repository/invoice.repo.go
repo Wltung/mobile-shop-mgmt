@@ -2,6 +2,7 @@ package repository
 
 import (
 	"api/internal/model"
+	"errors"
 	"strconv"
 	"time"
 
@@ -23,15 +24,14 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	}
 	defer tx.Rollback()
 
-	// Insert Invoice Header
 	queryInv := `
 		INSERT INTO invoices (
-            invoice_code, type, status, payment_method, 
+            tenant_id, invoice_code, type, status, payment_method, 
             customer_name, customer_phone, customer_id_number, 
             total_amount, discount, created_by, note, created_at
         )
 		VALUES (
-            :invoice_code, :type, :status, :payment_method, 
+            :tenant_id, :invoice_code, :type, :status, :payment_method, 
             :customer_name, :customer_phone, :customer_id_number, 
             :total_amount, :discount, :created_by, :note, :created_at
         )
@@ -49,8 +49,6 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 
 	for _, item := range items {
 		var warrantyExpiry *time.Time
-
-		// ĐÃ FIX 1: Chỉ kích hoạt bảo hành (tính ngày) nếu hoá đơn ĐÃ THANH TOÁN
 		if inv.Status == model.InvoiceStatusPaid {
 			if item.WarrantyMonths > 0 || item.WarrantyDays > 0 {
 				t := inv.CreatedAt.AddDate(0, item.WarrantyMonths, item.WarrantyDays)
@@ -71,13 +69,11 @@ func (r *InvoiceRepo) Create(inv model.Invoice, items []model.InvoiceItem) (int,
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-
 	return int(invoiceID), nil
 }
 
-func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
+func (r *InvoiceRepo) GetByID(id int, tenantID int) (*model.Invoice, error) {
 	var invoice model.Invoice
-	// Xoá JOIN customers, vì các cột customer_name,... đã nằm ngay trên bảng invoices
 	query := `
 		SELECT 
 			i.*, 
@@ -86,9 +82,9 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 		FROM invoices i
 		LEFT JOIN users u ON i.created_by = u.id
 		LEFT JOIN repairs r ON r.invoice_id = i.id
-		WHERE i.id = ?
+		WHERE i.id = ? AND i.tenant_id = ?
 	`
-	err := r.DB.Get(&invoice, query, id)
+	err := r.DB.Get(&invoice, query, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,57 +108,63 @@ func (r *InvoiceRepo) GetByID(id int) (*model.Invoice, error) {
 	return &invoice, nil
 }
 
-func (r *InvoiceRepo) GetCountTodayByType(invType string) (int, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM invoices WHERE type = ? AND DATE(created_at) = DATE(NOW())`
-	err := r.DB.Get(&count, query, invType)
-	return count, err
+func (r *InvoiceRepo) GetCountTodayByType(invType string, tenantID int) (int, error) {
+	var maxSeq int
+	query := `
+		SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(invoice_code, '-', -1) AS UNSIGNED)), 0) 
+		FROM invoices 
+		WHERE type = ? AND tenant_id = ? AND DATE(created_at) = CURDATE()
+	`
+	err := r.DB.Get(&maxSeq, query, invType, tenantID)
+	return maxSeq, err
 }
 
-func (r *InvoiceRepo) UpdateStatus(id int, status string) error {
+func (r *InvoiceRepo) UpdateStatus(id int, status string, tenantID int) error {
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	query := `UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ?`
-	_, err = tx.Exec(query, status, id)
+	// Chặn quyền cập nhật nếu không phải chủ hoá đơn
+	res, err := tx.Exec(`UPDATE invoices SET status = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ?`, status, id, tenantID)
 	if err != nil {
 		return err
 	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return errors.New("không tìm thấy hoá đơn hoặc không có quyền thao tác")
+	}
 
-	// ĐÃ FIX 2: Nếu hoá đơn được chuyển sang PAID, KÍCH HOẠT BẢO HÀNH cho các linh kiện đang bị treo
 	if status == model.InvoiceStatusPaid {
 		queryActivate := `
 			UPDATE invoice_items 
 			SET warranty_expiry = DATE_ADD(NOW(), INTERVAL warranty_months MONTH) 
 			WHERE invoice_id = ? AND warranty_expiry IS NULL AND warranty_months > 0
 		`
-		_, err = tx.Exec(queryActivate, id)
-		if err != nil {
+		if _, err = tx.Exec(queryActivate, id); err != nil {
 			return err
 		}
 	}
-
 	return tx.Commit()
 }
 
-func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
+func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, tenantID int) error {
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// 1. Lấy trạng thái và ngày tạo hiện tại của Hoá đơn để làm gốc tính toán
 	var currentInv struct {
 		Status    string    `db:"status"`
 		CreatedAt time.Time `db:"created_at"`
 	}
-	_ = tx.Get(&currentInv, "SELECT status, created_at FROM invoices WHERE id = ?", id)
+	err = tx.Get(&currentInv, "SELECT status, created_at FROM invoices WHERE id = ? AND tenant_id = ?", id, tenantID)
+	if err != nil {
+		return errors.New("hoá đơn không tồn tại hoặc không có quyền truy cập")
+	}
 
-	// 2. Update Header
 	queryInv := `
 		UPDATE invoices 
 		SET payment_method = COALESCE(?, payment_method),
@@ -174,17 +176,16 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 			customer_phone = COALESCE(?, customer_phone),
 			customer_id_number = COALESCE(?, customer_id_number),
 			updated_at = NOW()
-		WHERE id = ?
+		WHERE id = ? AND tenant_id = ?
 	`
 	args := []interface{}{
 		input.PaymentMethod, input.Status, input.Note, input.CreatedAt,
-		input.Discount, input.CustomerName, input.CustomerPhone, input.CustomerIDNumber, id,
+		input.Discount, input.CustomerName, input.CustomerPhone, input.CustomerIDNumber, id, tenantID,
 	}
 	if _, err := tx.Exec(queryInv, args...); err != nil {
 		return err
 	}
 
-	// ĐÃ FIX 3: Nếu Form Edit chuyển trạng thái sang PAID, KÍCH HOẠT BẢO HÀNH
 	if input.Status != nil && *input.Status == model.InvoiceStatusPaid {
 		queryActivate := `
 			UPDATE invoice_items 
@@ -196,7 +197,6 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 		}
 	}
 
-	// 3. Cập nhật bảng invoice_items
 	var currentItem struct {
 		ID      int `db:"id"`
 		PhoneID int `db:"phone_id"`
@@ -206,7 +206,6 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 	if err == nil {
 		if input.PhoneID != nil && *input.PhoneID != currentItem.PhoneID {
 			newPhoneID := *input.PhoneID
-
 			updateItemQuery := `
 				UPDATE invoice_items 
 				SET phone_id = ?, 
@@ -215,8 +214,7 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 					amount = COALESCE((SELECT sale_price FROM phones WHERE id = ?), 0)
 				WHERE id = ?
 			`
-			_, err = tx.Exec(updateItemQuery, newPhoneID, newPhoneID, newPhoneID, newPhoneID, currentItem.ID)
-			if err != nil {
+			if _, err = tx.Exec(updateItemQuery, newPhoneID, newPhoneID, newPhoneID, newPhoneID, currentItem.ID); err != nil {
 				return err
 			}
 		}
@@ -251,16 +249,14 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 			return err
 		}
 
-		// ĐÃ FIX 3: Nếu có thay đổi giá chốt (ActualSalePrice), ta update vào bảng `invoices`
-		// Công thức: total_amount = Giá chốt, discount = (unit_price của linh kiện) - Giá chốt
 		if input.ActualSalePrice != "" {
 			updateInvSql := `
 				UPDATE invoices 
 				SET total_amount = ?, 
 					discount = (SELECT amount FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1) - ?
-				WHERE id = ?
+				WHERE id = ? AND tenant_id = ?
 			`
-			if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, input.ActualSalePrice, id); err != nil {
+			if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, input.ActualSalePrice, id, tenantID); err != nil {
 				return err
 			}
 		}
@@ -269,14 +265,14 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput) error {
 	return tx.Commit()
 }
 
-func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, error) {
+func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter, tenantID int) ([]model.Invoice, int, error) {
 	offset := (filter.Page - 1) * filter.Limit
 	var items []model.Invoice
 	var total int
 
-	// Không cần JOIN bảng customers nữa
-	baseQuery := `FROM invoices i WHERE 1=1`
+	baseQuery := `FROM invoices i WHERE i.tenant_id = ?`
 	var args []interface{}
+	args = append(args, tenantID)
 
 	if filter.Keyword != "" {
 		baseQuery += ` AND (i.invoice_code LIKE ? OR i.customer_name LIKE ? OR i.customer_phone LIKE ?)`
@@ -311,11 +307,11 @@ func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter) ([]model.Invoice, int, 
 	return items, total, nil
 }
 
-func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
+func (r *InvoiceRepo) GetDailyStats(tenantID int) (int, int64, error) {
 	var count int
 	var revenue int64
 
-	err := r.DB.Get(&count, `SELECT COUNT(*) FROM invoices WHERE DATE(created_at) = CURDATE()`)
+	err := r.DB.Get(&count, `SELECT COUNT(*) FROM invoices WHERE DATE(created_at) = CURDATE() AND tenant_id = ?`, tenantID)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -326,7 +322,8 @@ func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
 		WHERE DATE(created_at) = CURDATE() 
 			AND status = 'PAID' 
 			AND type != 'IMPORT'
-	`)
+			AND tenant_id = ?
+	`, tenantID)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -334,20 +331,23 @@ func (r *InvoiceRepo) GetDailyStats() (int, int64, error) {
 	return count, revenue, nil
 }
 
-// Hàm dọn rác xoá cứng (Chỉ dùng cho DRAFT)
-func (r *InvoiceRepo) HardDelete(id int) error {
+func (r *InvoiceRepo) HardDelete(id int, tenantID int) error {
 	tx, err := r.DB.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// 1. Quét sạch chi tiết hoá đơn
+	// Chặn quyền xoá
+	var exists bool
+	err = tx.Get(&exists, "SELECT 1 FROM invoices WHERE id = ? AND tenant_id = ?", id, tenantID)
+	if err != nil {
+		return errors.New("không tìm thấy hoá đơn hoặc không có quyền thao tác")
+	}
+
 	if _, err := tx.Exec("DELETE FROM invoice_items WHERE invoice_id = ?", id); err != nil {
 		return err
 	}
-
-	// 2. Quét sạch hoá đơn
 	if _, err := tx.Exec("DELETE FROM invoices WHERE id = ?", id); err != nil {
 		return err
 	}
@@ -355,8 +355,14 @@ func (r *InvoiceRepo) HardDelete(id int) error {
 	return tx.Commit()
 }
 
-func (r *InvoiceRepo) SoftDeleteRepairByInvoice(invoiceID int) error {
-	query := `UPDATE repairs SET deleted_at = NOW() WHERE invoice_id = ?`
-	_, err := r.DB.Exec(query, invoiceID)
+func (r *InvoiceRepo) SoftDeleteRepairByInvoice(invoiceID int, tenantID int) error {
+	query := `UPDATE repairs SET deleted_at = NOW() WHERE invoice_id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, invoiceID, tenantID)
+	return err
+}
+
+func (r *InvoiceRepo) RevertRepairByInvoice(invoiceID int, tenantID int) error {
+	query := `UPDATE repairs SET status = 'REPAIRING', invoice_id = NULL WHERE invoice_id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, invoiceID, tenantID)
 	return err
 }

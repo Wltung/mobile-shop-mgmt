@@ -18,11 +18,12 @@ func NewTokenManager(secretKey string) *TokenManager {
 }
 
 // GenerateJWT tạo Access Token
-func (m *TokenManager) GenerateJWT(userID int, role string, duration time.Duration) (string, error) {
+func (m *TokenManager) GenerateJWT(userID int, tenantID int, role string, duration time.Duration) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":  userID,
-		"role": role,
-		"exp":  time.Now().Add(duration).Unix(),
+		"sub":       userID,
+		"tenant_id": tenantID, // ĐÃ THÊM VÀO TOKEN
+		"role":      role,
+		"exp":       time.Now().Add(duration).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

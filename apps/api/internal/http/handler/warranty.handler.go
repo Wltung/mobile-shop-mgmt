@@ -25,7 +25,9 @@ func (h *WarrantyHandler) Create(c *gin.Context) {
 	}
 
 	userID := int(c.MustGet("userID").(float64))
-	id, err := h.Service.CreateWarranty(input, userID)
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	id, err := h.Service.CreateWarranty(input, userID, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -41,7 +43,9 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	items, total, stats, err := h.Service.GetWarranties(filter)
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	items, total, stats, err := h.Service.GetWarranties(filter, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -63,7 +67,10 @@ func (h *WarrantyHandler) GetAll(c *gin.Context) {
 
 func (h *WarrantyHandler) GetByID(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	item, err := h.Service.GetWarrantyDetail(id)
+
+	tenantID := int(c.MustGet("tenantID").(float64))
+	item, err := h.Service.GetWarrantyDetail(id, tenantID)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -79,7 +86,9 @@ func (h *WarrantyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.UpdateWarranty(id, input); err != nil {
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	if err := h.Service.UpdateWarranty(id, input, tenantID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -95,7 +104,9 @@ func (h *WarrantyHandler) Search(c *gin.Context) {
 		return
 	}
 
-	items, err := h.Service.SearchWarranty(keyword, invType)
+	tenantID := int(c.MustGet("tenantID").(float64))
+	items, err := h.Service.SearchWarranty(keyword, invType, tenantID)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -104,7 +115,6 @@ func (h *WarrantyHandler) Search(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
 
-// DELETE /api/warranties/:id
 func (h *WarrantyHandler) Delete(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -112,7 +122,9 @@ func (h *WarrantyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.DeleteWarranty(id); err != nil {
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	if err := h.Service.DeleteWarranty(id, tenantID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

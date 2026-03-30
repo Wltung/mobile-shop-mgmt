@@ -26,6 +26,7 @@ import { useInvoiceDetail } from '@/hooks/invoice/useInvoiceDetail'
 import { useToast } from '@/hooks/use-toast'
 import ConfirmModal from '@/components/common/ConfirmModal'
 import { useState } from 'react'
+import PrintInvoiceAction from '@/components/print/PrintInvoiceAction'
 
 // --- LOCAL COMPONENT: InfoBlock ---
 const InfoBlock = ({
@@ -147,10 +148,11 @@ export default function InvoiceDetailPage() {
                                     <ExternalLink className="h-4 w-4" />
                                     <span>Xem nguồn đơn</span>
                                 </Button>
-                                <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 font-semibold px-6">
-                                    <Printer className="h-4 w-4" />
-                                    <span>In hoá đơn</span>
-                                </Button>
+                                <PrintInvoiceAction
+                                    invoiceId={invoice.id} 
+                                    status={invoice.status} 
+                                    className="font-semibold px-6" 
+                                />
 
                                 {/* ĐÃ THÊM: Nút Huỷ / Xoá hoá đơn */}
                                 {!isCancelled && (

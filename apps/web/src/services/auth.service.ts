@@ -18,6 +18,16 @@ export const forgotPasswordSchema = z.object({
         .email('Email không đúng định dạng'),
 })
 
+export const registerSchema = z.object({
+    tenant_name: z.string().optional(), // FE có thể để trống, BE sẽ tự tạo "Cửa hàng của..."
+    username: z.string().min(1, 'Vui lòng nhập tài khoản'),
+    email: z.string().email('Email không đúng định dạng'),
+    password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+    full_name: z.string().min(1, 'Vui lòng nhập họ và tên'),
+})
+
+export type RegisterFormValues = z.infer<typeof registerSchema>
+
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 
 // Schema validate: Mật khẩu mới + Xác nhận mật khẩu
@@ -40,7 +50,7 @@ export const authService = {
         return response.data
     },
 
-    register: async (data: any) => {
+    register: async (data: RegisterFormValues) => {
         const response = await http.post('/register', data)
         return response.data
     },

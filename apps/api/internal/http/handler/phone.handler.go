@@ -27,14 +27,10 @@ func (h *PhoneHandler) CreatePhone(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	userID := int(c.MustGet("userID").(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	phoneID, err := h.Service.ImportPhone(input, userID)
+	phoneID, err := h.Service.ImportPhone(input, userID, tenantID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -51,12 +47,7 @@ func (h *PhoneHandler) handleGetList(
 	// ĐÃ FIX: Thêm map[string]interface{} vào chữ ký của func parameter
 	serviceFunc func(int, model.PhoneFilter) ([]model.Phone, int, float64, map[string]interface{}, error),
 ) {
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
 	var filter model.PhoneFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
@@ -70,7 +61,7 @@ func (h *PhoneHandler) handleGetList(
 	}
 
 	// ĐÃ FIX: Hứng thêm biến stats
-	phones, total, totalValue, stats, err := serviceFunc(userID, filter)
+	phones, total, totalValue, stats, err := serviceFunc(tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 		return
@@ -111,14 +102,9 @@ func (h *PhoneHandler) GetPhoneDetail(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	phone, err := h.Service.GetPhoneDetail(id, userID)
+	phone, err := h.Service.GetPhoneDetail(id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy máy hoặc bạn không có quyền xem"})
@@ -144,10 +130,9 @@ func (h *PhoneHandler) UpdatePhone(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, _ := c.Get("userID")
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	err := h.Service.UpdatePhone(id, input, userID)
+	err := h.Service.UpdatePhone(id, input, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -164,10 +149,9 @@ func (h *PhoneHandler) DeletePhone(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, _ := c.Get("userID")
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	if err := h.Service.DeletePhone(id, userID); err != nil {
+	if err := h.Service.DeletePhone(id, tenantID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

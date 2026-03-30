@@ -25,11 +25,10 @@ func (h *InvoiceHandler) CreateInvoice(c *gin.Context) {
 		return
 	}
 
-	// Lấy UserID từ token
-	userIDFloat, _ := c.Get("userID")
-	userID := int(userIDFloat.(float64))
+	userID := int(c.MustGet("userID").(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	id, err := h.Service.CreateInvoice(input, userID)
+	id, err := h.Service.CreateInvoice(input, userID, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,13 +49,12 @@ func (h *InvoiceHandler) GetInvoice(c *gin.Context) {
 		return
 	}
 
-	invoice, err := h.Service.GetInvoiceDetail(id)
+	tenantID := int(c.MustGet("tenantID").(float64))
+	invoice, err := h.Service.GetInvoiceDetail(id, tenantID)
 	if err != nil {
-		// [SỬA] Kiểm tra kỹ loại lỗi để trả về status code đúng
-		if err.Error() == "sql: no rows in result set" { // Hoặc check sql.ErrNoRows nếu import database/sql
-			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy hóa đơn"})
+		if err.Error() == "sql: no rows in result set" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy hóa đơn hoặc không có quyền truy cập"})
 		} else {
-			// Log lỗi ra console để debug
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi server: " + err.Error()})
 		}
 		return
@@ -82,7 +80,8 @@ func (h *InvoiceHandler) UpdateInvoiceStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.UpdateStatus(id, input.Status); err != nil {
+	tenantID := int(c.MustGet("tenantID").(float64))
+	if err := h.Service.UpdateStatus(id, input.Status, tenantID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -105,14 +104,9 @@ func (h *InvoiceHandler) UpdateInvoice(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập hoặc phiên làm việc hết hạn"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	if err := h.Service.UpdateInvoice(id, input, userID); err != nil {
+	if err := h.Service.UpdateInvoice(id, input, tenantID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -120,6 +114,7 @@ func (h *InvoiceHandler) UpdateInvoice(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật hoá đơn thành công"})
 }
 
+// GET /api/invoices
 func (h *InvoiceHandler) GetInvoices(c *gin.Context) {
 	var filter model.InvoiceFilter
 	if err := c.ShouldBindQuery(&filter); err != nil {
@@ -127,13 +122,13 @@ func (h *InvoiceHandler) GetInvoices(c *gin.Context) {
 		return
 	}
 
-	items, total, stats, err := h.Service.GetInvoices(filter)
+	tenantID := int(c.MustGet("tenantID").(float64))
+	items, total, stats, err := h.Service.GetInvoices(filter, tenantID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Tính toán metadata phân trang
 	totalPages := (total + filter.Limit - 1) / filter.Limit
 
 	c.JSON(200, gin.H{
@@ -158,15 +153,9 @@ func (h *InvoiceHandler) DeleteInvoice(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	// Gọi bộ não điều phối
-	if err := h.Service.CancelOrDeleteInvoice(id, userID); err != nil {
+	if err := h.Service.CancelOrDeleteInvoice(id, tenantID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

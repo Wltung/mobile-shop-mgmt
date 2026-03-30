@@ -19,8 +19,8 @@ func NewPhoneRepo(db *sqlx.DB) *PhoneRepo {
 
 func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	query := `
-		INSERT INTO phones (imei, model_name, details, status, purchase_price, sale_price, purchase_date, note, import_by, seller_name, seller_phone, seller_id_number)
-		VALUES (:imei, :model_name, :details, :status, :purchase_price, :sale_price, :purchase_date, :note, :import_by, :seller_name, :seller_phone, :seller_id_number)
+		INSERT INTO phones (tenant_id, imei, model_name, details, status, purchase_price, sale_price, purchase_date, note, import_by, seller_name, seller_phone, seller_id_number)
+		VALUES (:tenant_id, :imei, :model_name, :details, :status, :purchase_price, :sale_price, :purchase_date, :note, :import_by, :seller_name, :seller_phone, :seller_id_number)
 	`
 	res, err := r.DB.NamedExec(query, p)
 	if err != nil {
@@ -30,10 +30,10 @@ func (r *PhoneRepo) Create(p model.Phone) (int, error) {
 	return int(id), err
 }
 
-func (r *PhoneRepo) GetByIMEI(imei string, userID int) (*model.Phone, error) {
+func (r *PhoneRepo) GetByIMEI(imei string, tenantID int) (*model.Phone, error) {
 	var phone model.Phone
-	query := `SELECT * FROM phones WHERE import_by = ? AND imei = ? AND deleted_at IS NULL AND status IN ('IN_STOCK', 'REPAIRING') LIMIT 1`
-	err := r.DB.Get(&phone, query, userID, imei)
+	query := `SELECT * FROM phones WHERE tenant_id = ? AND imei = ? AND deleted_at IS NULL AND status IN ('IN_STOCK', 'REPAIRING') LIMIT 1`
+	err := r.DB.Get(&phone, query, tenantID, imei)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -65,7 +65,7 @@ func (r *PhoneRepo) fetchList(baseQuery string, args []interface{}, sumCol strin
 	return phones, totalCount, totalValue, nil
 }
 
-func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+func (r *PhoneRepo) GetImports(tenantID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
 	// 1. Thêm LEFT JOIN tới invoice_items và invoices (Chỉ lấy hoá đơn IMPORT)
 	baseQuery := `
 		FROM phones p 
@@ -76,9 +76,9 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 			JOIN invoices i ON ii.invoice_id = i.id
 			WHERE ii.item_type = 'PHONE' AND i.type = 'IMPORT'
 		) inv ON p.id = inv.phone_id
-		WHERE p.import_by = ? AND p.deleted_at IS NULL
+		WHERE p.tenant_id = ? AND p.deleted_at IS NULL
 	`
-	args := []interface{}{userID}
+	args := []interface{}{tenantID}
 
 	if filter.Keyword != "" {
 		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR p.seller_name LIKE ? OR p.seller_phone LIKE ?)"
@@ -116,15 +116,15 @@ func (r *PhoneRepo) GetImports(userID int, filter model.PhoneFilter) ([]model.Ph
 	return r.fetchList(baseQuery, args, "p.purchase_price", selectClause, orderBy, filter.Limit, offset)
 }
 
-func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
+func (r *PhoneRepo) GetSales(tenantID int, filter model.PhoneFilter) ([]model.Phone, int, float64, error) {
 	baseQuery := `
 		FROM phones p 
         JOIN invoice_items ii ON p.id = ii.phone_id
-        JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE'
+        JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'SALE' AND inv.status != 'CANCELLED'
         -- ĐÃ XOÁ LEFT JOIN CUSTOMERS, DÙNG TRỰC TIẾP inv.customer_name
-        WHERE p.import_by = ? AND p.deleted_at IS NULL AND p.status = 'SOLD'
+        WHERE p.tenant_id = ? AND p.deleted_at IS NULL AND p.status = 'SOLD'
 	`
-	args := []interface{}{userID}
+	args := []interface{}{tenantID}
 
 	if filter.Keyword != "" {
 		baseQuery += " AND (p.imei LIKE ? OR p.model_name LIKE ? OR inv.customer_name LIKE ?)"
@@ -153,7 +153,7 @@ func (r *PhoneRepo) GetSales(userID int, filter model.PhoneFilter) ([]model.Phon
 	return r.fetchList(baseQuery, args, "p.sale_price", selectClause, orderBy, filter.Limit, offset)
 }
 
-func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
+func (r *PhoneRepo) GetByID(id, tenantID int) (*model.Phone, error) {
 	var phone model.Phone
 	query := `
 		SELECT 
@@ -167,17 +167,17 @@ func (r *PhoneRepo) GetByID(id, userID int) (*model.Phone, error) {
 		LEFT JOIN users u ON p.import_by = u.id
 		LEFT JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		LEFT JOIN invoices inv ON ii.invoice_id = inv.id AND inv.type = 'IMPORT'
-		WHERE p.id = ? AND p.import_by = ?
+		WHERE p.id = ? AND p.tenant_id = ?
 		LIMIT 1
 	`
-	err := r.DB.Get(&phone, query, id, userID)
+	err := r.DB.Get(&phone, query, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &phone, nil
 }
 
-func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInput) error {
+func (r *PhoneRepo) UpdateDynamic(id int, tenantID int, input model.PhoneUpdateInput) error {
 	setClauses := []string{}
 	args := []interface{}{}
 
@@ -229,32 +229,32 @@ func (r *PhoneRepo) UpdateDynamic(id int, userID int, input model.PhoneUpdateInp
 		return nil
 	}
 
-	query := "UPDATE phones SET " + strings.Join(setClauses, ", ") + " WHERE id = ? AND import_by = ?"
-	args = append(args, id, userID)
+	query := "UPDATE phones SET " + strings.Join(setClauses, ", ") + " WHERE id = ? AND tenant_id = ?"
+	args = append(args, id, tenantID)
 
 	_, err := r.DB.Exec(query, args...)
 	return err
 }
 
-func (r *PhoneRepo) UpdateStatus(id int, status string) error {
-	query := `UPDATE phones SET status = ?, updated_at = NOW() WHERE id = ?`
-	_, err := r.DB.Exec(query, status, id)
+func (r *PhoneRepo) UpdateStatus(id int, status string, tenantID int) error {
+	query := `UPDATE phones SET status = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, status, id, tenantID)
 	return err
 }
 
-func (r *PhoneRepo) MarkAsSold(id int, salePrice int64, saleDate time.Time) error {
-	query := `UPDATE phones SET status = 'SOLD', sale_date = ?, updated_at = NOW() WHERE id = ?`
-	_, err := r.DB.Exec(query, saleDate, id)
+func (r *PhoneRepo) MarkAsSold(id int, salePrice int64, saleDate time.Time, tenantID int) error {
+	query := `UPDATE phones SET status = 'SOLD', sale_date = ?, updated_at = NOW() WHERE id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, saleDate, id, tenantID)
 	return err
 }
 
-func (r *PhoneRepo) RevertToInStock(id int) error {
-	query := `UPDATE phones SET status = 'IN_STOCK', sale_date = NULL, updated_at = NOW() WHERE id = ?`
-	_, err := r.DB.Exec(query, id)
+func (r *PhoneRepo) RevertToInStock(id int, tenantID int) error {
+	query := `UPDATE phones SET status = 'IN_STOCK', sale_date = NULL, updated_at = NOW() WHERE id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, id, tenantID)
 	return err
 }
 
-func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
+func (r *PhoneRepo) GetDailySaleStats(tenantID int) (int, int64, error) {
 	var count int
 	var revenue int64
 
@@ -264,14 +264,14 @@ func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
 		FROM phones p
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
-		WHERE p.import_by = ? 
+		WHERE p.tenant_id = ? 
 			AND p.deleted_at IS NULL
 			AND p.status = 'SOLD'
 			AND i.type = 'SALE'
 			AND i.status = 'PAID'
 			AND DATE(p.sale_date) = CURDATE()
 	`
-	if err := r.DB.Get(&count, queryCount, userID); err != nil {
+	if err := r.DB.Get(&count, queryCount, tenantID); err != nil {
 		return 0, 0, err
 	}
 
@@ -281,21 +281,21 @@ func (r *PhoneRepo) GetDailySaleStats(userID int) (int, int64, error) {
 		FROM phones p
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
-		WHERE p.import_by = ? 
+		WHERE p.tenant_id = ? 
 			AND p.deleted_at IS NULL
 			AND p.status = 'SOLD'
 			AND i.type = 'SALE'
 			AND i.status = 'PAID'
 			AND DATE(p.sale_date) = CURDATE()
 	`
-	if err := r.DB.Get(&revenue, queryRevenue, userID); err != nil {
+	if err := r.DB.Get(&revenue, queryRevenue, tenantID); err != nil {
 		return 0, 0, err
 	}
 
 	return count, revenue, nil
 }
 
-func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
+func (r *PhoneRepo) GetInventoryStats(tenantID int) (int, int64, error) {
 	var count int
 	var inventoryValue int64
 
@@ -305,13 +305,13 @@ func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
 		FROM phones p
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
-		WHERE p.import_by = ? 
+		WHERE p.tenant_id = ? 
 			AND p.deleted_at IS NULL
 			AND p.status = 'IN_STOCK'
 			AND i.type = 'IMPORT'
 			AND i.status = 'PAID'
 	`
-	if err := r.DB.Get(&count, queryCount, userID); err != nil {
+	if err := r.DB.Get(&count, queryCount, tenantID); err != nil {
 		return 0, 0, err
 	}
 
@@ -321,35 +321,35 @@ func (r *PhoneRepo) GetInventoryStats(userID int) (int, int64, error) {
 		FROM phones p
 		JOIN invoice_items ii ON p.id = ii.phone_id AND ii.item_type = 'PHONE'
 		JOIN invoices i ON ii.invoice_id = i.id
-		WHERE p.import_by = ? 
+		WHERE p.tenant_id = ? 
 			AND p.deleted_at IS NULL
 			AND p.status = 'IN_STOCK'
 			AND i.type = 'IMPORT'
 			AND i.status = 'PAID'
 	`
-	if err := r.DB.Get(&inventoryValue, queryValue, userID); err != nil {
+	if err := r.DB.Get(&inventoryValue, queryValue, tenantID); err != nil {
 		return 0, 0, err
 	}
 
 	return count, inventoryValue, nil
 }
 
-func (r *PhoneRepo) SoftDelete(id int, userID int) error {
+func (r *PhoneRepo) SoftDelete(id int, tenantID int) error {
 	// Gắn thêm _DEL_id vào IMEI để đề phòng vướng Unique Constraint trong DB, đồng thời update deleted_at
 	query := `
 		UPDATE phones 
 		SET deleted_at = NOW(), 
 			imei = CONCAT(imei, '_DEL_', id),
 			updated_at = NOW()
-		WHERE id = ? AND import_by = ?
+		WHERE id = ? AND tenant_id = ?
 	`
-	_, err := r.DB.Exec(query, id, userID)
+	_, err := r.DB.Exec(query, id, tenantID)
 	return err
 }
 
 // Xoá cứng máy khỏi DB
-func (r *PhoneRepo) HardDelete(id int, userID int) error {
-	query := `DELETE FROM phones WHERE id = ? AND import_by = ?`
-	_, err := r.DB.Exec(query, id, userID)
+func (r *PhoneRepo) HardDelete(id int, tenantID int) error {
+	query := `DELETE FROM phones WHERE id = ? AND tenant_id = ?`
+	_, err := r.DB.Exec(query, id, tenantID)
 	return err
 }

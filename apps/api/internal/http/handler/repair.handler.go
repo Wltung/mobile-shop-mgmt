@@ -18,7 +18,6 @@ func NewRepairHandler(s *service.RepairService) *RepairHandler {
 	return &RepairHandler{Service: s}
 }
 
-// POST /api/repairs
 func (h *RepairHandler) CreateRepair(c *gin.Context) {
 	var input model.CreateRepairInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -26,15 +25,10 @@ func (h *RepairHandler) CreateRepair(c *gin.Context) {
 		return
 	}
 
-	// Lấy UserID từ token để biết nhân viên nào tạo phiếu
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	userID := int(c.MustGet("userID").(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	id, err := h.Service.CreateRepairTicket(input, userID)
+	id, err := h.Service.CreateRepairTicket(input, userID, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi tạo phiếu: " + err.Error()})
 		return
@@ -46,7 +40,6 @@ func (h *RepairHandler) CreateRepair(c *gin.Context) {
 	})
 }
 
-// PATCH /api/repairs/:id
 func (h *RepairHandler) UpdateRepair(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -61,7 +54,9 @@ func (h *RepairHandler) UpdateRepair(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.UpdateRepairTicket(id, input); err != nil {
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	if err := h.Service.UpdateRepairTicket(id, input, tenantID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi cập nhật phiếu: " + err.Error()})
 		return
 	}
@@ -69,7 +64,6 @@ func (h *RepairHandler) UpdateRepair(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật phiếu sửa chữa thành công"})
 }
 
-// GET /api/repairs/:id
 func (h *RepairHandler) GetRepair(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -78,7 +72,9 @@ func (h *RepairHandler) GetRepair(c *gin.Context) {
 		return
 	}
 
-	repair, err := h.Service.GetRepairDetail(id)
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	repair, err := h.Service.GetRepairDetail(id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy phiếu sửa chữa"})
@@ -98,13 +94,14 @@ func (h *RepairHandler) GetRepairs(c *gin.Context) {
 		return
 	}
 
-	items, total, stats, err := h.Service.GetRepairs(filter)
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	items, total, stats, err := h.Service.GetRepairs(filter, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Tính Meta
 	totalPages := total / filter.Limit
 	if total%filter.Limit != 0 {
 		totalPages++
@@ -122,7 +119,6 @@ func (h *RepairHandler) GetRepairs(c *gin.Context) {
 	})
 }
 
-// POST /api/repairs/:id/complete
 func (h *RepairHandler) CompleteRepair(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -131,14 +127,10 @@ func (h *RepairHandler) CompleteRepair(c *gin.Context) {
 		return
 	}
 
-	userIDFloat, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Chưa đăng nhập"})
-		return
-	}
-	userID := int(userIDFloat.(float64))
+	userID := int(c.MustGet("userID").(float64))
+	tenantID := int(c.MustGet("tenantID").(float64))
 
-	invoiceID, err := h.Service.CompleteRepair(id, userID)
+	invoiceID, err := h.Service.CompleteRepair(id, userID, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -146,11 +138,10 @@ func (h *RepairHandler) CompleteRepair(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Đã hoàn thành sửa chữa và xuất hoá đơn",
-		"invoice_id": invoiceID, // Trả về ID hoá đơn để FE có thể redirect sang trang In
+		"invoice_id": invoiceID,
 	})
 }
 
-// DELETE /api/repairs/:id
 func (h *RepairHandler) DeleteRepair(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -159,7 +150,9 @@ func (h *RepairHandler) DeleteRepair(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.DeleteRepairTicket(id); err != nil {
+	tenantID := int(c.MustGet("tenantID").(float64))
+
+	if err := h.Service.DeleteRepairTicket(id, tenantID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

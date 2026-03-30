@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Eye, Printer, Banknote, ReceiptText } from 'lucide-react'
 
@@ -13,9 +14,11 @@ import StatsCards from '@/components/common/StatsCards'
 import { DataTable } from '@/components/common/DataTable'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import InvoicePreviewModal from '@/components/print/InvoicePreviewModal'
 
 export default function InvoiceListPage() {
     const router = useRouter()
+    const [printInvoiceId, setPrintInvoiceId] = useState<number | null>(null)
     
     // ĐÃ FIX: Lôi thêm setType ra từ hook
     const {
@@ -80,7 +83,7 @@ export default function InvoiceListPage() {
             accessorKey: 'customer_name',
             cell: (item) => (
                 <span className="font-semibold text-slate-800">
-                    {item.type === 'IMPORT' ? 'Đối tác nhập hàng' : (item.customer_name || 'Khách vãng lai')}
+                    {item.type === 'IMPORT' ?  (item.customer_name || 'Đối tác nhập hàng') : (item.customer_name || 'Khách vãng lai')}
                 </span>
             ),
         },
@@ -127,23 +130,34 @@ export default function InvoiceListPage() {
         {
             header: 'THAO TÁC',
             className: 'text-center',
-            cell: (item) => (
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
-                        onClick={() => router.push(`/dashboard/invoices/${item.id}`)}
-                        title="Xem chi tiết"
-                    >
-                        <Eye className="h-5 w-5" />
-                    </button>
-                    <button 
-                        className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                        title="In hoá đơn"
-                    >
-                        <Printer className="h-5 w-5" />
-                    </button>
-                </div>
-            ),
+            cell: (item) => {
+                const canPrint = item.status === 'PAID'
+
+                return (
+                    <div className="flex items-center justify-center gap-2">
+                        <button
+                            className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                            onClick={() => router.push(`/dashboard/invoices/${item.id}`)}
+                            title="Xem chi tiết"
+                        >
+                            <Eye className="h-5 w-5" />
+                        </button>
+                        
+                        <button 
+                            disabled={!canPrint}
+                            onClick={() => setPrintInvoiceId(item.id)}
+                            className={`rounded p-1.5 transition-colors ${
+                                canPrint 
+                                    ? 'text-slate-400 hover:bg-slate-100 hover:text-blue-600' 
+                                    : 'text-slate-200 cursor-not-allowed opacity-60'
+                            }`}
+                            title={canPrint ? "In hoá đơn" : "Chỉ in được hoá đơn đã hoàn thành"}
+                        >
+                            <Printer className="h-5 w-5" />
+                        </button>
+                    </div>
+                )
+            },
         },
     ]
 
@@ -231,6 +245,14 @@ export default function InvoiceListPage() {
                     </section>
                 </div>
             </div>
+
+            {printInvoiceId && (
+                <InvoicePreviewModal
+                    isOpen={!!printInvoiceId}
+                    onClose={() => setPrintInvoiceId(null)}
+                    invoiceId={printInvoiceId}
+                />
+            )}
         </div>
     )
 }

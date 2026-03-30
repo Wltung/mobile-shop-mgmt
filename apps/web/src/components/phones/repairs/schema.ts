@@ -27,7 +27,19 @@ export const repairBaseSchema = z.object({
 
 export const createRepairSchema = repairBaseSchema.extend({
     create_appointment: z.boolean()
-})
+}).refine(
+    (data) => {
+        // Nếu bật toggle in phiếu (create_appointment) thì PHẢI có ngày hẹn
+        if (data.create_appointment && (!data.appointment_date || data.appointment_date.trim() === '')) {
+            return false
+        }
+        return true
+    },
+    {
+        message: 'Vui lòng chọn ngày giờ hẹn để in phiếu',
+        path: ['appointment_date'], // Trỏ lỗi đỏ chót thẳng vào ô chọn ngày
+    }
+)
 
 export const editRepairSchema = repairBaseSchema.extend({
     status: z.enum(['PENDING', 'REPAIRING', 'WAITING_CUSTOMER', 'COMPLETED']),
