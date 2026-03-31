@@ -1,6 +1,8 @@
-DROP TABLE IF EXISTS accessories;
-DROP TABLE IF EXISTS repairs;
-DROP TABLE IF EXISTS warranties;
-DROP TABLE IF EXISTS invoices;
-DROP TABLE IF EXISTS customers;
-DROP TABLE IF EXISTS phones;
+DROP TABLE IF EXISTS `warranties`;
+DROP TABLE IF EXISTS `repairs`;
+DROP TABLE IF EXISTS `invoice_items`;
+DROP TABLE IF EXISTS `invoices`;
+DROP TABLE IF EXISTS `phones`;
+DROP TABLE IF EXISTS `password_resets`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `tenants`;

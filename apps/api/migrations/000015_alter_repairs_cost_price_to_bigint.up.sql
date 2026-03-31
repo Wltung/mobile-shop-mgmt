@@ -1,3 +1,0 @@
-ALTER TABLE repairs
-    MODIFY COLUMN part_cost BIGINT NULL,
-    MODIFY COLUMN repair_price BIGINT NULL;

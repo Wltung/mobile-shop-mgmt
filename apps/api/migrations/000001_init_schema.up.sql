@@ -1,97 +1,164 @@
--- Bảng Users (Auth)
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(100),
-    role ENUM('admin', 'staff') DEFAULT 'staff',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+CREATE TABLE `tenants` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `phone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `status` enum('ACTIVE', 'SUSPENDED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ACTIVE',
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- Bảng Phones (Kho máy)
-CREATE TABLE IF NOT EXISTS phones (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    imei VARCHAR(32) NOT NULL UNIQUE,
-    model_name VARCHAR(255) NOT NULL,
-    details JSON, -- Thông tin chi tiết điện thoại
-    status ENUM('IN_STOCK', 'SOLD', 'REPAIRING') NOT NULL DEFAULT 'IN_STOCK',
-    purchase_price DECIMAL(15, 2) NOT NULL, -- Giá nhập
-    sale_price DECIMAL(15, 2), -- Giá bán
-    purchase_date DATE, -- Ngày mua
-    sale_date DATE, -- Ngày bán
-    note TEXT, -- Ghi chú
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+CREATE TABLE `users` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `tenant_id` int NOT NULL,
+    `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `full_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `role` enum('admin', 'staff') COLLATE utf8mb4_unicode_ci DEFAULT 'staff',
+    `is_active` tinyint(1) DEFAULT '1',
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `username` (`username`),
+    UNIQUE KEY `email` (`email`),
+    KEY `fk_users_tenant` (`tenant_id`),
+    CONSTRAINT `fk_users_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- Bảng Customers (Khách hàng)
-CREATE TABLE IF NOT EXISTS customers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    phone VARCHAR(50) UNIQUE,
-    id_number VARCHAR(50) UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+CREATE TABLE `password_resets` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `user_id` int NOT NULL,
+    `token` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `expires_at` timestamp NOT NULL,
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `user_id` (`user_id`),
+    CONSTRAINT `password_resets_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
--- Bảng Invoices (Hóa đơn chung cho Mua/Bán)
-CREATE TABLE IF NOT EXISTS invoices (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    type ENUM('IMPORT', 'SALE', 'REPAIR') NOT NULL,
-    phone_id INT NULL,
-    customer_id INT,
-    total_amount DECIMAL(15, 2) NOT NULL,
-    warranty_months INT DEFAULT 0,
-    warranty_expiry DATE,
-    created_by INT, -- Link với bảng users
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    note TEXT,
-    CONSTRAINT fk_invoices_user
-        FOREIGN KEY (created_by) REFERENCES users(id)
-        ON DELETE SET NULL,
-    CONSTRAINT fk_invoices_phone
-        FOREIGN KEY (phone_id) REFERENCES phones(id)
-        ON DELETE SET NULL,
-    CONSTRAINT fk_invoices_customer
-        FOREIGN KEY (customer_id) REFERENCES customers(id)
-        ON DELETE SET NULL
-) ENGINE=InnoDB;
+CREATE TABLE `phones` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `tenant_id` int NOT NULL,
+    `imei` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `model_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `details` json DEFAULT NULL,
+    `status` enum('IN_STOCK', 'SOLD', 'REPAIRING') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'IN_STOCK',
+    `purchase_price` bigint NOT NULL DEFAULT '0',
+    `sale_price` bigint DEFAULT NULL,
+    `purchase_date` date DEFAULT NULL,
+    `sale_date` date DEFAULT NULL,
+    `note` text COLLATE utf8mb4_unicode_ci,
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `import_by` int NOT NULL,
+    `seller_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `seller_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `seller_id_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `deleted_at` timestamp NULL DEFAULT NULL,
+    `active_imei` varchar(32) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (if((`status` in (_utf8mb4 'IN_STOCK', _utf8mb4 'REPAIRING')),`imei`,NULL)) VIRTUAL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uniq_phones_active_imei` (`tenant_id`, `active_imei`),
+    KEY `fk_phones_import_by_users` (`import_by`),
+    KEY `idx_phones_tenant_id` (`tenant_id`),
+    CONSTRAINT `fk_phones_import_by_users` FOREIGN KEY (`import_by`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+    CONSTRAINT `fk_phones_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
-CREATE TABLE warranties (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    phone_id INT NOT NULL,
-    start_date DATE,
-    end_date DATE,
-    CONSTRAINT fk_warranties_phone
-        FOREIGN KEY (phone_id) REFERENCES phones(id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
+CREATE TABLE `invoices` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `tenant_id` int NOT NULL,
+    `invoice_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `type` enum('IMPORT', 'SALE', 'REPAIR') COLLATE utf8mb4_unicode_ci NOT NULL,
+    `status` enum('DRAFT', 'PAID', 'CANCELLED') COLLATE utf8mb4_unicode_ci DEFAULT 'PAID',
+    `total_amount` bigint NOT NULL DEFAULT '0',
+    `discount` bigint DEFAULT '0',
+    `created_by` int DEFAULT NULL,
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `note` text COLLATE utf8mb4_unicode_ci,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `payment_method` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'CASH',
+    `customer_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `customer_id_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `deleted_at` timestamp NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_invoice_code_tenant` (`tenant_id`, `invoice_code`),
+    KEY `fk_invoices_user` (`created_by`),
+    KEY `idx_invoices_type` (`type`),
+    CONSTRAINT `fk_invoices_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_invoices_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
-CREATE TABLE repairs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    phone_id INT,
-    customer_id INT,
-    repair_type ENUM('NORMAL', 'WARRANTY') NOT NULL,
-    description TEXT,
-    part_cost DECIMAL(12,2),
-    repair_price DECIMAL(12,2),
-    device_password VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_repairs_phone
-        FOREIGN KEY (phone_id) REFERENCES phones(id)
-        ON DELETE SET NULL,
-    CONSTRAINT fk_repairs_customer
-        FOREIGN KEY (customer_id) REFERENCES customers(id)
-        ON DELETE SET NULL
-) ENGINE=InnoDB;
+CREATE TABLE `invoice_items` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `invoice_id` int NOT NULL,
+    `item_type` enum('PHONE', 'PART', 'SERVICE') COLLATE utf8mb4_unicode_ci NOT NULL,
+    `phone_id` int DEFAULT NULL,
+    `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `quantity` int NOT NULL DEFAULT '1',
+    `unit_price` bigint NOT NULL DEFAULT '0',
+    `amount` bigint NOT NULL DEFAULT '0',
+    `warranty_months` int DEFAULT '0',
+    `warranty_expiry` date DEFAULT NULL,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `fk_invoice_items_phone` (`phone_id`),
+    KEY `idx_invoice_items_invoice_id` (`invoice_id`),
+    CONSTRAINT `fk_invoice_items_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_invoice_items_phone` FOREIGN KEY (`phone_id`) REFERENCES `phones` (`id`) ON DELETE SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
-CREATE TABLE accessories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    invoice_id INT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    price DECIMAL(12,2),
-    CONSTRAINT fk_accessories_invoice
-        FOREIGN KEY (invoice_id) REFERENCES invoices(id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
+CREATE TABLE `repairs` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `tenant_id` int NOT NULL,
+    `phone_id` int DEFAULT NULL,
+    `invoice_id` int DEFAULT NULL,
+    `user_id` int DEFAULT NULL,
+    `repair_category` enum('SHOP_DEVICE_REPAIR', 'CUSTOMER_DEVICE_REPAIR') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CUSTOMER_DEVICE_REPAIR',
+    `description` text COLLATE utf8mb4_unicode_ci,
+    `part_cost` bigint DEFAULT NULL,
+    `repair_price` bigint DEFAULT NULL,
+    `device_password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+    `customer_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `deleted_at` timestamp NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `fk_repairs_phone` (`phone_id`),
+    KEY `idx_repairs_user_id` (`user_id`),
+    KEY `fk_repairs_tenant` (`tenant_id`),
+    CONSTRAINT `fk_repairs_phone` FOREIGN KEY (`phone_id`) REFERENCES `phones` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_repairs_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_repairs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+CREATE TABLE `warranties` (
+    `id` int NOT NULL AUTO_INCREMENT,
+    `tenant_id` int NOT NULL,
+    `warranty_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `phone_id` int DEFAULT NULL,
+    `start_date` date DEFAULT NULL,
+    `end_date` date DEFAULT NULL,
+    `invoice_id` int DEFAULT NULL,
+    `user_id` int DEFAULT NULL,
+    `device_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `imei` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `description` text COLLATE utf8mb4_unicode_ci,
+    `technical_note` text COLLATE utf8mb4_unicode_ci,
+    `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'RECEIVED',
+    `cost` bigint DEFAULT '0',
+    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` timestamp NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_warranty_code_tenant` (`tenant_id`, `warranty_code`),
+    KEY `fk_warranties_phone` (`phone_id`),
+    KEY `idx_warranties_user_id` (`user_id`),
+    CONSTRAINT `fk_warranties_phone` FOREIGN KEY (`phone_id`) REFERENCES `phones` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warranties_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_warranties_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;

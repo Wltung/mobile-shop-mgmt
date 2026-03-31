@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Thư mục rác của Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+apps/*/node_modules
+packages/*/node_modules
+
+# Thư mục Build & Cache cũ của Next.js / Turbo
+.next
+apps/*/.next
+.turbo
+dist
+build
+out
+
+# Môi trường Local (Chỉ giữ lại .env gốc nếu cần, chặn .env.local)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# File rác hệ điều hành
+.DS_Store
+Thumbs.db
+
+# Docker files (Không cần tự copy chính nó)
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Thư mục README / Tài liệu không cần thiết trên server
+README.md

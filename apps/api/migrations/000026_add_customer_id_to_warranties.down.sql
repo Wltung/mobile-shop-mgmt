@@ -1,1 +1,0 @@
-ALTER TABLE warranties DROP COLUMN customer_id_number;
