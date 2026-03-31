@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import DashboardHeader from '@/components/dashboard/DashboardHeader'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
@@ -14,11 +15,32 @@ import {
     ShieldCheck,
     Home,
     ShoppingBag,
+    WrenchIcon,
+    Receipt,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import WarrantyItemSearchSelect from '@/components/phones/warranties/WarrantyItemSearchSelect'
+import PhoneSearchSelect from '@/components/phones/PhoneSearchSelect'
 
 export default function DashboardPage() {
     const user = useAuthStore((state) => state.user)
+    const router = useRouter()
+
+    // State để chuyển đổi chế độ tìm kiếm
+    const [searchMode, setSearchMode] = useState<'PHONE' | 'SALE' | 'REPAIR'>('PHONE')
+
+    // Xử lý khi click vào 1 máy trong kho
+    const handlePhoneSelect = (phone: any) => {
+        // Đá sang trang danh sách điện thoại và filter theo IMEI
+        router.push(`/dashboard/phones?keyword=${phone.imei}`)
+    }
+
+    // Xử lý khi click vào 1 hoá đơn (Bán hoặc Sửa)
+    const handleWarrantySelect = (item: any) => {
+        // Đá thẳng vào trang chi tiết hoá đơn đó
+        router.push(`/dashboard/invoices/${item.invoice_id}`)
+    }
 
     return (
         <>
@@ -28,24 +50,86 @@ export default function DashboardPage() {
             {/* MAIN CONTENT */}
             <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-10">
                 <div className="mx-auto flex max-w-[1200px] flex-col gap-8">
-                    {/* SEARCH BAR */}
-                    <div className="w-full">
-                        <label className="flex w-full flex-col">
-                            <div className="flex h-14 w-full items-stretch overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
-                                <div className="flex items-center justify-center pl-6 text-muted">
-                                    <Search className="h-5 w-5" />
-                                </div>
-                                <input
-                                    className="flex h-full w-full min-w-0 flex-1 resize-none overflow-hidden border-none bg-transparent px-4 text-base font-normal leading-normal text-[#0f172a] placeholder:text-muted focus:outline-0"
-                                    placeholder="Tìm kiếm IMEI, tên khách hàng, đời máy..."
-                                />
-                                <div className="flex items-center pr-2">
-                                    <button className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm shadow-blue-500/30 transition-colors hover:bg-blue-600">
-                                        Tìm kiếm
-                                    </button>
-                                </div>
+                    {/* GLOBAL SEARCH SECTION - UI/UX NÂNG CẤP */}
+                    <div className="w-full rounded-2xl border border-slate-100 bg-white p-3 shadow-xl shadow-slate-100/50 lg:p-4">
+                        
+                        {/* 1. HEADER & TABS: Sleek, Integrated, With Icons */}
+                        <div className="mb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100/70 pb-5">
+                            <h3 className="flex items-center gap-2.5 text-lg font-bold text-slate-900">
+                                <Search className="h-5 w-5 text-primary" />
+                                <span>Tìm kiếm thông minh</span>
+                            </h3>
+                            <div className="flex gap-1.5 rounded-lg bg-slate-50 p-1">
+                                <button
+                                    onClick={() => setSearchMode('PHONE')}
+                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+                                        searchMode === 'PHONE'
+                                            ? 'bg-primary text-white shadow-md'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                                    }`}
+                                >
+                                    <Smartphone className="h-4 w-4" /> 
+                                    Máy kho
+                                </button>
+                                <button
+                                    onClick={() => setSearchMode('SALE')}
+                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+                                        searchMode === 'SALE'
+                                            ? 'bg-emerald-600 text-white shadow-md'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                                    }`}
+                                >
+                                    <Receipt className="h-4 w-4" /> 
+                                    HĐ Bán
+                                </button>
+                                <button
+                                    onClick={() => setSearchMode('REPAIR')}
+                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+                                        searchMode === 'REPAIR'
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                                    }`}
+                                >
+                                    <WrenchIcon className="h-4 w-4" /> 
+                                    Phiếu sửa
+                                </button>
                             </div>
-                        </label>
+                        </div>
+
+                        {/* 2. SEARCH INPUT AREA: Full Width, Modern Input, Detailed Placeholder */}
+                        <div className="relative z-50 max-w-4xl">
+                            {searchMode === 'PHONE' && (
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-slate-700">Tìm kiếm điện thoại trong kho</label>
+                                    <PhoneSearchSelect
+                                        onSelect={handlePhoneSelect}
+                                        hasSalePrice={false}
+                                        label=""
+                                    />
+                                    <p className="mt-1 text-xs text-slate-400">*Gõ IMEI, tên máy hoặc màu sắc...</p>
+                                </div>
+                            )}
+                            {searchMode === 'SALE' && (
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-slate-700">Tìm kiếm Hoá đơn bán máy</label>
+                                    <WarrantyItemSearchSelect
+                                        type="SALE"
+                                        onSelect={handleWarrantySelect}
+                                    />
+                                    <p className="mt-1 text-xs text-slate-400">*Gõ mã hóa đơn, tên khách hàng hoặc số điện thoại...</p>
+                                </div>
+                            )}
+                            {searchMode === 'REPAIR' && (
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-slate-700">Tìm kiếm Phiếu sửa chữa</label>
+                                    <WarrantyItemSearchSelect
+                                        type="REPAIR"
+                                        onSelect={handleWarrantySelect}
+                                    />
+                                    <p className="mt-1 text-xs text-slate-400">*Gõ mã phiếu, tên khách hàng hoặc SĐT khách sửa máy...</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* THAO TÁC NHANH (QUICK ACTIONS) */}

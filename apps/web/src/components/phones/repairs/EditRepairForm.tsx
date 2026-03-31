@@ -175,7 +175,7 @@ export default function EditRepairForm({ repair, onSuccess, onCancel }: Props) {
                                                 <Input 
                                                     {...field} 
                                                     disabled={repair.repair_category === 'SHOP_DEVICE_REPAIR'}
-                                                    className={`${inputClass} text-red-500 font-mono font-bold bg-red-50/30 border-red-200 focus:bg-white`} 
+                                                    className={`${inputClass} text-red-500 font-mono font-bold bg-red-50/30 focus:bg-white`} 
                                                 />
                                             </FormControl></FormItem>
                                     )} />

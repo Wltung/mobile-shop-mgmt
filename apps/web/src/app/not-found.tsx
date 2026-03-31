@@ -54,7 +54,7 @@ export default function NotFound() {
                                         404 - Không tìm thấy trang
                                     </h1>
                                     <p className="text-slate-500 text-lg font-medium leading-relaxed">
-                                        Rất tiếc, trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển. Có thể đường dẫn bị hỏng hoặc trang đã bị xóa.
+                                        Rất tiếc, trang bạn đang tìm kiếm không tồn tại hoặc đang trong giao đoạn phát triển.
                                     </p>
                                 </div>
 

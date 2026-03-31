@@ -65,9 +65,11 @@ export default function PhoneSearchSelect({
 
     return (
         <div className="relative" ref={containerRef}>
-            <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
-                {label} <span className="text-red-500">*</span>
-            </label>
+            {label && (
+                <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
+                    {label} <span className="text-red-500">*</span>
+                </label>
+            )}
             
             <div className="relative">
                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">

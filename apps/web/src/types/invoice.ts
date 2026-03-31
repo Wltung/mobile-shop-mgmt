@@ -75,6 +75,7 @@ export interface Invoice {
     customer_id_number?: string
     creator_name?: string
     repair_id?: number
+    model_name?: string
 }
 
 export interface InvoiceFilterParams {

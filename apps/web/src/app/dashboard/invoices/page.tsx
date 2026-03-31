@@ -79,6 +79,17 @@ export default function InvoiceListPage() {
             },
         },
         {
+            header: 'ĐỜI MÁY',
+            accessorKey: 'model_name',
+            cell: (item: any) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-slate-900">
+                        {item.model_name || '---'}
+                    </span>
+                </div>
+            ),
+        },
+        {
             header: 'KHÁCH HÀNG',
             accessorKey: 'customer_name',
             cell: (item) => (

@@ -297,7 +297,11 @@ func (r *InvoiceRepo) GetAll(filter model.InvoiceFilter, tenantID int) ([]model.
 		return nil, 0, err
 	}
 
-	selectQuery := `SELECT i.* ` + baseQuery + ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`
+	selectQuery := `SELECT i.*, 
+					COALESCE(
+						(SELECT p.model_name FROM invoice_items ii JOIN phones p ON ii.phone_id = p.id WHERE ii.invoice_id = i.id AND ii.item_type = 'PHONE' LIMIT 1),
+						(SELECT JSON_UNQUOTE(JSON_EXTRACT(description, '$.device_name')) FROM repairs WHERE invoice_id = i.id LIMIT 1)
+					) as model_name ` + baseQuery + ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`
 	args = append(args, filter.Limit, offset)
 
 	if err := r.DB.Select(&items, selectQuery, args...); err != nil {

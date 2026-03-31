@@ -42,6 +42,7 @@ type Invoice struct {
 	CreatorName string        `db:"creator_name" json:"creator_name,omitempty"`
 	Items       []InvoiceItem `json:"items,omitempty"`
 	RepairID    *int          `db:"repair_id" json:"repair_id,omitempty"`
+	ModelName   *string       `db:"model_name" json:"model_name,omitempty"`
 }
 
 type InvoiceItem struct {

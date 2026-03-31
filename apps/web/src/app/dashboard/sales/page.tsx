@@ -88,16 +88,25 @@ export default function SalesPage() {
         {
             header: 'ĐỜI MÁY',
             accessorKey: 'model_name',
-            cell: (item) => (
-                <div className="flex flex-col">
-                    <span className="font-bold text-slate-900">
-                        {item.model_name}
-                    </span>
-                    <span className="font-mono text-xs text-slate-500">
-                        {item.imei}
-                    </span>
-                </div>
-            ),
+            cell: (item) => {
+                const ram = item.details?.ram || ''
+                const storage = item.details?.storage || ''
+                const memoryInfo = [ram, storage].filter(Boolean).join(' / ')
+                const displayName = memoryInfo 
+                    ? `${item.model_name} (${memoryInfo})` 
+                    : item.model_name
+                
+                return (
+                    <div className="flex flex-col">
+                        <span className="font-bold text-slate-900">
+                            {displayName}
+                        </span>
+                        <span className="font-mono text-xs text-slate-500">
+                            IMEI: {item.imei}
+                        </span>
+                    </div>
+                )
+            },
         },
         {
             header: 'KHÁCH HÀNG',
