@@ -3,45 +3,69 @@ name: Deploy Mobile Shop to AWS EC2
 on:
   push:
     branches:
-      - main # Cứ Push code lên nhánh main là tự động chạy
+      - main # Push code lên nhánh main là tự động chạy
 
 jobs:
-  deploy:
-    name: Deploy to EC2
+  # GIAI ĐOẠN 1: BẮT MÁY CHỦ GITHUB BUILD VÀ ĐẨY LÊN KHO
+  build-and-push-images:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 1. Checkout Code
-        uses: actions/checkout@v4
+      - name: 1. Checkout code
+        uses: actions/checkout@v3
 
-      - name: 2. Copy Code to EC2
-        uses: appleboy/scp-action@v0.1.7
+      - name: 2. Đăng nhập vào Kho Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 3. Build & Push API Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./apps/api  # Đường dẫn tới thư mục API (Sửa nếu cần)
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/mobile-shop-api:latest
+
+      - name: 4. Build & Push Web Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./apps/web  # Đường dẫn tới thư mục Web (Sửa nếu cần)
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/mobile-shop-web:latest
+
+  # GIAI ĐOẠN 2: CHUI VÀO EC2 KÉO CODE VỀ CHẠY
+  deploy-to-ec2:
+    needs: build-and-push-images # Phải đợi giai đoạn 1 xong mới chạy
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Checkout code (để lấy file docker-compose)
+        uses: actions/checkout@v3
+
+      - name: 2. Bắn file docker-compose sang Server
+        uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "." # Copy tất cả code
-          target: "~/mobile-shop-mgmt" # Thả vào thư mục này trên Server
-          rm: true # Xoá code cũ đi trước khi copy
+          source: "docker-compose.prod.yml"
+          target: "~/mobile-shop-mgmt/"
 
-      - name: 3. Execute Deployment on EC2
+      - name: 3. Ra lệnh Server kéo Image và Chạy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 30m
           script: |
             cd ~/mobile-shop-mgmt
             
-            # 1. Tạo file .env từ GitHub Secret
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env
+            # Tải bản mới nhất từ kho về (Mất 10 giây, cực nhẹ)
+            docker compose -f docker-compose.prod.yml pull
             
-            # 2. Build & Chạy Docker (Dùng compose v2)
-            docker compose -f docker-compose.prod.yml up --build -d
+            # Chạy lên (Mất 5 giây)
+            docker compose -f docker-compose.prod.yml up -d
             
-            # 3. Dọn dẹp Image rác cho nhẹ Server
+            # Dọn rác Image bản cũ cho sạch ổ cứng
             docker image prune -f
-            
-            # 4. Xoá file .env đi để bảo mật (Docker lấy biến vào bộ nhớ rồi nên không cần file cứng nữa)
-            rm -f .env

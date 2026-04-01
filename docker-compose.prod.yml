@@ -19,6 +19,7 @@ services:
       --collation-server=utf8mb4_unicode_ci
 
   api:
+    image: wilde123569/mobile-shop-api-prod:latest
     build:
       context: ./apps/api
     container_name: mobile-shop-api-prod
@@ -40,6 +41,7 @@ services:
       APP_ENV: ${APP_ENV}
 
   web:
+    image: wilde123569/mobile-shop-web-prod:latest
     build:
       context: .
       dockerfile: apps/web/Dockerfile
