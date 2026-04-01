@@ -19,7 +19,7 @@ services:
       --collation-server=utf8mb4_unicode_ci
 
   api:
-    image: wilde123569/mobile-shop-api-prod:latest
+    image: wilde123569/mobile-shop-api:latest
     container_name: mobile-shop-api-prod
     restart: unless-stopped
     ports:
@@ -39,7 +39,7 @@ services:
       APP_ENV: ${APP_ENV}
 
   web:
-    image: wilde123569/mobile-shop-web-prod:latest
+    image: wilde123569/mobile-shop-web:latest
     container_name: mobile-shop-web-prod
     restart: unless-stopped
     ports:
