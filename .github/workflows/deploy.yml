@@ -37,6 +37,7 @@ jobs:
           build-args: | # <--- THÊM ĐOẠN NÀY ĐỂ BƠM BIẾN CHO NEXT.JS
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
 
   # GIAI ĐOẠN 2: CHUI VÀO EC2 KÉO CODE VỀ CHẠY
   deploy-to-ec2:
