@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mysql:
-    image: mysql
+    image: mysql:8.0
     container_name: mobile-shop-mysql-prod
     restart: unless-stopped
     environment:
