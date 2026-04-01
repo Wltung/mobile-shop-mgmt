@@ -20,8 +20,6 @@ services:
 
   api:
     image: wilde123569/mobile-shop-api-prod:latest
-    build:
-      context: ./apps/api
     container_name: mobile-shop-api-prod
     restart: unless-stopped
     ports:
@@ -42,13 +40,6 @@ services:
 
   web:
     image: wilde123569/mobile-shop-web-prod:latest
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      # Truyền biến vào lúc build Next.js
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-        NEXT_PUBLIC_EMAILJS_PUBLIC_KEY: ${NEXT_PUBLIC_EMAILJS_PUBLIC_KEY}
     container_name: mobile-shop-web-prod
     restart: unless-stopped
     ports:

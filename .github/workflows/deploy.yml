@@ -30,10 +30,13 @@ jobs:
       - name: 4. Build & Push Web Image
         uses: docker/build-push-action@v4
         with:
-          context: ./apps/web  # Đường dẫn tới thư mục Web (Sửa nếu cần)
+          context: .  # Đường dẫn tới thư mục Web (Sửa nếu cần)
           file: ./apps/web/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/mobile-shop-web:latest
+          build-args: | # <--- THÊM ĐOẠN NÀY ĐỂ BƠM BIẾN CHO NEXT.JS
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY }}
 
   # GIAI ĐOẠN 2: CHUI VÀO EC2 KÉO CODE VỀ CHẠY
   deploy-to-ec2:
