@@ -61,11 +61,17 @@ jobs:
           script: |
             cd ~/mobile-shop-mgmt
             
-            # Tải bản mới nhất từ kho về (Mất 10 giây, cực nhẹ)
+            # 1. Tạo file .env từ GitHub Secret để Server xài lúc chạy
+            echo "${{ secrets.PROD_ENV_FILE }}" > .env
+            
+            # 2. Tải bản mới nhất từ kho về
             docker compose -f docker-compose.prod.yml pull
             
-            # Chạy lên (Mất 5 giây)
+            # 3. Chạy lên (Lúc này compose sẽ tự động đọc file .env ở cùng thư mục)
             docker compose -f docker-compose.prod.yml up -d
             
-            # Dọn rác Image bản cũ cho sạch ổ cứng
+            # 4. Xoá file .env đi để bảo mật (Docker đã ngậm biến vào bộ nhớ)
+            rm -f .env
+            
+            # 5. Dọn rác Image bản cũ
             docker image prune -f
