@@ -76,6 +76,9 @@ jobs:
             
             # 3. Chạy lên (Lúc này compose sẽ tự động đọc file .env ở cùng thư mục)
             docker compose -f docker-compose.prod.yml up -d
+
+            # Ép Nginx đọc lại cấu hình mới nhất nếu có thay đổi
+            docker exec mobile-shop-nginx nginx -s reload
             
             # 4. Xoá file .env đi để bảo mật (Docker đã ngậm biến vào bộ nhớ)
             rm -f .env
