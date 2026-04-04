@@ -2,14 +2,16 @@ package middleware
 
 import (
 	"api/internal/config"
+	"api/internal/repository"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func Auth(cfg *config.Config) gin.HandlerFunc {
+func Auth(cfg *config.Config, userRepo *repository.UserRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Ưu tiên lấy token từ Cookie (HttpOnly)
 		tokenString, err := c.Cookie("access_token")
@@ -31,6 +33,12 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// ---> Kiểm tra Blacklist <---
+		if userRepo.IsTokenBlacklisted(tokenString) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token đã bị thu hồi. Vui lòng đăng nhập lại!"})
+			return
+		}
+
 		// 4. Parse và Verify Token
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 			return []byte(cfg.JWTSecret), nil
@@ -44,8 +52,15 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 		// (Optional) Lưu claims vào context nếu cần dùng ở handler sau
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			c.Set("userID", claims["sub"])
-			c.Set("tenantID", claims["tenant_id"]) // CỰC KỲ QUAN TRỌNG
+			c.Set("tenantID", claims["tenant_id"])
 			c.Set("role", claims["role"])
+
+			c.Set("rawToken", tokenString)
+			if exp, err := claims.GetExpirationTime(); err == nil && exp != nil {
+				c.Set("expiresAt", exp.Time)
+			} else if expFloat, ok := claims["exp"].(float64); ok {
+				c.Set("expiresAt", time.Unix(int64(expFloat), 0))
+			}
 		}
 
 		c.Next()

@@ -2,6 +2,7 @@ package service
 
 import (
 	"api/internal/auth"
+	"api/internal/mailer"
 	"api/internal/model"
 	"api/internal/repository"
 
@@ -88,9 +89,9 @@ func (s *AuthService) Login(input model.LoginInput) (string, *model.User, error)
 	}
 
 	// LOGIC REMEMBER ME:
-	tokenDuration := time.Hour * 24 // Mặc định 1 ngày
+	tokenDuration := time.Hour * 1 // Mặc định 1 tiếng
 	if input.RememberMe {
-		tokenDuration = time.Hour * 24 * 7 // Nếu chọn Remember Me -> 7 ngày
+		tokenDuration = time.Hour * 24 // Nếu chọn Remember Me -> 1 ngày
 	}
 
 	// Gọi TokenManager để tạo JWT
@@ -110,9 +111,8 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return err
 	}
 	if user == nil {
-		// Bảo mật: Không nên báo "Email không tồn tại", cứ báo thành công giả hoặc lỗi chung
-		// Nhưng để dev dễ debug thì cứ return lỗi
-		return errors.New("Email không tồn tại trong hệ thống")
+		// Bảo mật: Báo thành công giả hoặc lỗi chung
+		return errors.New("Email không đúng!")
 	}
 
 	// --- RATE LIMITING (CHỐNG SPAM) ---
@@ -140,9 +140,12 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return err
 	}
 
-	// TODO: Gửi Email thật ở đây.
-	// Hiện tại: In ra console để test
-	fmt.Printf(">>> MOCK EMAIL: Link reset password: http://localhost:3000/reset-password?token=%s\n", token)
+	// Gửi Email thật ở đây.
+	err = mailer.SendResetPasswordEmail(user.Email, token)
+	if err != nil {
+		fmt.Println("❌ LỖI GỬI EMAIL:", err)
+		return errors.New("Không thể gửi email lúc này. Vui lòng thử lại sau.")
+	}
 
 	return nil
 }

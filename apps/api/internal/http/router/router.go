@@ -24,10 +24,10 @@ func NewRouter(
 
 	// --- CẤU HÌNH CORS ---
 	r.Use(cors.New(cors.Config{
-		// Cho phép Frontend gọi vào (đổi port nếu FE bạn chạy port khác)
+		// Cho phép Frontend gọi vào
 		AllowOrigins: []string{cfg.FrontendOrigin},
 
-		// Các method được phép (QUAN TRỌNG: Phải có PATCH vì ta vừa thêm API Patch)
+		// Các method được phép
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 
 		// Các Header được phép gửi lên
@@ -53,13 +53,13 @@ func NewRouter(
 		api.POST("/forgot-password", authHandler.ForgotPassword)
 		api.POST("/reset-password", authHandler.ResetPassword)
 
-		// API Logout
-		api.POST("/logout", authHandler.Logout)
-
 		// Protected Routes (Yêu cầu đăng nhập)
 		protected := api.Group("/")
-		protected.Use(middleware.Auth(cfg))
+		protected.Use(middleware.Auth(cfg, authHandler.Service.Repo))
 		{
+			// API Logout
+			protected.POST("/logout", authHandler.Logout)
+
 			// Phone Routes
 			phones := protected.Group("phones")
 			{

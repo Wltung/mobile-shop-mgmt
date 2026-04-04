@@ -126,3 +126,21 @@ func (r *UserRepo) IsSpamming(userID int) (bool, error) {
 	err := r.DB.Get(&count, query, userID)
 	return count > 0, err
 }
+
+// Lưu token vào danh sách đen
+func (r *UserRepo) BlacklistToken(token string, expiresAt time.Time) error {
+	cleanQuery := `DELETE FROM blacklisted_tokens WHERE expires_at < NOW()`
+	_, _ = r.DB.Exec(cleanQuery)
+
+	query := `INSERT IGNORE INTO blacklisted_tokens (token, expires_at) VALUES (?, ?)`
+	_, err := r.DB.Exec(query, token, expiresAt)
+	return err
+}
+
+// Kiểm tra token có nằm trong danh sách đen không
+func (r *UserRepo) IsTokenBlacklisted(token string) bool {
+	var count int
+	query := `SELECT count(*) FROM blacklisted_tokens WHERE token = ? LIMIT 1`
+	err := r.DB.Get(&count, query, token)
+	return count > 0 && err == nil
+}

@@ -4,7 +4,9 @@ import (
 	"api/internal/config"
 	"api/internal/model"
 	"api/internal/service"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,9 +46,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	// TÍNH TOÁN THỜI GIAN COOKIE (GIÂY)
-	maxAge := 3600 * 24 // 1 ngày
+	maxAge := 3600 // 1 tiếng
 	if input.RememberMe {
-		maxAge = 3600 * 24 * 7 // 7 ngày
+		maxAge = 3600 * 24 // 1 ngày
 	}
 
 	// --- SET COOKIE HTTPONLY ---
@@ -73,11 +75,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Thêm hàm Logout để xóa Cookie
+// Hàm Logout để xóa Cookie và Thu hồi Token
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// Set maxAge = -1 để trình duyệt xóa cookie ngay lập tức
+	// 1. Bắt Token do Middleware vừa kiểm tra xong truyền sang
+	rawToken := c.GetString("rawToken")
+	expiresAt, exists := c.Get("expiresAt")
+
+	// 2. Đưa vào Blacklist DB
+	if rawToken != "" && exists {
+		errDB := h.Service.Repo.BlacklistToken(rawToken, expiresAt.(time.Time))
+		if errDB != nil {
+			fmt.Println("❌ LỖI INSERT BLACKLIST:", errDB)
+		} else {
+			fmt.Println("✅ ĐÃ ĐƯA TOKEN VÀO BLACKLIST!")
+		}
+	} else {
+		fmt.Println("⚠️ KHÔNG TÌM THẤY TOKEN TỪ MIDDLEWARE CHUYỀN SANG")
+	}
+
+	// 3. Xóa cookie ở Browser
 	c.SetCookie("access_token", "", -1, "/", "", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "Đã đăng xuất"})
+	c.JSON(http.StatusOK, gin.H{"message": "Đã đăng xuất và vô hiệu hóa token an toàn"})
 }
 
 // API: POST /api/forgot-password
