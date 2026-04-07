@@ -1,27 +1,12 @@
+import AuthBannerLayout from "./AuthBannerLayout";
+
 // apps/web/src/components/auth/ForgotPasswordBanner.tsx
 export default function ForgotPasswordBanner() {
     return (
-        <div className="relative hidden flex-col justify-end overflow-hidden bg-[#101922] lg:flex lg:w-1/2">
-            {/* Background Image - Ảnh kỹ thuật viên sửa điện thoại */}
-            <div
-                className="absolute inset-0 h-full w-full bg-cover bg-center opacity-60"
-                style={{
-                    backgroundImage:
-                        "url('https://images.unsplash.com/photo-1591196155989-8755b7470223?q=80&w=2070&auto=format&fit=crop')",
-                }}
-            ></div>
-
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-primary/10 mix-blend-multiply"></div>
-
-            {/* Content */}
-            <div className="relative z-10 p-12 text-white">
-                <h2 className="mb-4 text-4xl font-bold">Mobile Shop Manager</h2>
-                <p className="max-w-md text-lg opacity-90">
-                    Khôi phục quyền truy cập vào hệ thống quản lý cửa hàng của
-                    bạn một cách an toàn và nhanh chóng.
-                </p>
-            </div>
-        </div>
+        <AuthBannerLayout
+            title="Khôi phục quyền truy cập"
+            description="Chỉ cần nhập email, chúng tôi sẽ gửi ngay liên kết an toàn để bạn lấy lại mật khẩu."
+            backgroundImage="https://lh3.googleusercontent.com/aida-public/AB6AXuBdoE8d17QMyB8MsoZgmbzawEKjpbc3BtRWs0Z7UvBOrrngxd5gHJ51y55s47gk_b7llfNEvWy5l6c2Zex9LEsUeRUkEH6pY2qgB-OqfapyZzFQgBvDqF9dudwUIJxqwSkv8qmUytFHKW4gm6If8W-rd_xU7hpw2Xb_LNvj4MO3L6fEXjjJa23aRJ21zleWIFv0hfiaoMB2NFHkiIAkYTo8KMQMPOQBT3EAB0rvML1PgQ7IIm8vndtk9a1zo5nUSKUS_W8vgY-F4z_m"
+        />
     )
 }

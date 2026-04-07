@@ -32,10 +32,10 @@ export default function LoginForm() {
                 {/* Header Form */}
                 <div className="flex flex-col gap-2">
                     <h2 className="text-3xl font-black leading-tight tracking-[-0.033em] text-[#111418] dark:text-white">
-                        Welcome back
+                        Chào mừng bạn
                     </h2>
                     <p className="text-base font-normal leading-normal text-[#617589] dark:text-gray-400">
-                        Please enter your details to sign in.
+                        Vui lòng nhập thông tin của bạn để đăng nhập.
                     </p>
                 </div>
 
@@ -49,12 +49,12 @@ export default function LoginForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-sm font-medium text-[#111418] dark:text-white">
-                                        Email or Username
+                                        Email hoặc tên đăng nhập
                                     </FormLabel>
                                     <FormControl>
                                         <div className="relative">
                                             <Input
-                                                placeholder="name@company.com"
+                                                placeholder="example@shop.com"
                                                 className="h-12 border-[#dbe0e6] pl-11 focus:border-primary focus:ring-primary dark:border-gray-700 dark:bg-[#1a2632]"
                                                 {...field}
                                             />
@@ -75,7 +75,7 @@ export default function LoginForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-sm font-medium text-[#111418] dark:text-white">
-                                        Password
+                                        Mật khẩu
                                     </FormLabel>
                                     <FormControl>
                                         <div className="relative">
@@ -85,7 +85,7 @@ export default function LoginForm() {
                                                         ? 'text'
                                                         : 'password'
                                                 }
-                                                placeholder="Enter your password"
+                                                placeholder="Nhập mật khẩu"
                                                 className="h-12 border-[#dbe0e6] pl-11 pr-11 focus:border-primary focus:ring-primary dark:border-gray-700 dark:bg-[#1a2632]"
                                                 {...field}
                                             />
@@ -123,14 +123,14 @@ export default function LoginForm() {
                                     htmlFor="remember"
                                     className="cursor-pointer text-sm font-normal text-[#111418] hover:text-primary dark:text-white"
                                 >
-                                    Remember me
+                                    Ghi nhớ đăng nhập
                                 </Label>
                             </div>
                             <a
                                 href="/forgot-password"
                                 className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
                             >
-                                Forgot password?
+                                Quên mật khẩu?
                             </a>
                         </div>
 
@@ -143,7 +143,7 @@ export default function LoginForm() {
                             {isLoading && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
-                            Sign In
+                            Đăng nhập
                         </Button>
                     </form>
                 </Form>
@@ -151,12 +151,12 @@ export default function LoginForm() {
                 {/* Footer */}
                 <div className="mt-4 flex flex-col items-center gap-4 text-center">
                     <p className="text-sm text-[#617589] dark:text-gray-400">
-                        Don't have an account?{' '}
+                        Bạn chưa có tài khoản?{' '}
                         <Link
                             href="/contact"
                             className="font-medium text-primary transition-colors hover:text-primary/80"
                         >
-                            Contact Admin
+                            Liên hệ Quản trị viên
                         </Link>
                     </p>
                 </div>

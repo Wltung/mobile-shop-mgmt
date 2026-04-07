@@ -27,7 +27,7 @@ type User struct {
 }
 
 type RegisterInput struct {
-	TenantName string `json:"tenant_name"` // ĐÃ THÊM: Tên cửa hàng (FE gửi lên)
+	TenantName string `json:"tenant_name"`
 	Username   string `json:"username" binding:"required"`
 	Email      string `json:"email" binding:"required,email"`
 	Password   string `json:"password" binding:"required,min=6"`
