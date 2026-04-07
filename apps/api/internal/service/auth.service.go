@@ -111,8 +111,7 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return err
 	}
 	if user == nil {
-		// Bảo mật: Báo thành công giả hoặc lỗi chung
-		return errors.New("Email không đúng!")
+		return nil
 	}
 
 	// --- RATE LIMITING (CHỐNG SPAM) ---
@@ -122,7 +121,7 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 	}
 
 	if isSpam {
-		return errors.New("Thao tác quá nhanh. Vui lòng đợi 1 phút trước khi thử lại.")
+		return nil
 	}
 
 	// Gọi TokenManager để tạo Random Token
@@ -131,8 +130,8 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return err
 	}
 
-	// Token hết hạn sau 15 phút
-	expiresAt := time.Now().Add(15 * time.Minute)
+	// Token hết hạn sau 3 phút
+	expiresAt := time.Now().Add(3 * time.Minute)
 
 	// Lưu vào DB
 	_ = s.Repo.DeleteResetTokens(user.ID)
@@ -140,12 +139,14 @@ func (s *AuthService) ForgotPassword(input model.ForgotPasswordInput) error {
 		return err
 	}
 
-	// Gửi Email thật ở đây.
-	err = mailer.SendResetPasswordEmail(user.Email, token)
-	if err != nil {
-		fmt.Println("❌ LỖI GỬI EMAIL:", err)
-		return errors.New("Không thể gửi email lúc này. Vui lòng thử lại sau.")
-	}
+	// Tách việc gửi Mail ra một luồng ngầm (Goroutine)
+	// Nhờ vậy, API sẽ phản hồi thành công ngay lập tức (0.1 giây) mà không bắt Frontend phải chờ
+	go func() {
+		errMail := mailer.SendResetPasswordEmail(user.Email, token)
+		if errMail != nil {
+			fmt.Println("❌ LỖI GỬI EMAIL:", errMail)
+		}
+	}()
 
 	return nil
 }

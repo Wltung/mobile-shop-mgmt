@@ -13,7 +13,7 @@ const contactSchema = z.object({
         .regex(/(84|0[3|5|7|8|9])+([0-9]{8})\b/g, 'Số điện thoại không hợp lệ'),
     storeName: z.string().min(1, 'Vui lòng nhập tên cửa hàng'),
     email: z.string().email('Email không đúng định dạng'),
-    message: z.string().min(10, 'Lời nhắn quá ngắn (tối thiểu 10 ký tự)'),
+    message: z.string().max(500, "Lời nhắn không được vượt quá 500 ký tự").optional(),
 })
 
 export type ContactFormValues = z.infer<typeof contactSchema>

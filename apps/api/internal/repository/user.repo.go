@@ -68,10 +68,10 @@ func (r *UserRepo) GetUserByResetToken(token string) (*model.User, error) {
 	query := `
 		SELECT u.* FROM users u
 		JOIN password_resets pr ON u.id = pr.user_id
-		WHERE pr.token = ? AND pr.expires_at > NOW()
+		WHERE pr.token = ? AND pr.expires_at > ?
 		LIMIT 1
 	`
-	err := r.DB.Get(&user, query, token)
+	err := r.DB.Get(&user, query, token, time.Now())
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -117,13 +117,10 @@ func (r *UserRepo) GetByUsernameOrEmail(loginValue string) (*model.User, error) 
 
 func (r *UserRepo) IsSpamming(userID int) (bool, error) {
 	var count int
-	// Kiểm tra xem có record nào của user này được tạo trong 60s vừa qua không
-	// NOW() của MySQL sẽ so sánh với created_at của MySQL -> Cùng múi giờ
-	query := `
-        SELECT count(*) FROM password_resets 
-        WHERE user_id = ? AND created_at > NOW() - INTERVAL 1 MINUTE
-    `
-	err := r.DB.Get(&count, query, userID)
+	// Quét xem user này có token nào CÒN HẠN (chưa qua 15 phút) không
+	query := `SELECT count(*) FROM password_resets WHERE user_id = ? AND expires_at > ?`
+
+	err := r.DB.Get(&count, query, userID, time.Now())
 	return count > 0, err
 }
 
