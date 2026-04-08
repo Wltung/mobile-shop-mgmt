@@ -80,7 +80,7 @@ mobile-shop-mgmt/
 ├── packages/               # Shared packages (optional)
 ├── docker-compose.yml      # Dev environment
 └── docker-compose.prod.yml # Production environment
-
+```
 ---
 
 ## 🗄️ Database Schema Tổng quan
@@ -168,8 +168,3 @@ Hệ thống triển khai tự động lên AWS EC2 thông qua GitHub Actions:
   - Chuỗi cửa hàng  
   - Startup bán lẻ thiết bị di động  
   - Hệ thống quản lý nội bộ  
-
----
-
-## 📜 License
-MIT License
