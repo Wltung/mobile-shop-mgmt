@@ -4,7 +4,7 @@ Một hệ thống quản lý bán hàng toàn diện (ERP) dành cho các cửa
 
 ---
 
-## 🚀 Tính năng nổi bật
+## Tính năng nổi bật
 
 ### 🔐 Xác thực & Phân quyền an toàn
 - Đăng nhập/Đăng ký với JWT (Access Token lưu qua HttpOnly Cookie).
@@ -99,7 +99,7 @@ Các bảng chính:
 
 ## 💻 Hướng dẫn cài đặt (Local Development)
 
-### ⚙️ Yêu cầu môi trường
+### Yêu cầu môi trường
 - Node.js >= 18.x  
 - pnpm  
 - Go >= 1.22  
@@ -128,7 +128,7 @@ go run cmd/main.go
 ~~~
 
 API chạy tại:  
-👉 http://localhost:9000  
+    http://localhost:9000  
 
 ---
 
@@ -141,7 +141,7 @@ pnpm dev
 ~~~
 
 App chạy tại:  
-👉 http://localhost:3000  
+    http://localhost:3000  
 
 ---
 
@@ -161,7 +161,7 @@ Hệ thống triển khai tự động lên AWS EC2 thông qua GitHub Actions:
 
 ---
 
-## 📌 Ghi chú
+## Ghi chú
 
 - Hệ thống thiết kế theo hướng **scalable & multi-tenant**  
 - Phù hợp cho:
