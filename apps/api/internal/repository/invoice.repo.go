@@ -157,10 +157,11 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, tenantID in
 	defer tx.Rollback()
 
 	var currentInv struct {
+		Type      string    `db:"type"`
 		Status    string    `db:"status"`
 		CreatedAt time.Time `db:"created_at"`
 	}
-	err = tx.Get(&currentInv, "SELECT status, created_at FROM invoices WHERE id = ? AND tenant_id = ?", id, tenantID)
+	err = tx.Get(&currentInv, "SELECT type, status, created_at FROM invoices WHERE id = ? AND tenant_id = ?", id, tenantID)
 	if err != nil {
 		return errors.New("hoá đơn không tồn tại hoặc không có quyền truy cập")
 	}
@@ -250,14 +251,35 @@ func (r *InvoiceRepo) Update(id int, input model.UpdateInvoiceInput, tenantID in
 		}
 
 		if input.ActualSalePrice != "" {
-			updateInvSql := `
-				UPDATE invoices 
-				SET total_amount = ?, 
-					discount = (SELECT amount FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1) - ?
-				WHERE id = ? AND tenant_id = ?
-			`
-			if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, input.ActualSalePrice, id, tenantID); err != nil {
-				return err
+			// NẾU LÀ HOÁ ĐƠN NHẬP
+			if currentInv.Type == model.InvoiceTypeImport {
+				// 1. Cập nhật thẳng Đơn giá mới vào bảng invoice_items
+				updateItemPriceSql := `UPDATE invoice_items SET unit_price = ?, amount = ? WHERE invoice_id = ? AND item_type = 'PHONE'`
+				if _, err := tx.Exec(updateItemPriceSql, input.ActualSalePrice, input.ActualSalePrice, id); err != nil {
+					return err
+				}
+
+				// 2. Cập nhật Tổng tiền hoá đơn và ép cứng discount = 0
+				updateInvSql := `
+					UPDATE invoices 
+					SET total_amount = ?, discount = 0
+					WHERE id = ? AND tenant_id = ?
+				`
+				if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, tenantID); err != nil {
+					return err
+				}
+
+			} else {
+				// LOGIC DÀNH CHO HOÁ ĐƠN BÁN VÀ SỬA CHỮA
+				updateInvSql := `
+					UPDATE invoices 
+					SET total_amount = ?, 
+						discount = (SELECT amount FROM invoice_items WHERE invoice_id = ? AND item_type = 'PHONE' LIMIT 1) - ?
+					WHERE id = ? AND tenant_id = ?
+				`
+				if _, err := tx.Exec(updateInvSql, input.ActualSalePrice, id, input.ActualSalePrice, id, tenantID); err != nil {
+					return err
+				}
 			}
 		}
 	}

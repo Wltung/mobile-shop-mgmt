@@ -1,4 +1,4 @@
-# 📱 Mobile Shop Management System (ERP)
+# Mobile Shop Management System (ERP)
 
 Một hệ thống quản lý bán hàng toàn diện (ERP) dành cho các cửa hàng kinh doanh thiết bị di động. Hệ thống được thiết kế theo kiến trúc **Monorepo** với khả năng hỗ trợ **Multi-tenant (Đa cửa hàng)**, giúp quản lý liền mạch từ kho bãi, bán hàng, hóa đơn đến sửa chữa và bảo hành.
 
@@ -83,7 +83,7 @@ mobile-shop-mgmt/
 ```
 ---
 
-## 🗄️ Database Schema Tổng quan
+## Database Schema Tổng quan
 
 Các bảng chính:
 
@@ -97,7 +97,7 @@ Các bảng chính:
 
 ---
 
-## 💻 Hướng dẫn cài đặt (Local Development)
+## Hướng dẫn cài đặt (Local Development)
 
 ### Yêu cầu môi trường
 - Node.js >= 18.x  
@@ -149,7 +149,7 @@ App chạy tại:
 
 Hệ thống triển khai tự động lên AWS EC2 thông qua GitHub Actions:
 
-### 🔄 Quy trình:
+### Quy trình:
 1. Code được push/merge vào `main`  
 2. GitHub Actions:
    - Build Docker image (web + api)  

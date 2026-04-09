@@ -324,7 +324,7 @@ export default function InvoiceDetailPage() {
                             </DetailCard>
                         </div>
 
-                        {/* BLOCK TỔNG TIỀN (GIAO DIỆN ĐÃ FIX) */}
+                        {/* BLOCK TỔNG TIỀN */}
                         <DetailCard
                                 title="Tổng thanh toán"
                                 icon={<FileText className="h-5 w-5 text-amber-600" />}
@@ -341,7 +341,9 @@ export default function InvoiceDetailPage() {
                                 {/* Dòng Giảm giá (Chỉ hiển thị nếu có giảm giá) */}
                                 {discountValue > 0 && (
                                     <div className="flex justify-between items-center text-[15px]">
-                                        <span className="text-slate-500 font-medium">Khách được giảm</span>
+                                        <span className="text-slate-500 font-medium">
+                                            {invoice.type === 'IMPORT' ? 'Được giảm giá' : 'Khách được giảm'}
+                                        </span>
                                         <span className="text-emerald-600 font-bold">- {formatCurrency(discountValue)}</span>
                                     </div>
                                 )}
@@ -351,15 +353,17 @@ export default function InvoiceDetailPage() {
                             <div className="border-t border-slate-100 border-dashed pt-5 mt-auto flex justify-between items-end">
                                 <div className="flex flex-col gap-2">
                                     <span className="text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                                        Khách cần trả
+                                        {invoice.type === 'IMPORT' ? 'Cửa hàng cần trả' : 'Khách cần trả'}
                                     </span>
+                                    
+                                    {/* Render Badge Trạng thái dựa theo Loại hoá đơn */}
                                     {invoice.status === 'PAID' ? (
                                         <span className="inline-flex w-fit items-center text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded uppercase tracking-wide">
-                                            Đã thu đủ tiền
+                                            {invoice.type === 'IMPORT' ? 'Đã chi tiền' : 'Đã thu đủ tiền'}
                                         </span>
                                     ) : invoice.status === 'DRAFT' ? (
                                         <span className="inline-flex w-fit items-center text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded uppercase tracking-wide">
-                                            Chưa thu tiền
+                                            {invoice.type === 'IMPORT' ? 'Chưa chi tiền' : 'Chưa thu tiền'}
                                         </span>
                                     ) : (
                                         <span className="inline-flex w-fit items-center text-[11px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded uppercase tracking-wide">
